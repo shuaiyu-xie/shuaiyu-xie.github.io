@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph | 衍射的博客 | 记录学习中的点点滴滴</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="微服务,trace,根因定位,TSC">
+    <meta name="description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  1 摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能">
+<meta property="og:type" content="article">
+<meta property="og:title" content="[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph">
+<meta property="og:url" content="https://shuaiyuxie.github.io/2024/06/22/MicroDig/index.html">
+<meta property="og:site_name" content="衍射的博客">
+<meta property="og:description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  1 摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/GMTA-path.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/call-casual.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/hpg.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/structure.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/hpg-build.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/hpg-algo.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/HPG-example.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/random-walk.png">
+<meta property="article:published_time" content="2024-06-22T04:21:27.000Z">
+<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:author" content="谢帅宇">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="trace">
+<meta property="article:tag" content="根因定位">
+<meta property="article:tag" content="TSC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/GMTA-path.png">
+    
+        <link rel="alternate" type="application/atom+xml" title="衍射的博客" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="//unpkg.com/hexo-theme-material-indigo@latest/css/style.css">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <aside id="menu" class="hide" >
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+        <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">谢帅宇</h5>
+          <a href="mailto:634206017@qq.com" title="634206017@qq.com" class="mail">634206017@qq.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+            <li class="waves-block waves-effect">
+              <a href="/"  >
+                <i class="icon icon-lg icon-home"></i>
+                主页
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/archives"  >
+                <i class="icon icon-lg icon-archives"></i>
+                Archives
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/tags"  >
+                <i class="icon icon-lg icon-tags"></i>
+                Tags
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/categories"  >
+                <i class="icon icon-lg icon-th-list"></i>
+                Categories
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="https://github.com/yscoder" target="_blank" >
+                <i class="icon icon-lg icon-github"></i>
+                Github
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="http://www.weibo.com/ysweb" target="_blank" >
+                <i class="icon icon-lg icon-weibo"></i>
+                Weibo
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/custom"  >
+                <i class="icon icon-lg icon-link"></i>
+                测试
+              </a>
+            </li>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2024-06-22T04:21:27.000Z" itemprop="datePublished" class="page-time">
+  2024-06-22
+</time>
+
+
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-动机"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 动机</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-调用关系≠异常传播的因果关系"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 调用关系≠异常传播的因果关系</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-异构传播图"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 异构传播图</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#4-MicroDig-架构"><span class="post-toc-number">4.</span> <span class="post-toc-text">4 MicroDig 架构</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-1-Association-Call-Identification"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">4.1 Association Call Identification</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-1-构造port-level-异常子图"><span class="post-toc-number">4.1.1.</span> <span class="post-toc-text">4.1.1 构造port-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-2-构造service-level-异常子图"><span class="post-toc-number">4.1.2.</span> <span class="post-toc-text">4.1.2 构造service-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-3-构造-Heterogeneous-Propagation-Graph"><span class="post-toc-number">4.1.3.</span> <span class="post-toc-text">4.1.3 构造 Heterogeneous Propagation Graph</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-2-根因服务定位"><span class="post-toc-number">4.2.</span> <span class="post-toc-text">4.2 根因服务定位</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-2-1-转移权重"><span class="post-toc-number">4.2.1.</span> <span class="post-toc-text">4.2.1 转移权重</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-2-2-异构随机游走"><span class="post-toc-number">4.2.2.</span> <span class="post-toc-text">4.2.2 异构随机游走</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">5.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">6.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-MicroDig"
+  class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2024-06-22 12:21:27" datetime="2024-06-22T04:21:27.000Z"  itemprop="datePublished">2024-06-22</time>
+
+            
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style='display:none'>
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <blockquote>
+<p>题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</p>
+<p>来源：TSC 2024</p>
+<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
+</blockquote>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
+<ul>
+<li>基于调用和微服务之间的因果关系构建异构传播图</li>
+<li>采样面向异构的随机游走算法进行根因服务定位</li>
+</ul>
+<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3 accuracy。</p>
+<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
+<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150 billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end aggregated calls）。</p>
+<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
+<p>注：aggregated call在GMTA中提到过，应该就是一段时间（比如1 min）内trace的聚合：</p>
+<center>
+   <img src="/imgs/MicroDig/GMTA-path.png"/>
+   </center>
+
+
+<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。<br>【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
+<h2 id="3-动机"><a href="#3-动机" class="headerlink" title="3 动机"></a>3 动机</h2><h3 id="3-1-调用关系≠异常传播的因果关系"><a href="#3-1-调用关系≠异常传播的因果关系" class="headerlink" title="3.1 调用关系≠异常传播的因果关系"></a>3.1 调用关系≠异常传播的因果关系</h3><p>文章举了一个例子来说明这个观点：</p>
+<center>
+   <img src="/imgs/MicroDig/call-casual.png"/>
+   </center>
+
+<p>$A \to B \to C$ 的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是$C$，然而，操作员却没有在$C$中发现有意义的故障报告。因为 $B$ 已经用尽了文件描述符，无法建立与 $C$ 的新连接，所以$B \to C$有大量的异常出现。所以根因是$B$不是$C$，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
+<blockquote>
+<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
+</blockquote>
+<h3 id="3-2-异构传播图"><a href="#3-2-异构传播图" class="headerlink" title="3.2 异构传播图"></a>3.2 异构传播图</h3><p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous propagation graph）来描述故障传播的因果关系：</p>
+<center>
+   <img src="/imgs/MicroDig/hpg.png"/>
+   </center>
+
+<ul>
+<li><p>如上图所示，$R(A,B)$ 代表$A \to B$的异常率（anomaly rate），$R(A)$ 代表服务$A$ 本身的异常率。注意，服务本身的异常率，如$R(A)$，在这个工作中是不可观测的；边的异常率，如$R(A,B)$，是可以被观测的。</p>
+</li>
+<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如$R(A) \to R(A,B)$）。</p>
+</li>
+<li><p>文章添加了一些假设：①服务之间是独立的，比如$R(A)$和$R(B)$是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如$R(A,B)$和$R(C,D)$</p>
+</li>
+</ul>
+<p>根据作者的设计，这里应该就能看到$R(B,C)$是受$R(B)$和$R(C)$影响的了，从某种意义上给3.1的问题提供了思路。</p>
+<h2 id="4-MicroDig-架构"><a href="#4-MicroDig-架构" class="headerlink" title="4 MicroDig 架构"></a>4 MicroDig 架构</h2><center>
+   <img src="/imgs/MicroDig/structure.png"/>
+   </center>
+
+<p>可以看到MicroDig分为几个部分：</p>
+<ol>
+<li>性能监控 (Monitoring)</li>
+<li>相关调用的识别 (Association Call Identification)</li>
+<li>异构传播图的构建 (Heterogeneous Propagation Graph Construction)</li>
+<li>根因定位 (Root Cause Localization)</li>
+</ol>
+<h3 id="4-1-Association-Call-Identification"><a href="#4-1-Association-Call-Identification" class="headerlink" title="4.1 Association Call Identification"></a>4.1 Association Call Identification</h3><p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
+<h4 id="4-1-1-构造port-level-异常子图"><a href="#4-1-1-构造port-level-异常子图" class="headerlink" title="4.1.1 构造port-level 异常子图"></a>4.1.1 构造<code>port-level</code> 异常子图</h4><p>文章首先构造 <code>port-level</code> 异常子图，<code>port-level</code>即接口级别，图中的节点都是接口， 具体步骤如下：</p>
+<ol>
+<li>构造 <code>port-level</code> 调用图（为什么选用<code>port-level</code>）</li>
+<li>在调用图上进行 <em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em> 对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
+</ol>
+<blockquote>
+<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
+</blockquote>
+<h4 id="4-1-2-构造service-level-异常子图"><a href="#4-1-2-构造service-level-异常子图" class="headerlink" title="4.1.2 构造service-level 异常子图"></a>4.1.2 构造<code>service-level</code> 异常子图</h4><p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务$S$和$S’$，定义$F(p,p’)$和$N(p,p’)$分别为其中<code>port-level</code>边$p \to p’$的异常调用数和总调用数，那么时间点$t$的$S \to S’$的异常率$R_t(S, S’)$为：</p>
+<p>$$<br>    R_t(S, S’)&#x3D;\frac{\sum_{p\in S, p’ \in S’}F_t(p,p’)}{\sum_{p\in S, p’ \in S’}N_t(p,p’)}<br>$$</p>
+<p>整个过程如图(a) (b)所示 ：</p>
+<center>
+   <img src="/imgs/MicroDig/hpg-build.png"/>
+   </center>
+
+
+<h4 id="4-1-3-构造-Heterogeneous-Propagation-Graph"><a href="#4-1-3-构造-Heterogeneous-Propagation-Graph" class="headerlink" title="4.1.3 构造 Heterogeneous Propagation Graph"></a>4.1.3 构造 Heterogeneous Propagation Graph</h4><p>3.1 中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous Propagation Graph （HPG）：</p>
+<center>
+   <img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
+   </center>
+
+<p>原理很简单：</p>
+<ol>
+<li><strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到 HPG</li>
+<li><strong>设置call节点</strong>：对于每个服务$S$，将$S$的出边和入边作为节点加入HPG</li>
+<li><strong>call节点和service节点的关系</strong>：对于每个call节点（$S \to S’$），设置 $S \to (S \to S’)$，$(S \to S’) \to S’$</li>
+<li><strong>call节点和call节点的关系</strong>：对于每个服务$S$，设置：出边 $\to$ 入边</li>
+</ol>
+<h3 id="4-2-根因服务定位"><a href="#4-2-根因服务定位" class="headerlink" title="4.2 根因服务定位"></a>4.2 根因服务定位</h3><p>异构传播图（HPG）有两种节点（service，call）和两种边（service $\to$ call, call $\to$ call）。本文采取针对异构图的随机游走算法来定位根因：</p>
+<center>
+   <img src="/imgs/MicroDig/HPG-example.png" width="300"/>
+   </center>
+
+<h4 id="4-2-1-转移权重"><a href="#4-2-1-转移权重" class="headerlink" title="4.2.1 转移权重"></a>4.2.1 转移权重</h4><p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
+<ol>
+<li><p>对于call $\to$ call：比如$C_{23} \to C_{12}$，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</p>
+</li>
+<li><p>对于service $\to$ call：比如$S_1 \to C_{12}$</p>
+<ul>
+<li><p>首先计算service的异常程度，定义$\mathbb{S}_U$和$\mathbb{S}_D$分别表示服务$S$的上游服务集合和下游服务集合，服务$S$的异常程度$\alpha_S$可以表示为：<br>$$<br> \alpha_S &#x3D; \frac{|{S’|S’\in \mathbb{S}_U \cup \mathbb{S}_D, \theta(S’)&#x3D;1 }|}{|\mathbb{S}_U \cup \mathbb{S}_D|}<br>$$<br>当$S’$有任意一条<code>port-level</code>的边是异常时，$\theta(S’)&#x3D;1$。</p>
+</li>
+<li><p>然后计算service $\to$ call的权重。对于任意一个call节点$C&#x3D;S_{caller} \to S_{callee}$，有两条service $\to$ call类型的边：$S_{caller} \to C$ 和 $C \to S_{callee}$。这两条边的权重分别为：$\omega_{caller}$ 和 $\omega_{callee}$，分别计算如下：<br>$$<br> \omega_{caller}&#x3D;max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]<br>$$</p>
+</li>
+</ul>
+<p>$$<br>   \omega_{callee}&#x3D;max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]<br>$$<br>其中，$\Delta \alpha &#x3D; \alpha(S_{caller})-\alpha(S_{callee})$，$\Delta \eta$即当前服务的所有入边的权重-所有出边的权重。</p>
+</li>
+</ol>
+<h4 id="4-2-2-异构随机游走"><a href="#4-2-2-异构随机游走" class="headerlink" title="4.2.2 异构随机游走"></a>4.2.2 异构随机游走</h4><p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
+<ul>
+<li><strong>backward edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward edge，权重是有向边的$\rho$倍。</li>
+<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
+</ul>
+<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
+<center>
+   <img src="/imgs/MicroDig/random-walk.png" width="500"/>
+   </center>
+
+
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ul>
+<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
+<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
+<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
+</ul>
+<h2 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h2><div><a name="GMTA"></a>
+[1] Guo X, Peng X, Wang H, et al. Graph-based trace analysis for microservice architecture understanding and problem diagnosis, ESEC/FSE. 2020: 1387-1397. <a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a>
+</div>
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/2024/06/22/MicroDig/" target="_blank" rel="external">https://shuaiyuxie.github.io/2024/06/22/MicroDig/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://shuaiyuxie.github.io">
+            <img src="/img/avatar.jpg" alt="谢帅宇">
+            谢帅宇
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+	<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/TSC/" rel="tag">TSC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/trace/" rel="tag">trace</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%A0%B9%E5%9B%A0%E5%AE%9A%E4%BD%8D/" rel="tag">根因定位</a></li></ul>
+
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&title=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&title=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/06/22/MicroDig/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between">
+  
+    <div class="waves-block waves-effect prev">
+      <a href="/2024/06/23/TraStrainer/" id="post-prev" class="post-nav-link">
+        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
+        <h4 class="title">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</h4>
+      </a>
+    </div>
+  
+
+  
+    <div class="waves-block waves-effect next">
+      <a href="/2024/05/13/MicoHECL/" id="post-next" class="post-nav-link">
+        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
+        <h4 class="title">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</h4>
+      </a>
+    </div>
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        谢谢大爷~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check"
+                data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style='display:none'>
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style='display:none'>
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>谢帅宇 &copy; 2015 - 2024</span>
+            <span>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&title=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&title=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/06/22/MicroDig/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/06/22/MicroDig/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACJUlEQVR42u3aUY7DMAhF0ex/05kFVE3vA3skk5uvUZuJfVIJgeG68HV/uT7vqd3/+V/XjkuGDBnHMu7Hi9yT8gib702GDBnvYXyLYCQ4flu+E6z53mTIkCHjmcHDMVlRhgwZMlYxgnQNp33Pn8iQIUMGL2LJoVj/adtrcRkyZBzI4Kfu///3lv6GDBkyjmKsPe4n4XXLrmTIkDGawZdJef10kO9HhgwZsxmrBizQ2wpDLRkgC7qpMmTIOJaRtgw7R127D+lkyJAxlVEb5ErbkCkvfa0yZMiYzeAh9blYTYczOq3KH0gZMmSMY/BylI+0du7Z8gvIkCHjcAY/0uKL1TbBE0r0y8iQIWMog4RInjiuKnGLz5EhQ8YgRifM7R4dC0KzDBkyRjPSFHDVJ7WtX+mbliFDxggGH/PqH8MR5PPqKDWUIUPGOAYJZ3xgq7/F2kuUIUPGbEa6ZFq+8hZC2mb4Md0mQ4aMQQweLjuBkj8/vbO4jAwZMg5n8GOv2kBq2mYImgcyZMh4GSMd86o1Bvi3MmTIkNF/RBoua8NhqIiVIUPGOMYdXp0RsfQF8YRVhgwZsxm1MMcnsuIjMzzGUQzZMmTIOJZRC7JpGOVBM22mypAh4z2MfgLXOfpPB8JkyJAhg6dlBFMreuMcVoYMGTKe24fhiBgP3AFehgwZL2CkoZMUljxo8sGOBbW4DBkyDmSkeRcvQWujYGTFYlNThgwZ5zH+AHNHx2VIQyY9AAAAAElFTkSuQmCC" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/main.min.js"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/search.min.js" async></script>
+
+
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+    tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+        processEscapes: true,
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+});
+
+MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+
+<script async src="//cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+
+
+
+
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+<script>
+(function() {
+    var OriginTitile = document.title, titleTime;
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            document.title = '死鬼去哪里了！';
+            clearTimeout(titleTime);
+        } else {
+            document.title = '(つェ⊂)咦!又好了!';
+            titleTime = setTimeout(function() {
+                document.title = OriginTitile;
+            },2000);
+        }
+    });
+})();
+</script>
+
+
+
+</body>
+</html>

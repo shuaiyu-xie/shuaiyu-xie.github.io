@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems | 衍射的博客 | 记录学习中的点点滴滴</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="微服务,trace,根因定位,ICSE">
+    <meta name="description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  1 摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方">
+<meta property="og:type" content="article">
+<meta property="og:title" content="[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems">
+<meta property="og:url" content="https://shuaiyuxie.github.io/2024/05/13/MicoHECL/index.html">
+<meta property="og:site_name" content="衍射的博客">
+<meta property="og:description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  1 摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/MicroHECL.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/direction.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/chain.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/metrics.png">
+<meta property="article:published_time" content="2024-05-13T02:35:47.000Z">
+<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:author" content="谢帅宇">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="trace">
+<meta property="article:tag" content="根因定位">
+<meta property="article:tag" content="ICSE">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/MicroHECL.png">
+    
+        <link rel="alternate" type="application/atom+xml" title="衍射的博客" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="//unpkg.com/hexo-theme-material-indigo@latest/css/style.css">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <aside id="menu" class="hide" >
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+        <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">谢帅宇</h5>
+          <a href="mailto:634206017@qq.com" title="634206017@qq.com" class="mail">634206017@qq.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+            <li class="waves-block waves-effect">
+              <a href="/"  >
+                <i class="icon icon-lg icon-home"></i>
+                主页
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/archives"  >
+                <i class="icon icon-lg icon-archives"></i>
+                Archives
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/tags"  >
+                <i class="icon icon-lg icon-tags"></i>
+                Tags
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/categories"  >
+                <i class="icon icon-lg icon-th-list"></i>
+                Categories
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="https://github.com/yscoder" target="_blank" >
+                <i class="icon icon-lg icon-github"></i>
+                Github
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="http://www.weibo.com/ysweb" target="_blank" >
+                <i class="icon icon-lg icon-weibo"></i>
+                Weibo
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/custom"  >
+                <i class="icon icon-lg icon-link"></i>
+                测试
+              </a>
+            </li>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2024-05-13T02:35:47.000Z" itemprop="datePublished" class="page-time">
+  2024-05-13
+</time>
+
+
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-MicroHECL-概述"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 MicroHECL 概述</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-服务调用图构建"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 服务调用图构建</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-异常传播链分析"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 异常传播链分析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-1-分析入口服务"><span class="post-toc-number">3.2.1.</span> <span class="post-toc-text">3.2.1 分析入口服务</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-2-异常传播链扩展"><span class="post-toc-number">3.2.2.</span> <span class="post-toc-text">3.2.2 异常传播链扩展</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-2-候选根因定位"><span class="post-toc-number">3.2.3.</span> <span class="post-toc-text">3.2.2 候选根因定位</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-3-服务异常检测"><span class="post-toc-number">3.3.</span> <span class="post-toc-text">3.3 服务异常检测</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-1-性能异常检测"><span class="post-toc-number">3.3.1.</span> <span class="post-toc-text">3.3.1 性能异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-2-可靠性异常检测"><span class="post-toc-number">3.3.2.</span> <span class="post-toc-text">3.3.2 可靠性异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-3-流量异常检测"><span class="post-toc-number">3.3.3.</span> <span class="post-toc-text">3.3.3 流量异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-4-剪枝"><span class="post-toc-number">3.3.4.</span> <span class="post-toc-text">3.3.4 剪枝</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">4.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">5.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-MicoHECL"
+  class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2024-05-13 10:35:47" datetime="2024-05-13T02:35:47.000Z"  itemprop="datePublished">2024-05-13</time>
+
+            
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style='display:none'>
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <blockquote>
+<p>题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</p>
+<p>来源：ICSE 2021</p>
+<p>作者：复旦大学CodeWisdom团队，阿里云</p>
+</blockquote>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
+<ul>
+<li>动态构建一段时间窗口内的服务调用图</li>
+<li>对不同异常类型进行个性化异常检测</li>
+<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
+</ul>
+<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><p>工业微服务系统包含大量的微服务（e.g., alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
+<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
+<ul>
+<li>性能异常（Performance Anomaly）</li>
+<li>可靠性异常（Reliability Anomaly）</li>
+<li>流量异常（Traffic Anomaly）</li>
+</ul>
+<h2 id="3-MicroHECL-概述"><a href="#3-MicroHECL-概述" class="headerlink" title="3 MicroHECL 概述"></a>3 MicroHECL 概述</h2><center>
+   <img src="/imgs/MicroHECL/MicroHECL.png"/>
+   </center>
+
+<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
+<h3 id="3-1-服务调用图构建"><a href="#3-1-服务调用图构建" class="headerlink" title="3.1 服务调用图构建"></a>3.1 服务调用图构建</h3><p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<em><strong>30min</strong></em>内的服务依赖图（service call graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如$S_i \to S_j$代表微服务$S_i$调用了微服务$S_j$；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
+<h3 id="3-2-异常传播链分析"><a href="#3-2-异常传播链分析" class="headerlink" title="3.2 异常传播链分析"></a>3.2 异常传播链分析</h3><p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
+<ul>
+<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
+<li>异常传播链扩展</li>
+<li>根因排序</li>
+</ul>
+<h4 id="3-2-1-分析入口服务"><a href="#3-2-1-分析入口服务" class="headerlink" title="3.2.1 分析入口服务"></a>3.2.1 分析入口服务</h4><p>文章首先根据经验定义了三种故障类型的传播方向：</p>
+<center>
+   <img src="/imgs/MicroHECL/direction.png" width="500"/>
+   </center>
+
+<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
+<center>
+   <img src="/imgs/MicroHECL/chain.png"/>
+   </center>
+
+<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig. 2所示，整个过程描述如下：</p>
+<blockquote>
+<ol>
+<li>将入口服务$S_5$纳入异常传播链</li>
+<li>异常检测。检测$S_5$的邻居节点$S_4$和$S_7$的异常类型</li>
+<li>确认$S_4$的异常类型为<strong>Traffic Anomaly</strong>，$S_7$的异常类型为<strong>Performance Anomaly</strong></li>
+<li>检测是否符合传播方向（$S_4$是否是$S_5$的上游，$S_7$是否是$S_5$的下游）</li>
+<li>符合，将$S_4$和$S_7$添加到异常传播链</li>
+<li>从$S_4$和$S_7$出发，对邻居节点重复上述步骤</li>
+</ol>
+</blockquote>
+<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a href="#33-%E6%9C%8D%E5%8A%A1%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B">3.3节</a>会提到。</p>
+<h4 id="3-2-2-异常传播链扩展"><a href="#3-2-2-异常传播链扩展" class="headerlink" title="3.2.2 异常传播链扩展"></a>3.2.2 异常传播链扩展</h4><p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游&#x2F;下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig. 2对于$S_4$方向的传播分析，以$S_1$结束；对于$S_7$方向的传播分析，以$S_9$和$S_{10}$结束。</p>
+<h4 id="3-2-2-候选根因定位"><a href="#3-2-2-候选根因定位" class="headerlink" title="3.2.2 候选根因定位"></a>3.2.2 候选根因定位</h4><p>本文选择异常传播链的末端服务作为候选根因，比如Fig. 2中的候选根因服务为$S_1$，$S_9$和$S_{10}$。那么如何排名呢？</p>
+<ul>
+<li>选取入口服务过去60min的业务指标 $X$</li>
+<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>, <code>EC</code> or <code>QPS</code>）$Y$</li>
+<li>计算两者之间的皮尔逊相关系数：</li>
+</ul>
+<p>$$<br>   P(X, Y)&#x3D;\frac{\sum_{i&#x3D;1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i&#x3D;1}^n{(X_i-\overline{X})^2}\sum_{i&#x3D;1}^n{(Y_i-\overline{Y})^2}}}<br>$$</p>
+<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
+<h3 id="3-3-服务异常检测"><a href="#3-3-服务异常检测" class="headerlink" title="3.3 服务异常检测"></a>3.3 服务异常检测</h3><p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance Anomaly，Reliability Anomaly，Traffic Anomaly）分别设计了异常检测方法。</p>
+<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
+<center>
+   <img src="/imgs/MicroHECL/metrics.png"/>
+   </center>
+
+<h4 id="3-3-1-性能异常检测"><a href="#3-3-1-性能异常检测" class="headerlink" title="3.3.1 性能异常检测"></a>3.3.1 性能异常检测</h4><p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig. 3 (d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
+<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
+<blockquote>
+<ul>
+<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
+<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4&#x3D;12种特征。</p>
+<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
+<h4 id="3-3-2-可靠性异常检测"><a href="#3-3-2-可靠性异常检测" class="headerlink" title="3.3.2 可靠性异常检测"></a>3.3.2 可靠性异常检测</h4><p>这里提到<code>EC</code>大多时候都是0（Fig.2 (b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
+<p>所以，文章采用随机森林（Random Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
+<blockquote>
+<ul>
+<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
+<li>检测窗口内最大错误率（<code>EC</code>&#x2F;sum(<code>QPS</code>)）。</li>
+<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
+<h4 id="3-3-3-流量异常检测"><a href="#3-3-3-流量异常检测" class="headerlink" title="3.3.3 流量异常检测"></a>3.3.3 流量异常检测</h4><p><code>QPS</code>大多满足正态分布（Fig.2 (c,f)），所以直接采用3-sigma进行检测。</p>
+<blockquote>
+<p>这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
+</blockquote>
+<p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，选择过去<em><strong>1h</strong></em>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
+<h4 id="3-3-4-剪枝"><a href="#3-3-4-剪枝" class="headerlink" title="3.3.4 剪枝"></a>3.3.4 剪枝</h4><p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
+<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
+<blockquote>
+<p>例子：Fig. 2中的 $S_1 \to S_4$ 和 $S_4 \to S_5$ 都是<strong>Traffic Anomaly</strong> 的传播路径，如果$S_1 \to S_4$ 的 <code>QPS</code> 和 $S_4 \to S_5$ 的 <code>QPS</code> 没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉$S_1 \to S_4$，那么$S_4$就取代$S_1$变成了候选根因。</p>
+</blockquote>
+<p>这里的检测窗口选取的过去<em><strong>60min</strong></em>。剪枝操作执行在异常节点加入异常调用链之前。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
+<h2 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h2><div><a name="ImpactTracer"></a>
+[1] Xie R, Yang J, Li J, et al. ImpactTracer: Root Cause Localization in Microservices Based on Fault Propagation Modeling, (DATE), 2023. <a>https://ieeexplore.ieee.org/abstract/document/10137078/</a>
+</div>
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/2024/05/13/MicoHECL/" target="_blank" rel="external">https://shuaiyuxie.github.io/2024/05/13/MicoHECL/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://shuaiyuxie.github.io">
+            <img src="/img/avatar.jpg" alt="谢帅宇">
+            谢帅宇
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+	<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ICSE/" rel="tag">ICSE</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/trace/" rel="tag">trace</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%A0%B9%E5%9B%A0%E5%AE%9A%E4%BD%8D/" rel="tag">根因定位</a></li></ul>
+
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&title=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&title=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between">
+  
+    <div class="waves-block waves-effect prev">
+      <a href="/2024/06/22/MicroDig/" id="post-prev" class="post-nav-link">
+        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
+        <h4 class="title">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</h4>
+      </a>
+    </div>
+  
+
+  
+    <div class="waves-block waves-effect next">
+      <a href="/2024/05/08/alibaba-traces-socc-2021/" id="post-next" class="post-nav-link">
+        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
+        <h4 class="title">[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</h4>
+      </a>
+    </div>
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        谢谢大爷~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check"
+                data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style='display:none'>
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style='display:none'>
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>谢帅宇 &copy; 2015 - 2024</span>
+            <span>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&title=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&title=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/05/13/MicoHECL/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACLklEQVR42u3aMW7DMAwF0Nz/0ilQdOhQN/9TTgDLT1OgIdbTQFAkH494Pb9Xsv/8tY72k/V4x8LAwLgsI/m75FhHvBkpPxsGBsZ9GP8H0xmjvZTku4f7GBgYGEHSVnwySCIxMDAwVgJuG3zbBBQDAwNj5RGbFNdWwveH3uIYGBgXZLSNgU/+fmN/AwMD4yKM56krv4Kz2pw//4CBgbE1Iy+l5cF3dsSkGPfihBgYGDdgJBlXXnprc7mk8fni6jEwMLZmtGNe/++3gxfrxTsMDIy9GckH1oe66qAZ8168xTEwMLZgnDv+NUso2397kRRiYGBsx2gHIPLEMb+Otnh32N/AwMDYlLFSsm8blm1IzZ/EGBgYd2DMAtzs0bvyxI0SSgwMjO0YeWCdjWq1wXQ2p4qBgXFnxvrDsk3y8pZD3WHAwMC4LGNWV185ejuWUYRmDAyMrRkJ4KxRsDaJrJupGBgYmzJm4xEr5bZ8Z1h0w8DA2I6x0lZMyvptc3S9qYCBgbEfo03d2rZBAk6+MuwbYGBgbMRIyvGzY+VP33a4/4+Ai4GBsSljdsS8SNc2PtuaPwYGxt6MlWGvlaOsNzIPx8IwMDC2Y7TDo+3Td5bevSO5xMDAuDpjViw7awgjKf/V0yIYGBibMtrCWR4o8zGLtoGBgYGBsXKsfJwiL/8V9UIMDIwbM/LGQB6a24vDwMC4MyMfC5sNsLb7GBgYGO1q08T2yvIw3TZNMTAwLs74AjflGQbSjPfLAAAAAElFTkSuQmCC" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/main.min.js"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/search.min.js" async></script>
+
+
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+    tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+        processEscapes: true,
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+});
+
+MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+
+<script async src="//cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+
+
+
+
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+<script>
+(function() {
+    var OriginTitile = document.title, titleTime;
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            document.title = '死鬼去哪里了！';
+            clearTimeout(titleTime);
+        } else {
+            document.title = '(つェ⊂)咦!又好了!';
+            titleTime = setTimeout(function() {
+                document.title = OriginTitile;
+            },2000);
+        }
+    });
+})();
+</script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis | 衍射的博客 | 记录学习中的点点滴滴</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="微服务,trace,实证分析,SoCC">
+    <meta name="description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  1 摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的tra">
+<meta property="og:type" content="article">
+<meta property="og:title" content="[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis">
+<meta property="og:url" content="https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/index.html">
+<meta property="og:site_name" content="衍射的博客">
+<meta property="og:description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  1 摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的tra">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/microservice.jpg">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/trace-demo.jpg">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/service-num-heavy-distribution.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/depth-svcnum.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/heat.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/degree.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/clusters.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/dist-invo-type.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/parallel.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/resource-mcr.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/resource-RT.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/RT-mcr.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/graph-generator.png">
+<meta property="article:published_time" content="2024-05-08T03:28:33.000Z">
+<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:author" content="谢帅宇">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="trace">
+<meta property="article:tag" content="实证分析">
+<meta property="article:tag" content="SoCC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/microservice.jpg">
+    
+        <link rel="alternate" type="application/atom+xml" title="衍射的博客" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="//unpkg.com/hexo-theme-material-indigo@latest/css/style.css">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <aside id="menu" class="hide" >
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+        <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">谢帅宇</h5>
+          <a href="mailto:634206017@qq.com" title="634206017@qq.com" class="mail">634206017@qq.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+            <li class="waves-block waves-effect">
+              <a href="/"  >
+                <i class="icon icon-lg icon-home"></i>
+                主页
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/archives"  >
+                <i class="icon icon-lg icon-archives"></i>
+                Archives
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/tags"  >
+                <i class="icon icon-lg icon-tags"></i>
+                Tags
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/categories"  >
+                <i class="icon icon-lg icon-th-list"></i>
+                Categories
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="https://github.com/yscoder" target="_blank" >
+                <i class="icon icon-lg icon-github"></i>
+                Github
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="http://www.weibo.com/ysweb" target="_blank" >
+                <i class="icon icon-lg icon-weibo"></i>
+                Weibo
+              </a>
+            </li>
+        
+            <li class="waves-block waves-effect">
+              <a href="/custom"  >
+                <i class="icon icon-lg icon-link"></i>
+                测试
+              </a>
+            </li>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2024-05-08T03:28:33.000Z" itemprop="datePublished" class="page-time">
+  2024-05-08
+</time>
+
+
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#2-1-微服务架构"><span class="post-toc-number">2.1.</span> <span class="post-toc-text">2.1 微服务架构</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#2-2-Alibaba-Trace"><span class="post-toc-number">2.2.</span> <span class="post-toc-text">2.2 Alibaba Trace</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-调用图的剖析"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 调用图的剖析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-微服务调用图特征"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 微服务调用图特征</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-微服务调用关系特征"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 微服务调用关系特征</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#4-微服务之间的依赖"><span class="post-toc-number">4.</span> <span class="post-toc-text">4 微服务之间的依赖</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-3-并行依赖"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">4.3 并行依赖</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#5-微服务的运行时性能"><span class="post-toc-number">5.</span> <span class="post-toc-text">5 微服务的运行时性能</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#5-1-MCR对资源的影响"><span class="post-toc-number">5.1.</span> <span class="post-toc-text">5.1 MCR对资源的影响</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#6-随机图模型"><span class="post-toc-number">6.</span> <span class="post-toc-text">6 随机图模型</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">7.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-alibaba-traces-socc-2021"
+  class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2024-05-08 11:28:33" datetime="2024-05-08T03:28:33.000Z"  itemprop="datePublished">2024-05-08</time>
+
+            
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style='display:none'>
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <blockquote>
+<p>题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</p>
+<p>来源：SoCC 2021</p>
+<p>作者：中国科学院深圳先进技术研究院, 阿里巴巴</p>
+</blockquote>
+<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace数据集<a href="#alibabaTrace"><sup>1</sup></a>进行了详细的实证分析，从以下角度揭示了<strong>生产环境</strong>下微服务系统的特点：</p>
+<ul>
+<li>微服务调用图的特点，与传统作业DAG的不同</li>
+<li>无状态微服务之间的依赖关系</li>
+<li>微服务系统的运行时性能受哪些因素的影响</li>
+</ul>
+<p>此外，现有的微服务benchmark也存在一些问题，如：</p>
+<ul>
+<li><b>规模太小</b>。经典的benchmark（如DeathStarBench<a href="#DeathStarBench"><sup>2</sup></a>），只包含数个微服务（不超过40）。在这些小规模的微服务benchmark上得到的结论不一定能推广到生产环境中；</li>
+<li><b>静态依赖</b>。这些benchmark的依赖关系都是静态的，无法模拟生产环境中常见的动态性。</li>
+</ul>
+<p>所以这篇文章还基于阿里巴巴的trace数据构建了一个仿真的数学模型，模拟大规模动态微服务系统。</p>
+<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><h3 id="2-1-微服务架构"><a href="#2-1-微服务架构" class="headerlink" title="2.1 微服务架构"></a>2.1 微服务架构</h3><p>这里首先介绍了微服务架构的调用图，以及图中常见的组件：</p>
+<center>
+<img src="/imgs/alibaba-traces-socc-2021/microservice.jpg"/>
+</center>
+
+<p>这里引入了几个关键术语：</p>
+<ul>
+<li><em><strong>Entering Microservice</strong></em>：入口微服务，即请求进入微服务系统的入口。通常是前端微服务。</li>
+<li><em><strong>UM, DM</strong></em>：分别指代一条调用链路的上游微服务（upstream microservice）和下游微服务（downstream microservice）。</li>
+</ul>
+<p>对于微服务种类，文章基于服务提供的功能将微服务划分为有状态微服务（stateful）和无状态微服务（stateless）。</p>
+<ul>
+<li><em><strong>stateful微服务</strong></em>：通常存储有一些状态数据，常见的有数据库（database）和缓存（memCached），它们大多的接口大多分为两类：reading 和 writing。</li>
+<li><em><strong>stateless微服务</strong></em>：不存储状态数据，所以可以轻松的伸缩，它们通常提供成百上千个不同接口，用于完成不同的业务功能。</li>
+</ul>
+<p>对于微服务交互种类，文章基于交互协议划分了三种类别：</p>
+<ul>
+<li><em><strong>IP</strong></em>：进程间通信（Inter Process communication），常发生在stateless微服务和stateful微服务之间。</li>
+<li><em><strong>RPC</strong></em>：远程过程调用（Remote Procedure Call），一种双向通信，DM必须返回给UM结果。</li>
+<li><em><strong>MQ</strong></em>：消息队列（Message Queue），一种单向通信，UM发送消息到第三方中间件（消息队列），消息队列储存这个消息，直到DM主动取出这个消息。</li>
+</ul>
+<p>一般来说，RPC效率高，MQ更加灵活。</p>
+<p>此外，还介绍了两个概念：调用深度（call depth）和响应延迟（RT）。</p>
+<ul>
+<li><em><strong>call depth</strong></em>：调用深度指调用图中最长的路径长度，比如Figure 1中的调用图长度为5。</li>
+<li><em><strong>RT</strong></em>：从UM发出请求到UM收到回复的时长。即使同一种接口的请求也会因为参数、状态的不同产生差距较大的延时。</li>
+</ul>
+<h3 id="2-2-Alibaba-Trace"><a href="#2-2-Alibaba-Trace" class="headerlink" title="2.2 Alibaba Trace"></a>2.2 Alibaba Trace</h3><p>alibaba的trace与常见的trace数据模型不同<a href="#OpenTracing"><sup>3</sup></a>，因为它更像一种多模态监控数据，包含了<strong>节点信息</strong>、<strong>指标</strong>以及<strong>调用链</strong>等。具体信息如下：</p>
+<center>
+<img src="/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg" width = "500"/>
+</center>
+
+<ol>
+<li><p><em><strong>物理运行环境</strong></em>：阿里巴巴的集群采用K8s进行管理，整个集群运行在裸机云（bare-metal cloud）上，服务与作业通常混合部署在一起以提高资源利用率。Figure 2 (a) 介绍了云上两种常见的运行方式：</p>
+<ol>
+<li>Online Services：比如微服务，运行在容器中，直接由K8s管理，有持续向外界提供服务的能力。（<u>stateful微服务一般部署在特定集群中，不参与混合部署</u>）</li>
+<li>Offline Jobs：这些作业一般都需要执行特定的任务，需要K8s事先为它们分配资源，然后调度到特定的机器上执行。</li>
+</ol>
+</li>
+<li><p><em><strong>微服务系统指标</strong></em>：这个大概分为三个部分：硬件层（缓存命中率）、操作系统层（CPU利用率）、应用层（JVM垃圾回收），具体内容如Figure 2 （b）。</p>
+</li>
+<li><p><em><strong>微服务调用链</strong></em>：如Figure 2 (c)所示，大体上与OpenTracing的数据模型类似，但是摒弃了<code>spanID</code>和<code>parentSpanId</code>，只留下UM和DM的信息，并用<code>rpcId</code>来唯一标识一个trace内的不同调用，<code>Communication Paradigm</code>代表调用类型（又名<code>rpctype</code>，如rpc）。</p>
+<center>
+<img src="/imgs/alibaba-traces-socc-2021/trace-demo.jpg" width = "300"/>
+</center>
+</li>
+<li><p><em><strong>聚合调用</strong></em>：如Figure 2 (d)所示，本质上是对单个微服务的调用信息进行聚合和统计。</p>
+</li>
+</ol>
+<h2 id="3-调用图的剖析"><a href="#3-调用图的剖析" class="headerlink" title="3 调用图的剖析"></a>3 调用图的剖析</h2><p>这一块内容很多，我只提炼出较为有意义的部分。<font color=red>这里的调用图（call graph）并不是指整个微服务依赖图，应该指的是单个trace的拓扑图</font>。</p>
+<h3 id="3-1-微服务调用图特征"><a href="#3-1-微服务调用图特征" class="headerlink" title="3.1 微服务调用图特征"></a>3.1 微服务调用图特征</h3><p>作者在这里总结了三个特征，对下游任务非常有启发：</p>
+<ol>
+<li><p><em>调用图的微服务数量呈现长尾分布</em></p>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/service-num-heavy-distribution.png'/>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>现有的benchmark太小了</strong>：10%的调用图的微服务数量&gt;40，存在微服务数量&gt;100的调用图。<br><strong>大量的Memcacheds</strong>：大规模的调用图中有一半的微服务都是Memcacheds，可能是为了减少RT。</p>
+</blockquote>
+<ol start="2">
+<li><p><em>调用图是一棵树，并且很多图是一条长链路</em></p>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/depth-svcnum.png'/>
+</center>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/heat.png'/>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>较短的深度</strong>：一半的调用图深度在2~4 （a）<br><strong>树有点胖</strong>：，深度随着微服务数量增加没有明显变化 （b），说明调用图是宽且浅的？很多下游微服务只是简单的查询数据（stateful微服务一般是叶子节点）<br><strong>较深的图一般都是长链路</strong>：深度增加，但是后面的的微服务数量大多为1个，说明这棵树的宽度基本集中在第2层，后面的都是一条长链路</p>
+<p>有些下游任务（弹性伸缩）会对调用图进行编码，作者特别提到有些图有很长的深度，会让这些任务产生很大的模型以及过拟合。我觉得这没有直接关系，这些数量远远达不到图网络的极限。而且这个实验也可以反过来说，大部分图深度都是很短的。</p>
+</blockquote>
+<ol start="3">
+<li><p><em>许多stateless微服务是热点</em></p>
+<center>
+ <img src='/imgs/alibaba-traces-socc-2021/degree.png' width='500'/>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>存在高入度微服务</strong>：有5%的stateless微服务入度&gt;16，这些微服务在90%的调用图存在，处理了95%的请求。这些服务很大概率是瓶颈，可以用来指导弹性伸缩。</p>
+</blockquote>
+<ol start="4">
+<li><em>微服务调用图大多是动态的</em></li>
+</ol>
+<center>
+    <img src='/imgs/alibaba-traces-socc-2021/clusters.png' width='500'/>
+</center>
+
+<blockquote>
+<p>这个动态和其他文章提到的动态不一样，文中的动态性指的是请求同一个服务的接口，如果参数不一样，会产生不同的拓扑链路（Figure 6）；其他文章提到的是微服务系统始终在动态变化。</p>
+</blockquote>
+<h3 id="3-2-微服务调用关系特征"><a href="#3-2-微服务调用关系特征" class="headerlink" title="3.2 微服务调用关系特征"></a>3.2 微服务调用关系特征</h3><ol>
+<li><p><em>不同层之间调用类型差别大</em></p>
+<center>
+ <img src='/imgs/alibaba-traces-socc-2021/dist-invo-type.png' width='500'/>
+</center></li>
+</ol>
+<p>首先考虑微服务是否DM，大致分为以下几类：① <code>black holes</code>（没有DM），②<code>relay</code>（必须有DM），③<code>normal</code>（一定概率有DM）</p>
+<p>IP(S2D)，IP(S2M)，IP(S2) 表示IP通信的双方分别为：stateless 微服务与database，stateless 微服务与Memcacheds，stateless微服务与stateless微服务</p>
+<blockquote>
+<p>深度增加，black holes比例增加，relay比例减少，normal中对应部分也是如此。</p>
+<p>深度增加，IP(S2M) 比例先增后减，IP(S2D)在升高，表明缓存命中率在下降，转而去查询数据库。MQ比例增加，说明业务链路较深时（业务复杂），倾向于使用MQ来减少RT</p>
+</blockquote>
+<h2 id="4-微服务之间的依赖"><a href="#4-微服务之间的依赖" class="headerlink" title="4 微服务之间的依赖"></a>4 微服务之间的依赖</h2><p>这一章节对如何设计和优化微服务架构有启发，不是我研究的范畴，暂时略过</p>
+<h3 id="4-3-并行依赖"><a href="#4-3-并行依赖" class="headerlink" title="4.3 并行依赖"></a>4.3 并行依赖</h3><center>
+    <img src='/imgs/alibaba-traces-socc-2021/parallel.png' width='500'/>
+   </center>
+
+<blockquote>
+<p><strong>并行依赖很少</strong>：数据集中大部分的微服务都很少被并行调用，这个并行给我的感觉就是异步调用</p>
+</blockquote>
+<h2 id="5-微服务的运行时性能"><a href="#5-微服务的运行时性能" class="headerlink" title="5 微服务的运行时性能"></a>5 微服务的运行时性能</h2><p>这个章节很重要，对资源管理有很大的指导作用。首先介绍一个定义：MCR代表微服务调用速率，我的理解是服务承受的负载</p>
+<h3 id="5-1-MCR对资源的影响"><a href="#5-1-MCR对资源的影响" class="headerlink" title="5.1 MCR对资源的影响"></a>5.1 MCR对资源的影响</h3><ol>
+<li><em>MCR与CPU利用率和Young GC强相关，但与Memory利用率相关性弱</em><center>
+ <img src='/imgs/alibaba-traces-socc-2021/resource-mcr.png' width='500'/>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>与CPU利用率，Young GC强相关</strong>：Young GC指的是对JVM堆内存中的新生代区域进行垃圾回收<a href="#YoungGC"><sup>4</sup></a>，Young GC频繁会造成性能下降或者应用stop，可能是因为内存泄漏等原因。<br><strong>与内存，Old GC相关性弱</strong>：alibaba trace中容器的内存一般都很稳定，Old GC频率可能也是如此（老年代本身垃圾回收就不频繁），所以在实验中不是很明显（受限于数据集特征）。</p>
+</blockquote>
+<ol start="2">
+<li><em>资源对响应时间的影响</em><div>
+ <img src='/imgs/alibaba-traces-socc-2021/resource-RT.png' width='300'/>
+ <img src='/imgs/alibaba-traces-socc-2021/RT-mcr.png' width='300'/>
+</div></li>
+</ol>
+<p>图中的延时选的是P75延时</p>
+<blockquote>
+<p><strong>与CPU利用率强相关</strong>：随着CPU利用率升高，RT明显升高，但RT对内存反应不是很明显（可能是因为缺乏高内存数据）<br><strong>与容器的MCR不太相关</strong>：Alibaba trace中即使MCR很高了，CPU利用率可能还低于10%，所以RT变化不大，<em>说明资源浪费很严重</em></p>
+</blockquote>
+<h2 id="6-随机图模型"><a href="#6-随机图模型" class="headerlink" title="6 随机图模型"></a>6 随机图模型</h2><center>
+    <img src='/imgs/alibaba-traces-socc-2021/graph-generator.png' width='300'/>
+   </center>
+
+<p>这里简单讲一下，代码实现应该不难：</p>
+<ol>
+<li>准备一个存储stateless服务的队列$Q$，并放入Entering Microservice</li>
+<li>执行循环，直到$Q$为空<ol>
+<li>$Q$弹出一个服务作为UM</li>
+<li>如果UM的类型是<code>Relay</code>或者<code>normal (Relay)</code>，则根据数据集中DM服务类型的分布，生成对应类型的服务数量</li>
+<li>为生成的DMs中不同服务类型确定<code>communication paradigm</code></li>
+<li>将生成的DMs中stateless的微服务放入$Q$</li>
+</ol>
+</li>
+<li>图优化<ol>
+<li>遍历生成的图的每一层<ol>
+<li>随机选择两个父项，如果他们共享相同的标签，则合并他们的两个孩子。</li>
+<li>合并的节点将连接到两个父节点</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<blockquote>
+<p>暂时还没有看到随机模型被其他论文使用，可能是因为大家都可以自己搭建环境生产数据吧，也可能是因为alibaba trace够用了</p>
+</blockquote>
+<h2 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h2><div><a name="alibabaTrace"></a>
+[1] <a>https://github.com/alibaba/clusterdata</a>
+</div>
+<div><a name="DeathStarBench"></a>
+[2] Yu Gan. An Open-Source Benchmark Suite for Microservices and Their Hardware-Software Implications for Cloud & Edge Systems. ASPLOS, 2019. <a>https://github.com/delimitrou/DeathStarBench</a>
+</div>
+<div><a name="OpenTracing"></a>
+[3] OpenTracing, “Opentracing,” <a>https://opentracing.io/specification</a>
+</div>
+<div><a name="YoungGC"></a>
+[4] java 六 Young GC 和 Full GC <a>https://www.cnblogs.com/klvchen/articles/11758324.html</a>
+</div>
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/2024/05/08/alibaba-traces-socc-2021/" target="_blank" rel="external">https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://shuaiyuxie.github.io">
+            <img src="/img/avatar.jpg" alt="谢帅宇">
+            谢帅宇
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+	<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SoCC/" rel="tag">SoCC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/trace/" rel="tag">trace</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%AE%9E%E8%AF%81%E5%88%86%E6%9E%90/" rel="tag">实证分析</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li></ul>
+
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&title=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&title=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between">
+  
+    <div class="waves-block waves-effect prev">
+      <a href="/2024/05/13/MicoHECL/" id="post-prev" class="post-nav-link">
+        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
+        <h4 class="title">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</h4>
+      </a>
+    </div>
+  
+
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        谢谢大爷~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check"
+                data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style='display:none'>
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style='display:none'>
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>谢帅宇 &copy; 2015 - 2024</span>
+            <span>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&title=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&title=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAN4AAADeCAAAAAB3DOFrAAACs0lEQVR42u3bQW4bMRAEQP3/0wrgU4BEm+6ZpaQAxZOh0FyWDstxc/J4xOP5M5JP/vz81Wq/z3z18/UTbxt4eHh4o62/Gq/mJI98tcL1069XyPeMh4eHd5qXb+56fn485O/w1eGBh4eH91FeUhZff54cEm0JjoeHh/d/8VpwXjS3+8HDw8N7Py8vZ2dFdltMfyBrwcPDw4t57QXYN/x88H4PDw8Pb3GrPnv1J/Pbsvg5Gnh4eHgneLO2gPwFnbQL5KXz7Fl4eHh4J3h3XTXNtjg7hJILNjw8PLx38vJg4t5Wg02YGx0PeHh4eDfxNk2o7RbbBoL9anh4eHj38tpYoT1t2jgjbwKIZuLh4eEd4G2unWbhxabeb48oPDw8vBO85OW7jyRmgLbh4C8r4OHh4R3gtRf5s3L5rkaBYSsDHh4e3mHe/iZtMzNpSqhn4uHh4R3jzUrnuu0+3laepvwjEMHDw8M7wGsvlpLmqk0RfC8eDw8P717epgVq1oKwj0KKgwcPDw/vMG/fQtr+a97g1X41eHh4eOd4bayQtwjcW4K3xTQeHh7eOV77sOsXcf4V5FduRY6S9JTh4eHh3cpLlmsvtGZZ8qbVAA8PD+80b9MokJfImwbWPIbAw8PDeycv324eNOxbTvNjI8pa8PDw8G7itdFAHQeMGhGSYykq+vHw8PAO8/Ll9tdmmxCkCJrx8PDwDvDaP/WTUrgto/OvZt+khYeHh7fnPcuRlMXtzFkovAoj8PDw8Ba8fNS/MLvajwtoPDw8vM/y6nh03YA122gbJePh4eGd5rVtAflp00a6dXaCh4eH98W8vDhOrsH22XO0Mh4eHt4X8GZX+7NWgFlgsToY8PDw8GLeJghoX/RJg1d7RN2WteDh4eE9Bv/vqb4Ay1/xbUCcHzargYeHh5fyfgHa0cU6ytK+wwAAAABJRU5ErkJggg==" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/main.min.js"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/search.min.js" async></script>
+
+
+
+<!-- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+    tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+        processEscapes: true,
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+});
+
+MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+});
+</script>
+
+<script async src="//cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+
+
+
+
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+<script>
+(function() {
+    var OriginTitile = document.title, titleTime;
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            document.title = '死鬼去哪里了！';
+            clearTimeout(titleTime);
+        } else {
+            document.title = '(つェ⊂)咦!又好了!';
+            titleTime = setTimeout(function() {
+                document.title = OriginTitile;
+            },2000);
+        }
+    });
+})();
+</script>
+
+
+
+</body>
+</html>
