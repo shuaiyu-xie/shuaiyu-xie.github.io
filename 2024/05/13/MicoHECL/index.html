@@ -21,19 +21,19 @@
     
     
     <meta name="keywords" content="微服务,trace,根因定位,ICSE">
-    <meta name="description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  1 摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方">
+    <meta name="description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成">
 <meta property="og:type" content="article">
 <meta property="og:title" content="[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/05/13/MicoHECL/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  1 摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方">
+<meta property="og:description" content="题目：MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems 来源：ICSE 2021 作者：复旦大学CodeWisdom团队，阿里云  摘要微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/MicroHECL.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/direction.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/chain.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroHECL/metrics.png">
 <meta property="article:published_time" content="2024-05-13T02:35:47.000Z">
-<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:modified_time" content="2024-11-21T06:44:58.392Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="trace">
@@ -182,7 +182,7 @@
     <aside class="post-widget">
         <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
             <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-MicroHECL-概述"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 MicroHECL 概述</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-服务调用图构建"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 服务调用图构建</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-异常传播链分析"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 异常传播链分析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-1-分析入口服务"><span class="post-toc-number">3.2.1.</span> <span class="post-toc-text">3.2.1 分析入口服务</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-2-异常传播链扩展"><span class="post-toc-number">3.2.2.</span> <span class="post-toc-text">3.2.2 异常传播链扩展</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-2-2-候选根因定位"><span class="post-toc-number">3.2.3.</span> <span class="post-toc-text">3.2.2 候选根因定位</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-3-服务异常检测"><span class="post-toc-number">3.3.</span> <span class="post-toc-text">3.3 服务异常检测</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-1-性能异常检测"><span class="post-toc-number">3.3.1.</span> <span class="post-toc-text">3.3.1 性能异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-2-可靠性异常检测"><span class="post-toc-number">3.3.2.</span> <span class="post-toc-text">3.3.2 可靠性异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-3-流量异常检测"><span class="post-toc-number">3.3.3.</span> <span class="post-toc-text">3.3.3 流量异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#3-3-4-剪枝"><span class="post-toc-number">3.3.4.</span> <span class="post-toc-text">3.3.4 剪枝</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">4.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">5.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#MicroHECL-概述"><span class="post-toc-number">3.</span> <span class="post-toc-text">MicroHECL 概述</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#服务调用图构建"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">服务调用图构建</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#异常传播链分析"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">异常传播链分析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#分析入口服务"><span class="post-toc-number">3.2.1.</span> <span class="post-toc-text">分析入口服务</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#异常传播链扩展"><span class="post-toc-number">3.2.2.</span> <span class="post-toc-text">异常传播链扩展</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#候选根因定位"><span class="post-toc-number">3.2.3.</span> <span class="post-toc-text">候选根因定位</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#服务异常检测"><span class="post-toc-number">3.3.</span> <span class="post-toc-text">服务异常检测</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#性能异常检测"><span class="post-toc-number">3.3.1.</span> <span class="post-toc-text">性能异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#可靠性异常检测"><span class="post-toc-number">3.3.2.</span> <span class="post-toc-text">可靠性异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#流量异常检测"><span class="post-toc-number">3.3.3.</span> <span class="post-toc-text">流量异常检测</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#剪枝"><span class="post-toc-number">3.3.4.</span> <span class="post-toc-text">剪枝</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">4.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">5.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
         </nav>
     </aside>
 
@@ -213,32 +213,32 @@
 <p>来源：ICSE 2021</p>
 <p>作者：复旦大学CodeWisdom团队，阿里云</p>
 </blockquote>
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
 <ul>
 <li>动态构建一段时间窗口内的服务调用图</li>
 <li>对不同异常类型进行个性化异常检测</li>
 <li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
 </ul>
-<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><p>工业微服务系统包含大量的微服务（e.g., alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>工业微服务系统包含大量的微服务（e.g., alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
 <p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
 <ul>
 <li>性能异常（Performance Anomaly）</li>
 <li>可靠性异常（Reliability Anomaly）</li>
 <li>流量异常（Traffic Anomaly）</li>
 </ul>
-<h2 id="3-MicroHECL-概述"><a href="#3-MicroHECL-概述" class="headerlink" title="3 MicroHECL 概述"></a>3 MicroHECL 概述</h2><center>
+<h2 id="MicroHECL-概述"><a href="#MicroHECL-概述" class="headerlink" title="MicroHECL 概述"></a>MicroHECL 概述</h2><center>
    <img src="/imgs/MicroHECL/MicroHECL.png"/>
    </center>
 
 <p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
-<h3 id="3-1-服务调用图构建"><a href="#3-1-服务调用图构建" class="headerlink" title="3.1 服务调用图构建"></a>3.1 服务调用图构建</h3><p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<em><strong>30min</strong></em>内的服务依赖图（service call graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如$S_i \to S_j$代表微服务$S_i$调用了微服务$S_j$；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
-<h3 id="3-2-异常传播链分析"><a href="#3-2-异常传播链分析" class="headerlink" title="3.2 异常传播链分析"></a>3.2 异常传播链分析</h3><p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
+<h3 id="服务调用图构建"><a href="#服务调用图构建" class="headerlink" title="服务调用图构建"></a>服务调用图构建</h3><p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<em><strong>30min</strong></em>内的服务依赖图（service call graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如$S_i \to S_j$代表微服务$S_i$调用了微服务$S_j$；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
+<h3 id="异常传播链分析"><a href="#异常传播链分析" class="headerlink" title="异常传播链分析"></a>异常传播链分析</h3><p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
 <ul>
 <li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
 <li>异常传播链扩展</li>
 <li>根因排序</li>
 </ul>
-<h4 id="3-2-1-分析入口服务"><a href="#3-2-1-分析入口服务" class="headerlink" title="3.2.1 分析入口服务"></a>3.2.1 分析入口服务</h4><p>文章首先根据经验定义了三种故障类型的传播方向：</p>
+<h4 id="分析入口服务"><a href="#分析入口服务" class="headerlink" title="分析入口服务"></a>分析入口服务</h4><p>文章首先根据经验定义了三种故障类型的传播方向：</p>
 <center>
    <img src="/imgs/MicroHECL/direction.png" width="500"/>
    </center>
@@ -260,8 +260,8 @@
 </ol>
 </blockquote>
 <p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a href="#33-%E6%9C%8D%E5%8A%A1%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B">3.3节</a>会提到。</p>
-<h4 id="3-2-2-异常传播链扩展"><a href="#3-2-2-异常传播链扩展" class="headerlink" title="3.2.2 异常传播链扩展"></a>3.2.2 异常传播链扩展</h4><p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游&#x2F;下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig. 2对于$S_4$方向的传播分析，以$S_1$结束；对于$S_7$方向的传播分析，以$S_9$和$S_{10}$结束。</p>
-<h4 id="3-2-2-候选根因定位"><a href="#3-2-2-候选根因定位" class="headerlink" title="3.2.2 候选根因定位"></a>3.2.2 候选根因定位</h4><p>本文选择异常传播链的末端服务作为候选根因，比如Fig. 2中的候选根因服务为$S_1$，$S_9$和$S_{10}$。那么如何排名呢？</p>
+<h4 id="异常传播链扩展"><a href="#异常传播链扩展" class="headerlink" title="异常传播链扩展"></a>异常传播链扩展</h4><p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游&#x2F;下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig. 2对于$S_4$方向的传播分析，以$S_1$结束；对于$S_7$方向的传播分析，以$S_9$和$S_{10}$结束。</p>
+<h4 id="候选根因定位"><a href="#候选根因定位" class="headerlink" title="候选根因定位"></a>候选根因定位</h4><p>本文选择异常传播链的末端服务作为候选根因，比如Fig. 2中的候选根因服务为$S_1$，$S_9$和$S_{10}$。那么如何排名呢？</p>
 <ul>
 <li>选取入口服务过去60min的业务指标 $X$</li>
 <li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>, <code>EC</code> or <code>QPS</code>）$Y$</li>
@@ -269,13 +269,13 @@
 </ul>
 <p>$$<br>   P(X, Y)&#x3D;\frac{\sum_{i&#x3D;1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i&#x3D;1}^n{(X_i-\overline{X})^2}\sum_{i&#x3D;1}^n{(Y_i-\overline{Y})^2}}}<br>$$</p>
 <p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
-<h3 id="3-3-服务异常检测"><a href="#3-3-服务异常检测" class="headerlink" title="3.3 服务异常检测"></a>3.3 服务异常检测</h3><p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance Anomaly，Reliability Anomaly，Traffic Anomaly）分别设计了异常检测方法。</p>
+<h3 id="服务异常检测"><a href="#服务异常检测" class="headerlink" title="服务异常检测"></a>服务异常检测</h3><p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance Anomaly，Reliability Anomaly，Traffic Anomaly）分别设计了异常检测方法。</p>
 <p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
 <center>
    <img src="/imgs/MicroHECL/metrics.png"/>
    </center>
 
-<h4 id="3-3-1-性能异常检测"><a href="#3-3-1-性能异常检测" class="headerlink" title="3.3.1 性能异常检测"></a>3.3.1 性能异常检测</h4><p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig. 3 (d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
+<h4 id="性能异常检测"><a href="#性能异常检测" class="headerlink" title="性能异常检测"></a>性能异常检测</h4><p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig. 3 (d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
 <p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
 <blockquote>
 <ul>
@@ -287,7 +287,7 @@
 </blockquote>
 <p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4&#x3D;12种特征。</p>
 <p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
-<h4 id="3-3-2-可靠性异常检测"><a href="#3-3-2-可靠性异常检测" class="headerlink" title="3.3.2 可靠性异常检测"></a>3.3.2 可靠性异常检测</h4><p>这里提到<code>EC</code>大多时候都是0（Fig.2 (b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
+<h4 id="可靠性异常检测"><a href="#可靠性异常检测" class="headerlink" title="可靠性异常检测"></a>可靠性异常检测</h4><p>这里提到<code>EC</code>大多时候都是0（Fig.2 (b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
 <p>所以，文章采用随机森林（Random Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
 <blockquote>
 <ul>
@@ -299,12 +299,12 @@
 </ul>
 </blockquote>
 <p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
-<h4 id="3-3-3-流量异常检测"><a href="#3-3-3-流量异常检测" class="headerlink" title="3.3.3 流量异常检测"></a>3.3.3 流量异常检测</h4><p><code>QPS</code>大多满足正态分布（Fig.2 (c,f)），所以直接采用3-sigma进行检测。</p>
+<h4 id="流量异常检测"><a href="#流量异常检测" class="headerlink" title="流量异常检测"></a>流量异常检测</h4><p><code>QPS</code>大多满足正态分布（Fig.2 (c,f)），所以直接采用3-sigma进行检测。</p>
 <blockquote>
 <p>这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
 </blockquote>
 <p>其中，当前检测窗口大小为<em><strong>10min</strong></em>，选择过去<em><strong>1h</strong></em>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
-<h4 id="3-3-4-剪枝"><a href="#3-3-4-剪枝" class="headerlink" title="3.3.4 剪枝"></a>3.3.4 剪枝</h4><p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
+<h4 id="剪枝"><a href="#剪枝" class="headerlink" title="剪枝"></a>剪枝</h4><p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
 <p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
 <blockquote>
 <p>例子：Fig. 2中的 $S_1 \to S_4$ 和 $S_4 \to S_5$ 都是<strong>Traffic Anomaly</strong> 的传播路径，如果$S_1 \to S_4$ 的 <code>QPS</code> 和 $S_4 \to S_5$ 的 <code>QPS</code> 没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉$S_1 \to S_4$，那么$S_4$就取代$S_1$变成了候选根因。</p>
@@ -321,7 +321,7 @@
     <div class="content">
         
 <span class="post-time">
-    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+    最后更新时间：<time datetime="2024-11-21T06:44:58.392Z" itemprop="dateUpdated">2024-11-21 14:44:58</time>
 </span><br>
 
 
@@ -622,7 +622,7 @@ MathJax.Hub.Queue(function() {
     var OriginTitile = document.title, titleTime;
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            document.title = '死鬼去哪里了！';
+            document.title = '等你回来';
             clearTimeout(titleTime);
         } else {
             document.title = '(つェ⊂)咦!又好了!';

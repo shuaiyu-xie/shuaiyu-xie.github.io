@@ -21,12 +21,12 @@
     
     
     <meta name="keywords" content="微服务,trace,实证分析,SoCC">
-    <meta name="description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  1 摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的tra">
+    <meta name="description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace">
 <meta property="og:type" content="article">
 <meta property="og:title" content="[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/05/08/alibaba-traces-socc-2021/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  1 摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的tra">
+<meta property="og:description" content="题目：Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis 来源：SoCC 2021 作者：中国科学院深圳先进技术研究院, 阿里巴巴  摘要现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/microservice.jpg">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg">
@@ -43,7 +43,7 @@
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/RT-mcr.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/alibaba-traces-socc-2021/graph-generator.png">
 <meta property="article:published_time" content="2024-05-08T03:28:33.000Z">
-<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:modified_time" content="2024-11-21T06:46:41.678Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="trace">
@@ -192,7 +192,7 @@
     <aside class="post-widget">
         <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
             <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#2-1-微服务架构"><span class="post-toc-number">2.1.</span> <span class="post-toc-text">2.1 微服务架构</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#2-2-Alibaba-Trace"><span class="post-toc-number">2.2.</span> <span class="post-toc-text">2.2 Alibaba Trace</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-调用图的剖析"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 调用图的剖析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-微服务调用图特征"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 微服务调用图特征</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-微服务调用关系特征"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 微服务调用关系特征</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#4-微服务之间的依赖"><span class="post-toc-number">4.</span> <span class="post-toc-text">4 微服务之间的依赖</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-3-并行依赖"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">4.3 并行依赖</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#5-微服务的运行时性能"><span class="post-toc-number">5.</span> <span class="post-toc-text">5 微服务的运行时性能</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#5-1-MCR对资源的影响"><span class="post-toc-number">5.1.</span> <span class="post-toc-text">5.1 MCR对资源的影响</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#6-随机图模型"><span class="post-toc-number">6.</span> <span class="post-toc-text">6 随机图模型</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">7.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">背景</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#微服务架构"><span class="post-toc-number">2.1.</span> <span class="post-toc-text">微服务架构</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#Alibaba-Trace"><span class="post-toc-number">2.2.</span> <span class="post-toc-text">Alibaba Trace</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#调用图的剖析"><span class="post-toc-number">3.</span> <span class="post-toc-text">调用图的剖析</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#微服务调用图特征"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">微服务调用图特征</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#微服务调用关系特征"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">微服务调用关系特征</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#微服务之间的依赖"><span class="post-toc-number">4.</span> <span class="post-toc-text">微服务之间的依赖</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#并行依赖"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">并行依赖</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#微服务的运行时性能"><span class="post-toc-number">5.</span> <span class="post-toc-text">微服务的运行时性能</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#MCR对资源的影响"><span class="post-toc-number">5.1.</span> <span class="post-toc-text">MCR对资源的影响</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#随机图模型"><span class="post-toc-number">6.</span> <span class="post-toc-text">随机图模型</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">7.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
         </nav>
     </aside>
 
@@ -223,7 +223,7 @@
 <p>来源：SoCC 2021</p>
 <p>作者：中国科学院深圳先进技术研究院, 阿里巴巴</p>
 </blockquote>
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace数据集<a href="#alibabaTrace"><sup>1</sup></a>进行了详细的实证分析，从以下角度揭示了<strong>生产环境</strong>下微服务系统的特点：</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace数据集<a href="#alibabaTrace"><sup>1</sup></a>进行了详细的实证分析，从以下角度揭示了<strong>生产环境</strong>下微服务系统的特点：</p>
 <ul>
 <li>微服务调用图的特点，与传统作业DAG的不同</li>
 <li>无状态微服务之间的依赖关系</li>
@@ -235,7 +235,7 @@
 <li><b>静态依赖</b>。这些benchmark的依赖关系都是静态的，无法模拟生产环境中常见的动态性。</li>
 </ul>
 <p>所以这篇文章还基于阿里巴巴的trace数据构建了一个仿真的数学模型，模拟大规模动态微服务系统。</p>
-<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><h3 id="2-1-微服务架构"><a href="#2-1-微服务架构" class="headerlink" title="2.1 微服务架构"></a>2.1 微服务架构</h3><p>这里首先介绍了微服务架构的调用图，以及图中常见的组件：</p>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><h3 id="微服务架构"><a href="#微服务架构" class="headerlink" title="微服务架构"></a>微服务架构</h3><p>这里首先介绍了微服务架构的调用图，以及图中常见的组件：</p>
 <center>
 <img src="/imgs/alibaba-traces-socc-2021/microservice.jpg"/>
 </center>
@@ -262,7 +262,7 @@
 <li><em><strong>call depth</strong></em>：调用深度指调用图中最长的路径长度，比如Figure 1中的调用图长度为5。</li>
 <li><em><strong>RT</strong></em>：从UM发出请求到UM收到回复的时长。即使同一种接口的请求也会因为参数、状态的不同产生差距较大的延时。</li>
 </ul>
-<h3 id="2-2-Alibaba-Trace"><a href="#2-2-Alibaba-Trace" class="headerlink" title="2.2 Alibaba Trace"></a>2.2 Alibaba Trace</h3><p>alibaba的trace与常见的trace数据模型不同<a href="#OpenTracing"><sup>3</sup></a>，因为它更像一种多模态监控数据，包含了<strong>节点信息</strong>、<strong>指标</strong>以及<strong>调用链</strong>等。具体信息如下：</p>
+<h3 id="Alibaba-Trace"><a href="#Alibaba-Trace" class="headerlink" title="Alibaba Trace"></a>Alibaba Trace</h3><p>alibaba的trace与常见的trace数据模型不同<a href="#OpenTracing"><sup>3</sup></a>，因为它更像一种多模态监控数据，包含了<strong>节点信息</strong>、<strong>指标</strong>以及<strong>调用链</strong>等。具体信息如下：</p>
 <center>
 <img src="/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg" width = "500"/>
 </center>
@@ -284,8 +284,8 @@
 <li><p><em><strong>聚合调用</strong></em>：如Figure 2 (d)所示，本质上是对单个微服务的调用信息进行聚合和统计。</p>
 </li>
 </ol>
-<h2 id="3-调用图的剖析"><a href="#3-调用图的剖析" class="headerlink" title="3 调用图的剖析"></a>3 调用图的剖析</h2><p>这一块内容很多，我只提炼出较为有意义的部分。<font color=red>这里的调用图（call graph）并不是指整个微服务依赖图，应该指的是单个trace的拓扑图</font>。</p>
-<h3 id="3-1-微服务调用图特征"><a href="#3-1-微服务调用图特征" class="headerlink" title="3.1 微服务调用图特征"></a>3.1 微服务调用图特征</h3><p>作者在这里总结了三个特征，对下游任务非常有启发：</p>
+<h2 id="调用图的剖析"><a href="#调用图的剖析" class="headerlink" title="调用图的剖析"></a>调用图的剖析</h2><p>这一块内容很多，我只提炼出较为有意义的部分。<font color=red>这里的调用图（call graph）并不是指整个微服务依赖图，应该指的是单个trace的拓扑图</font>。</p>
+<h3 id="微服务调用图特征"><a href="#微服务调用图特征" class="headerlink" title="微服务调用图特征"></a>微服务调用图特征</h3><p>作者在这里总结了三个特征，对下游任务非常有启发：</p>
 <ol>
 <li><p><em>调用图的微服务数量呈现长尾分布</em></p>
 <center>
@@ -327,7 +327,7 @@
 <blockquote>
 <p>这个动态和其他文章提到的动态不一样，文中的动态性指的是请求同一个服务的接口，如果参数不一样，会产生不同的拓扑链路（Figure 6）；其他文章提到的是微服务系统始终在动态变化。</p>
 </blockquote>
-<h3 id="3-2-微服务调用关系特征"><a href="#3-2-微服务调用关系特征" class="headerlink" title="3.2 微服务调用关系特征"></a>3.2 微服务调用关系特征</h3><ol>
+<h3 id="微服务调用关系特征"><a href="#微服务调用关系特征" class="headerlink" title="微服务调用关系特征"></a>微服务调用关系特征</h3><ol>
 <li><p><em>不同层之间调用类型差别大</em></p>
 <center>
  <img src='/imgs/alibaba-traces-socc-2021/dist-invo-type.png' width='500'/>
@@ -339,16 +339,16 @@
 <p>深度增加，black holes比例增加，relay比例减少，normal中对应部分也是如此。</p>
 <p>深度增加，IP(S2M) 比例先增后减，IP(S2D)在升高，表明缓存命中率在下降，转而去查询数据库。MQ比例增加，说明业务链路较深时（业务复杂），倾向于使用MQ来减少RT</p>
 </blockquote>
-<h2 id="4-微服务之间的依赖"><a href="#4-微服务之间的依赖" class="headerlink" title="4 微服务之间的依赖"></a>4 微服务之间的依赖</h2><p>这一章节对如何设计和优化微服务架构有启发，不是我研究的范畴，暂时略过</p>
-<h3 id="4-3-并行依赖"><a href="#4-3-并行依赖" class="headerlink" title="4.3 并行依赖"></a>4.3 并行依赖</h3><center>
+<h2 id="微服务之间的依赖"><a href="#微服务之间的依赖" class="headerlink" title="微服务之间的依赖"></a>微服务之间的依赖</h2><p>这一章节对如何设计和优化微服务架构有启发，不是我研究的范畴，暂时略过</p>
+<h3 id="并行依赖"><a href="#并行依赖" class="headerlink" title="并行依赖"></a>并行依赖</h3><center>
     <img src='/imgs/alibaba-traces-socc-2021/parallel.png' width='500'/>
    </center>
 
 <blockquote>
 <p><strong>并行依赖很少</strong>：数据集中大部分的微服务都很少被并行调用，这个并行给我的感觉就是异步调用</p>
 </blockquote>
-<h2 id="5-微服务的运行时性能"><a href="#5-微服务的运行时性能" class="headerlink" title="5 微服务的运行时性能"></a>5 微服务的运行时性能</h2><p>这个章节很重要，对资源管理有很大的指导作用。首先介绍一个定义：MCR代表微服务调用速率，我的理解是服务承受的负载</p>
-<h3 id="5-1-MCR对资源的影响"><a href="#5-1-MCR对资源的影响" class="headerlink" title="5.1 MCR对资源的影响"></a>5.1 MCR对资源的影响</h3><ol>
+<h2 id="微服务的运行时性能"><a href="#微服务的运行时性能" class="headerlink" title="微服务的运行时性能"></a>微服务的运行时性能</h2><p>这个章节很重要，对资源管理有很大的指导作用。首先介绍一个定义：MCR代表微服务调用速率，我的理解是服务承受的负载</p>
+<h3 id="MCR对资源的影响"><a href="#MCR对资源的影响" class="headerlink" title="MCR对资源的影响"></a>MCR对资源的影响</h3><ol>
 <li><em>MCR与CPU利用率和Young GC强相关，但与Memory利用率相关性弱</em><center>
  <img src='/imgs/alibaba-traces-socc-2021/resource-mcr.png' width='500'/>
 </center></li>
@@ -366,7 +366,7 @@
 <blockquote>
 <p><strong>与CPU利用率强相关</strong>：随着CPU利用率升高，RT明显升高，但RT对内存反应不是很明显（可能是因为缺乏高内存数据）<br><strong>与容器的MCR不太相关</strong>：Alibaba trace中即使MCR很高了，CPU利用率可能还低于10%，所以RT变化不大，<em>说明资源浪费很严重</em></p>
 </blockquote>
-<h2 id="6-随机图模型"><a href="#6-随机图模型" class="headerlink" title="6 随机图模型"></a>6 随机图模型</h2><center>
+<h2 id="随机图模型"><a href="#随机图模型" class="headerlink" title="随机图模型"></a>随机图模型</h2><center>
     <img src='/imgs/alibaba-traces-socc-2021/graph-generator.png' width='300'/>
    </center>
 
@@ -411,7 +411,7 @@
     <div class="content">
         
 <span class="post-time">
-    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+    最后更新时间：<time datetime="2024-11-21T06:46:41.678Z" itemprop="dateUpdated">2024-11-21 14:46:41</time>
 </span><br>
 
 
@@ -705,7 +705,7 @@ MathJax.Hub.Queue(function() {
     var OriginTitile = document.title, titleTime;
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            document.title = '死鬼去哪里了！';
+            document.title = '等你回来';
             clearTimeout(titleTime);
         } else {
             document.title = '(つェ⊂)咦!又好了!';

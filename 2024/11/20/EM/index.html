@@ -21,16 +21,16 @@
     
     
     <meta name="keywords" content="算法,概率论">
-    <meta name="description" content="1 介绍期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。 如果一个概率模型只有观测变量，那么我们可以基于观测得到的数据，用最大似然估计求得概率模型的参数。但是如果概率模型还包含了无法观测的变量（隐变量），则无法用上述方法估计，所以需要考虑隐变量，">
+    <meta name="description" content="介绍期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。 如果一个概率模型只有观测变量，那么我们可以基于观测得到的数据，用最大似然估计求得概率模型的参数。但是如果概率模型还包含了无法观测的变量（隐变量），则无法用上述方法估计，所以需要考虑隐变量，引入">
 <meta property="og:type" content="article">
 <meta property="og:title" content="期望最大算法（Expectation Maximization Algorithm）">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/11/20/EM/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="1 介绍期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。 如果一个概率模型只有观测变量，那么我们可以基于观测得到的数据，用最大似然估计求得概率模型的参数。但是如果概率模型还包含了无法观测的变量（隐变量），则无法用上述方法估计，所以需要考虑隐变量，">
+<meta property="og:description" content="介绍期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。 如果一个概率模型只有观测变量，那么我们可以基于观测得到的数据，用最大似然估计求得概率模型的参数。但是如果概率模型还包含了无法观测的变量（隐变量），则无法用上述方法估计，所以需要考虑隐变量，引入">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/EM/EM.png">
 <meta property="article:published_time" content="2024-11-20T03:35:01.000Z">
-<meta property="article:modified_time" content="2024-11-21T06:10:31.711Z">
+<meta property="article:modified_time" content="2024-11-21T06:44:23.014Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="算法">
 <meta property="article:tag" content="概率论">
@@ -175,7 +175,7 @@
     <aside class="post-widget">
         <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
             <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-介绍"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 介绍</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-应用举例"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 应用举例</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-EM算法步骤"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 EM算法步骤</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-E步（期望步-Expectation-step）："><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 E步（期望步, Expectation step）：</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-M步（最大化步-Maximization-step）："><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 M步（最大化步, Maximization step）：</span></a></li></ol></li></ol>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#介绍"><span class="post-toc-number">1.</span> <span class="post-toc-text">介绍</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#应用举例"><span class="post-toc-number">2.</span> <span class="post-toc-text">应用举例</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#EM算法步骤"><span class="post-toc-number">3.</span> <span class="post-toc-text">EM算法步骤</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#E步（期望步-Expectation-step）："><span class="post-toc-number">3.1.</span> <span class="post-toc-text">E步（期望步, Expectation step）：</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#M步（最大化步-Maximization-step）："><span class="post-toc-number">3.2.</span> <span class="post-toc-text">M步（最大化步, Maximization step）：</span></a></li></ol></li></ol>
         </nav>
     </aside>
 
@@ -199,9 +199,9 @@
 
         </div>
         <div class="post-content" id="post-content" itemprop="postContent">
-            <h2 id="1-介绍"><a href="#1-介绍" class="headerlink" title="1 介绍"></a>1 介绍</h2><p>期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。</p>
+            <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>期望最大化算法（Expectation-Maximization algorithm, EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent variables）的概率模型。</p>
 <p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
-<h2 id="2-应用举例"><a href="#2-应用举例" class="headerlink" title="2 应用举例"></a>2 应用举例</h2><p>假设我们有一组一维数据$X&#x3D;{x_1, x_2,…,x_n}$，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
+<h2 id="应用举例"><a href="#应用举例" class="headerlink" title="应用举例"></a>应用举例</h2><p>假设我们有一组一维数据$X&#x3D;{x_1, x_2,…,x_n}$，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
 <ul>
 <li>第1个分布 $N(\mu_1, \sigma_1)$，其中$\mu_1&#x3D;5$, $\sigma_1&#x3D;9$</li>
 <li>第2个分布 $N(\mu_2, \sigma_2)$，其中$\mu_2&#x3D;15$, $\sigma_2&#x3D;0.5$</li>
@@ -209,21 +209,48 @@
 <p>两个分布的权重满足：$\sum_{k&#x3D;1}^2\pi_k&#x3D;1$</p>
 <p>我们目前手中只有这一组一维观测数据$X&#x3D;{x_1, x_2,…,x_n}$，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
 <p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
-<p>$$<br>    z_i&#x3D; \begin{cases}<br>        0&amp; x_i \in N(\mu_1, \sigma_1^2)\<br>        1&amp; x_i \in N(\mu_2, \sigma_2^2)<br>        \end{cases}<br>$$</p>
+
+$$
+    z_i= \begin{cases}
+        0& x_i \in N(\mu_1, \sigma_1^2)\\
+        1& x_i \in N(\mu_2, \sigma_2^2)
+        \end{cases}
+$$
+
+
 <p>隐变量$z_i$表示数据点$x_i$由哪个分布生成。而隐变量$z_i$的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
-<p>$$<br>    L(\theta)&#x3D;\prod_{i&#x3D;1}^{n}f(x_i;\theta) \<br>    \begin{aligned}<br>    ln L(\theta) &amp;&#x3D; \sum_{i&#x3D;1}^{n}ln f(x_i:\theta) \<br>    &amp;&#x3D;  \sum_{i&#x3D;1}^{n}ln \sum_{k&#x3D;1}^{2} \pi_k f(x_i:\theta_k)<br>    \end{aligned}<br>$$<br>但由于 $\pi_k$未知，所以难以进行最大似然估计。</p>
-<h2 id="3-EM算法步骤"><a href="#3-EM算法步骤" class="headerlink" title="3 EM算法步骤"></a>3 EM算法步骤</h2><p>我们首先用两个正态分布混合生成观测数据：</p>
+
+$$
+    L(\theta)=\prod_{i=1}^{n}f(x_i;\theta) \\
+    \begin{aligned}
+    ln L(\theta) &= \sum_{i=1}^{n}ln f(x_i:\theta) \\
+    &=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
+    \end{aligned}
+$$
+但由于 $\pi_k$未知，所以难以进行最大似然估计。
+
+
+<h2 id="EM算法步骤"><a href="#EM算法步骤" class="headerlink" title="EM算法步骤"></a>EM算法步骤</h2><p>我们首先用两个正态分布混合生成观测数据：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
 
 <p>并随机给予两个分布初始参数以及权重，代码如下：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure>
 
 <p>EM算法分为两个步骤：</p>
-<h3 id="3-1-E步（期望步-Expectation-step）："><a href="#3-1-E步（期望步-Expectation-step）：" class="headerlink" title="3.1 E步（期望步, Expectation step）："></a>3.1 E步（期望步, Expectation step）：</h3><p>我们需要计算每个数据点 $x_i$ 属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
-<p>$$<br>\begin{aligned}<br>P(z_i&#x3D;1|x_i, \theta)&amp;&#x3D;\frac{P(x_i|z_i&#x3D;1)P(z_i&#x3D;1)}{P(x_i)}&#x3D;\frac{P(x_i|z_i&#x3D;1)P(z_i&#x3D;1)}{P(x_i|z_i&#x3D;1)P(z_i&#x3D;1)+P(x_i|z_i&#x3D;2)P(z_i&#x3D;2)}\<br>&amp;&#x3D;\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2) + \pi_2N(x_i|\mu_2, \sigma_2^2)}<br>\end{aligned}<br>$$<br>同理可以求得$P(z_i&#x3D;2|x_i, \theta)$。代码如下：</p>
+<h3 id="E步（期望步-Expectation-step）："><a href="#E步（期望步-Expectation-step）：" class="headerlink" title="E步（期望步, Expectation step）："></a>E步（期望步, Expectation step）：</h3><p>我们需要计算每个数据点 $x_i$ 属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
+
+$$
+\begin{aligned}
+P(z_i=1|x_i, \theta)&=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
+&=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2) + \pi_2N(x_i|\mu_2, \sigma_2^2)}
+\end{aligned}
+$$
+
+
+<p>同理可以求得$P(z_i&#x3D;2|x_i, \theta)$。代码如下：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure>
 
-<h3 id="3-2-M步（最大化步-Maximization-step）："><a href="#3-2-M步（最大化步-Maximization-step）：" class="headerlink" title="3.2 M步（最大化步, Maximization step）："></a>3.2 M步（最大化步, Maximization step）：</h3><p>在E步得到 $x_i$ 属于不同分布的后验概率后，也是隐变量$z_i$的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
+<h3 id="M步（最大化步-Maximization-step）："><a href="#M步（最大化步-Maximization-step）：" class="headerlink" title="M步（最大化步, Maximization step）："></a>M步（最大化步, Maximization step）：</h3><p>在E步得到 $x_i$ 属于不同分布的后验概率后，也是隐变量$z_i$的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
 <blockquote>
 <p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
 </blockquote>
@@ -249,7 +276,7 @@
     <div class="content">
         
 <span class="post-time">
-    最后更新时间：<time datetime="2024-11-21T06:10:31.711Z" itemprop="dateUpdated">2024-11-21 14:10:31</time>
+    最后更新时间：<time datetime="2024-11-21T06:44:23.014Z" itemprop="dateUpdated">2024-11-21 14:44:23</time>
 </span><br>
 
 
@@ -543,7 +570,7 @@ MathJax.Hub.Queue(function() {
     var OriginTitile = document.title, titleTime;
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            document.title = '死鬼去哪里了！';
+            document.title = '等你回来';
             clearTimeout(titleTime);
         } else {
             document.title = '(つェ⊂)咦!又好了!';

@@ -21,12 +21,12 @@
     
     
     <meta name="keywords" content="微服务,trace,根因定位,TSC">
-    <meta name="description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  1 摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能">
+    <meta name="description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题">
 <meta property="og:type" content="article">
 <meta property="og:title" content="[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/06/22/MicroDig/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  1 摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能">
+<meta property="og:description" content="题目：Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph 来源：TSC 2024 作者：南开大学AIOps@NKU团队，清华大学Netman实验室  摘要微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/GMTA-path.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/call-casual.png">
@@ -37,7 +37,7 @@
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/HPG-example.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/MicroDig/random-walk.png">
 <meta property="article:published_time" content="2024-06-22T04:21:27.000Z">
-<meta property="article:modified_time" content="2024-11-20T03:06:20.112Z">
+<meta property="article:modified_time" content="2024-11-21T06:45:34.038Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="trace">
@@ -186,7 +186,7 @@
     <aside class="post-widget">
         <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
             <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">1 摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">2 背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-动机"><span class="post-toc-number">3.</span> <span class="post-toc-text">3 动机</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-调用关系≠异常传播的因果关系"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">3.1 调用关系≠异常传播的因果关系</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-异构传播图"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">3.2 异构传播图</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#4-MicroDig-架构"><span class="post-toc-number">4.</span> <span class="post-toc-text">4 MicroDig 架构</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-1-Association-Call-Identification"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">4.1 Association Call Identification</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-1-构造port-level-异常子图"><span class="post-toc-number">4.1.1.</span> <span class="post-toc-text">4.1.1 构造port-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-2-构造service-level-异常子图"><span class="post-toc-number">4.1.2.</span> <span class="post-toc-text">4.1.2 构造service-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-1-3-构造-Heterogeneous-Propagation-Graph"><span class="post-toc-number">4.1.3.</span> <span class="post-toc-text">4.1.3 构造 Heterogeneous Propagation Graph</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#4-2-根因服务定位"><span class="post-toc-number">4.2.</span> <span class="post-toc-text">4.2 根因服务定位</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-2-1-转移权重"><span class="post-toc-number">4.2.1.</span> <span class="post-toc-text">4.2.1 转移权重</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#4-2-2-异构随机游走"><span class="post-toc-number">4.2.2.</span> <span class="post-toc-text">4.2.2 异构随机游走</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">5.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">6.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#背景"><span class="post-toc-number">2.</span> <span class="post-toc-text">背景</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#动机"><span class="post-toc-number">3.</span> <span class="post-toc-text">动机</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#调用关系≠异常传播的因果关系"><span class="post-toc-number">3.1.</span> <span class="post-toc-text">调用关系≠异常传播的因果关系</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#异构传播图"><span class="post-toc-number">3.2.</span> <span class="post-toc-text">异构传播图</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#MicroDig-架构"><span class="post-toc-number">4.</span> <span class="post-toc-text">MicroDig 架构</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#Association-Call-Identification"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">Association Call Identification</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#构造port-level-异常子图"><span class="post-toc-number">4.1.1.</span> <span class="post-toc-text">构造port-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#构造service-level-异常子图"><span class="post-toc-number">4.1.2.</span> <span class="post-toc-text">构造service-level 异常子图</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#构造-Heterogeneous-Propagation-Graph"><span class="post-toc-number">4.1.3.</span> <span class="post-toc-text">构造 Heterogeneous Propagation Graph</span></a></li></ol></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#根因服务定位"><span class="post-toc-number">4.2.</span> <span class="post-toc-text">根因服务定位</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#转移权重"><span class="post-toc-number">4.2.1.</span> <span class="post-toc-text">转移权重</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#异构随机游走"><span class="post-toc-number">4.2.2.</span> <span class="post-toc-text">异构随机游走</span></a></li></ol></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">5.</span> <span class="post-toc-text">总结</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#参考文献"><span class="post-toc-number">6.</span> <span class="post-toc-text">参考文献</span></a></li></ol>
         </nav>
     </aside>
 
@@ -217,13 +217,13 @@
 <p>来源：TSC 2024</p>
 <p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
 </blockquote>
-<h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1 摘要"></a>1 摘要</h2><p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
 <ul>
 <li>基于调用和微服务之间的因果关系构建异构传播图</li>
 <li>采样面向异构的随机游走算法进行根因服务定位</li>
 </ul>
 <p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3 accuracy。</p>
-<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2 背景"></a>2 背景</h2><p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
 <p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150 billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end aggregated calls）。</p>
 <p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
 <p>注：aggregated call在GMTA中提到过，应该就是一段时间（比如1 min）内trace的聚合：</p>
@@ -233,7 +233,7 @@
 
 
 <p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。<br>【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
-<h2 id="3-动机"><a href="#3-动机" class="headerlink" title="3 动机"></a>3 动机</h2><h3 id="3-1-调用关系≠异常传播的因果关系"><a href="#3-1-调用关系≠异常传播的因果关系" class="headerlink" title="3.1 调用关系≠异常传播的因果关系"></a>3.1 调用关系≠异常传播的因果关系</h3><p>文章举了一个例子来说明这个观点：</p>
+<h2 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h2><h3 id="调用关系≠异常传播的因果关系"><a href="#调用关系≠异常传播的因果关系" class="headerlink" title="调用关系≠异常传播的因果关系"></a>调用关系≠异常传播的因果关系</h3><p>文章举了一个例子来说明这个观点：</p>
 <center>
    <img src="/imgs/MicroDig/call-casual.png"/>
    </center>
@@ -242,7 +242,7 @@
 <blockquote>
 <p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
 </blockquote>
-<h3 id="3-2-异构传播图"><a href="#3-2-异构传播图" class="headerlink" title="3.2 异构传播图"></a>3.2 异构传播图</h3><p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous propagation graph）来描述故障传播的因果关系：</p>
+<h3 id="异构传播图"><a href="#异构传播图" class="headerlink" title="异构传播图"></a>异构传播图</h3><p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous propagation graph）来描述故障传播的因果关系：</p>
 <center>
    <img src="/imgs/MicroDig/hpg.png"/>
    </center>
@@ -256,7 +256,7 @@
 </li>
 </ul>
 <p>根据作者的设计，这里应该就能看到$R(B,C)$是受$R(B)$和$R(C)$影响的了，从某种意义上给3.1的问题提供了思路。</p>
-<h2 id="4-MicroDig-架构"><a href="#4-MicroDig-架构" class="headerlink" title="4 MicroDig 架构"></a>4 MicroDig 架构</h2><center>
+<h2 id="MicroDig-架构"><a href="#MicroDig-架构" class="headerlink" title="MicroDig 架构"></a>MicroDig 架构</h2><center>
    <img src="/imgs/MicroDig/structure.png"/>
    </center>
 
@@ -267,8 +267,8 @@
 <li>异构传播图的构建 (Heterogeneous Propagation Graph Construction)</li>
 <li>根因定位 (Root Cause Localization)</li>
 </ol>
-<h3 id="4-1-Association-Call-Identification"><a href="#4-1-Association-Call-Identification" class="headerlink" title="4.1 Association Call Identification"></a>4.1 Association Call Identification</h3><p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
-<h4 id="4-1-1-构造port-level-异常子图"><a href="#4-1-1-构造port-level-异常子图" class="headerlink" title="4.1.1 构造port-level 异常子图"></a>4.1.1 构造<code>port-level</code> 异常子图</h4><p>文章首先构造 <code>port-level</code> 异常子图，<code>port-level</code>即接口级别，图中的节点都是接口， 具体步骤如下：</p>
+<h3 id="Association-Call-Identification"><a href="#Association-Call-Identification" class="headerlink" title="Association Call Identification"></a>Association Call Identification</h3><p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
+<h4 id="构造port-level-异常子图"><a href="#构造port-level-异常子图" class="headerlink" title="构造port-level 异常子图"></a>构造<code>port-level</code> 异常子图</h4><p>文章首先构造 <code>port-level</code> 异常子图，<code>port-level</code>即接口级别，图中的节点都是接口， 具体步骤如下：</p>
 <ol>
 <li>构造 <code>port-level</code> 调用图（为什么选用<code>port-level</code>）</li>
 <li>在调用图上进行 <em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em> 对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
@@ -276,7 +276,7 @@
 <blockquote>
 <p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
 </blockquote>
-<h4 id="4-1-2-构造service-level-异常子图"><a href="#4-1-2-构造service-level-异常子图" class="headerlink" title="4.1.2 构造service-level 异常子图"></a>4.1.2 构造<code>service-level</code> 异常子图</h4><p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务$S$和$S’$，定义$F(p,p’)$和$N(p,p’)$分别为其中<code>port-level</code>边$p \to p’$的异常调用数和总调用数，那么时间点$t$的$S \to S’$的异常率$R_t(S, S’)$为：</p>
+<h4 id="构造service-level-异常子图"><a href="#构造service-level-异常子图" class="headerlink" title="构造service-level 异常子图"></a>构造<code>service-level</code> 异常子图</h4><p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务$S$和$S’$，定义$F(p,p’)$和$N(p,p’)$分别为其中<code>port-level</code>边$p \to p’$的异常调用数和总调用数，那么时间点$t$的$S \to S’$的异常率$R_t(S, S’)$为：</p>
 <p>$$<br>    R_t(S, S’)&#x3D;\frac{\sum_{p\in S, p’ \in S’}F_t(p,p’)}{\sum_{p\in S, p’ \in S’}N_t(p,p’)}<br>$$</p>
 <p>整个过程如图(a) (b)所示 ：</p>
 <center>
@@ -284,7 +284,7 @@
    </center>
 
 
-<h4 id="4-1-3-构造-Heterogeneous-Propagation-Graph"><a href="#4-1-3-构造-Heterogeneous-Propagation-Graph" class="headerlink" title="4.1.3 构造 Heterogeneous Propagation Graph"></a>4.1.3 构造 Heterogeneous Propagation Graph</h4><p>3.1 中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous Propagation Graph （HPG）：</p>
+<h4 id="构造-Heterogeneous-Propagation-Graph"><a href="#构造-Heterogeneous-Propagation-Graph" class="headerlink" title="构造 Heterogeneous Propagation Graph"></a>构造 Heterogeneous Propagation Graph</h4><p>3.1 中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous Propagation Graph （HPG）：</p>
 <center>
    <img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
    </center>
@@ -296,12 +296,12 @@
 <li><strong>call节点和service节点的关系</strong>：对于每个call节点（$S \to S’$），设置 $S \to (S \to S’)$，$(S \to S’) \to S’$</li>
 <li><strong>call节点和call节点的关系</strong>：对于每个服务$S$，设置：出边 $\to$ 入边</li>
 </ol>
-<h3 id="4-2-根因服务定位"><a href="#4-2-根因服务定位" class="headerlink" title="4.2 根因服务定位"></a>4.2 根因服务定位</h3><p>异构传播图（HPG）有两种节点（service，call）和两种边（service $\to$ call, call $\to$ call）。本文采取针对异构图的随机游走算法来定位根因：</p>
+<h3 id="根因服务定位"><a href="#根因服务定位" class="headerlink" title="根因服务定位"></a>根因服务定位</h3><p>异构传播图（HPG）有两种节点（service，call）和两种边（service $\to$ call, call $\to$ call）。本文采取针对异构图的随机游走算法来定位根因：</p>
 <center>
    <img src="/imgs/MicroDig/HPG-example.png" width="300"/>
    </center>
 
-<h4 id="4-2-1-转移权重"><a href="#4-2-1-转移权重" class="headerlink" title="4.2.1 转移权重"></a>4.2.1 转移权重</h4><p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
+<h4 id="转移权重"><a href="#转移权重" class="headerlink" title="转移权重"></a>转移权重</h4><p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
 <ol>
 <li><p>对于call $\to$ call：比如$C_{23} \to C_{12}$，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</p>
 </li>
@@ -315,7 +315,7 @@
 <p>$$<br>   \omega_{callee}&#x3D;max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]<br>$$<br>其中，$\Delta \alpha &#x3D; \alpha(S_{caller})-\alpha(S_{callee})$，$\Delta \eta$即当前服务的所有入边的权重-所有出边的权重。</p>
 </li>
 </ol>
-<h4 id="4-2-2-异构随机游走"><a href="#4-2-2-异构随机游走" class="headerlink" title="4.2.2 异构随机游走"></a>4.2.2 异构随机游走</h4><p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
+<h4 id="异构随机游走"><a href="#异构随机游走" class="headerlink" title="异构随机游走"></a>异构随机游走</h4><p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
 <ul>
 <li><strong>backward edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward edge，权重是有向边的$\rho$倍。</li>
 <li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
@@ -342,7 +342,7 @@
     <div class="content">
         
 <span class="post-time">
-    最后更新时间：<time datetime="2024-11-20T03:06:20.112Z" itemprop="dateUpdated">2024-11-20 11:06:20</time>
+    最后更新时间：<time datetime="2024-11-21T06:45:34.038Z" itemprop="dateUpdated">2024-11-21 14:45:34</time>
 </span><br>
 
 
@@ -643,7 +643,7 @@ MathJax.Hub.Queue(function() {
     var OriginTitile = document.title, titleTime;
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            document.title = '死鬼去哪里了！';
+            document.title = '等你回来';
             clearTimeout(titleTime);
         } else {
             document.title = '(つェ⊂)咦!又好了!';
