@@ -225,7 +225,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2024-11-27 10:29:27 / 修改时间：16:48:41" itemprop="dateCreated datePublished" datetime="2024-11-27T10:29:27+08:00">2024-11-27</time>
+              <time title="创建时间：2024-11-27 10:29:27 / 修改时间：22:01:21" itemprop="dateCreated datePublished" datetime="2024-11-27T10:29:27+08:00">2024-11-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -243,14 +243,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>2.2k</span>
+              <span>2.7k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>4 分钟</span>
+              <span>5 分钟</span>
             </span>
 
         </div>
@@ -278,7 +278,7 @@ Enabling Elastic Resource Scaling for Recommendation Models</p>
 <p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
 <h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
 <center>
-<img src="/imgs/ElasticRec/DLRM.jpg"/>
+<img src="/imgs/ElasticRec/DLRM.jpg" width='500'/>
 </center>
 <p>如图所示，深度推荐模型（<code>DLRM</code>）包含两个主要组件：</p>
 <ul>
@@ -314,7 +314,7 @@ Serving Architectures）</h3>
 <p>这篇文章关注的是<code>DLRM</code>的推理。在线上应用中，<code>DLRM</code>被打包成镜像，镜像中包含了模型参数以及常用的机器学习库，以容器的方式运行在Kubernetes集群中，如Fig.
 2（a）所示。</p>
 <center>
-<img src="/imgs/ElasticRec/DLRM_inference.png"/>
+<img src="/imgs/ElasticRec/DLRM_inference.png" width='500'/>
 </center>
 <h4 id="模型的自动伸缩">模型的自动伸缩</h4>
 <p><strong>Kubernetes</strong>是一个容器编排工具，它能管理容器的生命周期，对容器进行自动化调度、资源分配。</p>
@@ -324,7 +324,7 @@ per second），吞吐量越高，代表在线服务单位时间内处理请求�
 Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2 (b)
 所示，增加<code>DLRM</code>的副本数可以提高系统的并行处理能力，从而增大吞吐量</p>
 <p>然而，HPA 是一种 model-wise
-的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<font color="blue">但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是吞吐量的瓶颈所在</font>。无脑进行HPA势必会造成大量内存浪费。</p>
+的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<u>但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是（不是绝对）吞吐量的瓶颈所在。</u>无脑进行HPA势必会造成大量内存浪费。</p>
 <h4 id="模型的硬件约束">模型的硬件约束</h4>
 <p>因为 大型 <code>DLRM</code> 的 <code>Embedding Table</code>
 通常有几十GB，将 <code>Embedding Table</code>
@@ -344,19 +344,64 @@ CPU-only ② CPU-GPU。</p>
 </ul>
 <p>可以看到， <code>Embedding Table</code>
 都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
-<h2 id="总结">总结</h2>
-<ul>
-<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
-<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
-<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
-</ul>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
-trace analysis for microservice architecture understanding and problem
-diagnosis, ESEC/FSE. 2020: 1387-1397.
-<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
-</div>
+<h2 id="动机">动机</h2>
+<p>文章的动机从两点出发，阐述为什么现有的资源分配方案会导致次优性能（sub-optimal
+performance）：</p>
+<ol type="1">
+<li><code>RecSys</code>的不同模块具有异构资源需求</li>
+<li><code>Embedding Table</code>不同部分的访问频率相差极大</li>
+</ol>
+<h3 id="异构资源需求">异构资源需求</h3>
+<p>Fig. 3 (a)
+展示了三个推荐模型（RM1，RM2，RM3）的不同模块<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 在 ①计算复杂度（FLOPS）和 ②内存大小
+上的差别。可以看出：<u><code>Bottom MLP</code>在计算复杂度上远高于
+<code>Embedding Table</code>，但是内存占用远远小于
+<code>Embedding Table</code></u></p>
+<p>Fig.3 (b)
+展示了三个推荐模型的不同模块在两种硬件约束下的延时占比。原文虽然没有讨论，但可以推测，<u>在CPU-only架构下，推理的延时开销主要集中在<code>Bottom MLP</code>的计算；在CPU-GPU架构下，延时的开销在于将 <code>Embedding Table</code>
+的数据从CPU传输到GPU</u></p>
+<center>
+<img src='/imgs/ElasticRec/异构资源需求.png' width='500'/>
+</center>
+<p>此外，文章还讨论了吞吐量的瓶颈问题，Fig.
+4展示了作者的想法，实际上<code>Bottom MLP</code>
+计算开销大，内存占用小，适合扩充副本来提升吞吐量；而
+<code>Embedding Table</code>
+本身吞吐量就很大，但是内存占用大，所以对于副本扩充应该谨慎。</p>
+<center>
+<img src='/imgs/ElasticRec/吞吐量.png' width='500'/>
+</center>
+<p>当然，作者还通过实验，验证了不同硬件约束下不同模块的吞吐量存在差异，来支撑上述想法：</p>
+<center>
+<img src='/imgs/ElasticRec/图5.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>综上所述，文章说明<code>RecSys</code>中不同模块的<strong>异构资源需求</strong>，以及<strong>吞吐量的差异</strong>。为后续对不同模块分别进行切分提供了实验依据</font></p>
+</blockquote>
+<h3 id="embedding-table-的倾斜访问模式">Embedding Table
+的倾斜访问模式</h3>
+<p>这一个实证分析较为简单，主要验证<code>Embedding Table</code>不同索引的访问频率的差异，如Fig.
+6所示，在三个数据集中，大部分的访问集中在少数的索引（热点嵌入，hot
+embeddings）</p>
+<center>
+<img src='/imgs/ElasticRec/倾斜访问.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>换句话说，将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</font></p>
+</blockquote>
+<h2 id="方法设计">方法设计</h2>
+<p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
+<ol type="1">
+<li>部署开销估计</li>
+<li><code>Embedding Table</code>划分</li>
+<li>推理时重索引</li>
+</ol>
+<center>
+<img src='/imgs/ElasticRec/架构.png' width='500'/>
+</center>
+<h3 id="部署开销估计">部署开销估计</h3>
 
       
     </div>
@@ -938,7 +983,7 @@ class="math inline">\(dp[i][j-1]\)</span></li>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2024-11-27 20:34:22" itemprop="dateModified" datetime="2024-11-27T20:34:22+08:00">2024-11-27</time>
+                <time title="修改时间：2024-11-27 20:56:19" itemprop="dateModified" datetime="2024-11-27T20:56:19+08:00">2024-11-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1041,7 +1086,7 @@ class="math inline">\(\mathcal{T}\)</span>中每个trace <span
 class="math inline">\(t\)</span> 计算采样概率 <span
 class="math inline">\(\rho\)</span>。整个过程定义为：</p>
 <p><span class="math display">\[
-   S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
+S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
 \]</span></p>
 <p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
 class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
@@ -2173,7 +2218,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">54 分钟</span>
+    <span title="站点阅读时长">55 分钟</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
@@ -2258,6 +2303,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
   if (typeof MathJax === 'undefined') {
     window.MathJax = {
       loader: {
+          load: ['[tex]/mhchem'],
         source: {
           '[tex]/amsCd': '[tex]/amscd',
           '[tex]/AMScd': '[tex]/amscd'
@@ -2265,6 +2311,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       },
       tex: {
         inlineMath: {'[+]': [['$', '$']]},
+          packages: {'[+]': ['mhchem']},
         tags: 'ams'
       },
       options: {

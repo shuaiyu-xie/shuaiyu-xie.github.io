@@ -1,116 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
-    <url>/2024/11/27/ElasticRec/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：ElasticRec: A Microservice-based Model Serving Architecture
-Enabling Elastic Resource Scaling for Recommendation Models</p>
-<p>来源：ISCA 2024</p>
-<p>作者：韩国科学技术院</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：
-- <code>RecSys</code>中<code>Bottom MLP</code>模块 对于计算资源的需求高
--
-<code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</p>
-<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少部署时的内存消耗，提升<code>RecSys</code>的吞吐量。</p>
-<h2 id="背景">背景</h2>
-<p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
-<h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
-<center>
-<img src="/imgs/ElasticRec/DLRM.jpg"/>
-</center>
-<p>如图所示，深度推荐模型（<code>DLRM</code>）包含两个主要组件：</p>
-<ul>
-<li><code>Bottom MLP</code>
-<ul>
-<li>输入：dense input（比如 User's age）</li>
-<li>输出：dense output（高维特征）</li>
-<li>类型：<strong>计算敏感型</strong></li>
-</ul></li>
-<li><code>Embedding Table</code>
-<ul>
-<li>输入：多个 spare input（比如 Item's id）</li>
-<li>输出：dense output（高维特征）</li>
-<li>类型：<strong>内存敏感型</strong></li>
-<li>作用：根据稀疏输入得到<code>Embedding Table</code>中的高维特征。一般来说，一次查询中所有的sparse
-input得到的dense
-output会执行<code>pool</code>操作进行池化，得到单个dense output</li>
-</ul></li>
-</ul>
-<p>最终，两个模块的dense
-output将会交互在一起，输入到下游的MLP模块，给出预测。</p>
-<blockquote>
-<p>在生产环境中，由于商品（item）的种类非常多，比如Amazon有数亿的商品种类。<code>Embedding Table</code>为每个商品种类都维护了一个特征，导致<code>Embedding Table</code>的大小可以达到<strong>几十GB</strong>，相比于<code>Bottom MLP</code>，有几点需要关注：</p>
-<ol type="1">
-<li><code>Embedding Table</code>对于计算不敏感，即<code>pool</code>操作并不需要太多计算资源；相反，对于内存带宽限制极为敏感，特别是有非常多的dense
-output需要<code>pool</code>时</li>
-<li>在<code>DLRM</code>中，<code>Embedding Table</code>通常有<u>多个</u>，对内存的压力是极大的</li>
-</ol>
-</blockquote>
-<h3 id="模型服务架构model-serving-architectures">模型服务架构（Model
-Serving Architectures）</h3>
-<h4 id="模型容器化">模型容器化</h4>
-<p>这篇文章关注的是<code>DLRM</code>的推理。在线上应用中，<code>DLRM</code>被打包成镜像，镜像中包含了模型参数以及常用的机器学习库，以容器的方式运行在Kubernetes集群中，如Fig.
-2（a）所示。</p>
-<center>
-<img src="/imgs/ElasticRec/DLRM_inference.png"/>
-</center>
-<h4 id="模型的自动伸缩">模型的自动伸缩</h4>
-<p><strong>Kubernetes</strong>是一个容器编排工具，它能管理容器的生命周期，对容器进行自动化调度、资源分配。</p>
-<p><strong>吞吐量</strong>是一个衡量在线服务性能的指标，单位是QPS（query
-per second），吞吐量越高，代表在线服务单位时间内处理请求的数量</p>
-<p>对于<code>DLRM</code>而言，处理单个请求的时间基本可以看作变化很小的，那么为提高吞吐量，可以采用Kubernetes的水平pod伸缩（Horizontal
-Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2 (b)
-所示，增加<code>DLRM</code>的副本数可以提高系统的并行处理能力，从而增大吞吐量</p>
-<p>然而，HPA 是一种 model-wise
-的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<font color="blue">但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是吞吐量的瓶颈所在</font>。无脑进行HPA势必会造成大量内存浪费。</p>
-<h4 id="模型的硬件约束">模型的硬件约束</h4>
-<p>因为 大型 <code>DLRM</code> 的 <code>Embedding Table</code>
-通常有几十GB，将 <code>Embedding Table</code>
-全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
-CPU-only ② CPU-GPU。</p>
-<ul>
-<li><strong>CPU-only</strong>
-<ul>
-<li><code>Bottom MLP</code> 和 <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
-<li><strong>CPU-GPU</strong>
-<ul>
-<li><code>Bottom MLP</code> 运行在GPU， <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
-</ul>
-<p>可以看到， <code>Embedding Table</code>
-都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
-<h2 id="总结">总结</h2>
-<ul>
-<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
-<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
-<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
-</ul>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
-trace analysis for microservice architecture understanding and problem
-diagnosis, ESEC/FSE. 2020: 1387-1397.
-<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>推荐系统</tag>
-        <tag>资源管理</tag>
-        <tag>面向AI的微服务</tag>
-        <tag>ISCA</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>期望最大算法（Expectation Maximization Algorithm）</title>
     <url>/2024/11/20/EM/</url>
     <content><![CDATA[<h2 id="介绍">介绍</h2>
@@ -219,139 +109,335 @@ class="math display">\[
       </tags>
   </entry>
   <entry>
-    <title>最长公共子序列（Longest Common Subsequence）</title>
-    <url>/2024/11/20/LCS/</url>
-    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
-<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
-字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
-<font color=red>BCAB</font>。</p>
-<blockquote>
-<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
-比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
-<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
-lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
-<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
-the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+    <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
+    <url>/2024/11/27/ElasticRec/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：ElasticRec: A Microservice-based Model Serving Architecture
+Enabling Elastic Resource Scaling for Recommendation Models</p>
+<p>来源：ISCA 2024</p>
+<p>作者：韩国科学技术院</p>
 </blockquote>
-<h2 id="题目">题目</h2>
-<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
-和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
-公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
-是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
-&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
-的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
-&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
-<p>示例 1：</p>
-<p>输入：text1 = "abcde", text2 = "ace"<br />
-输出：3<br />
-解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
-<p>示例 2：</p>
-<p>输入：text1 = "abc", text2 = "abc"<br />
-输出：3<br />
-解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
-<p>示例 3：</p>
-<p>输入：text1 = "abc", text2 = "def"<br />
-输出：0<br />
-解释：两个字符串没有公共子序列，返回 0 。</p>
-<p>提示：</p>
+<h2 id="摘要">摘要</h2>
+<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：
+- <code>RecSys</code>中<code>Bottom MLP</code>模块 对于计算资源的需求高
+-
+<code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</p>
+<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少部署时的内存消耗，提升<code>RecSys</code>的吞吐量。</p>
+<h2 id="背景">背景</h2>
+<p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
+<h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
+<center>
+<img src="/imgs/ElasticRec/DLRM.jpg" width='500'/>
+</center>
+<p>如图所示，深度推荐模型（<code>DLRM</code>）包含两个主要组件：</p>
 <ul>
-<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
-<li>text1 和 text2 仅由小写英文字符组成。</li>
+<li><code>Bottom MLP</code>
+<ul>
+<li>输入：dense input（比如 User's age）</li>
+<li>输出：dense output（高维特征）</li>
+<li>类型：<strong>计算敏感型</strong></li>
+</ul></li>
+<li><code>Embedding Table</code>
+<ul>
+<li>输入：多个 spare input（比如 Item's id）</li>
+<li>输出：dense output（高维特征）</li>
+<li>类型：<strong>内存敏感型</strong></li>
+<li>作用：根据稀疏输入得到<code>Embedding Table</code>中的高维特征。一般来说，一次查询中所有的sparse
+input得到的dense
+output会执行<code>pool</code>操作进行池化，得到单个dense output</li>
+</ul></li>
 </ul>
-<h2 id="分析">分析</h2>
-<p>最长公共子序列（Longest Common Subsequence,
-LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<p>最终，两个模块的dense
+output将会交互在一起，输入到下游的MLP模块，给出预测。</p>
+<blockquote>
+<p>在生产环境中，由于商品（item）的种类非常多，比如Amazon有数亿的商品种类。<code>Embedding Table</code>为每个商品种类都维护了一个特征，导致<code>Embedding Table</code>的大小可以达到<strong>几十GB</strong>，相比于<code>Bottom MLP</code>，有几点需要关注：</p>
 <ol type="1">
-<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
+<li><code>Embedding Table</code>对于计算不敏感，即<code>pool</code>操作并不需要太多计算资源；相反，对于内存带宽限制极为敏感，特别是有非常多的dense
+output需要<code>pool</code>时</li>
+<li>在<code>DLRM</code>中，<code>Embedding Table</code>通常有<u>多个</u>，对内存的压力是极大的</li>
+</ol>
+</blockquote>
+<h3 id="模型服务架构model-serving-architectures">模型服务架构（Model
+Serving Architectures）</h3>
+<h4 id="模型容器化">模型容器化</h4>
+<p>这篇文章关注的是<code>DLRM</code>的推理。在线上应用中，<code>DLRM</code>被打包成镜像，镜像中包含了模型参数以及常用的机器学习库，以容器的方式运行在Kubernetes集群中，如Fig.
+2（a）所示。</p>
+<center>
+<img src="/imgs/ElasticRec/DLRM_inference.png" width='500'/>
+</center>
+<h4 id="模型的自动伸缩">模型的自动伸缩</h4>
+<p><strong>Kubernetes</strong>是一个容器编排工具，它能管理容器的生命周期，对容器进行自动化调度、资源分配。</p>
+<p><strong>吞吐量</strong>是一个衡量在线服务性能的指标，单位是QPS（query
+per second），吞吐量越高，代表在线服务单位时间内处理请求的数量</p>
+<p>对于<code>DLRM</code>而言，处理单个请求的时间基本可以看作变化很小的，那么为提高吞吐量，可以采用Kubernetes的水平pod伸缩（Horizontal
+Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2 (b)
+所示，增加<code>DLRM</code>的副本数可以提高系统的并行处理能力，从而增大吞吐量</p>
+<p>然而，HPA 是一种 model-wise
+的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<u>但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是（不是绝对）吞吐量的瓶颈所在。</u>无脑进行HPA势必会造成大量内存浪费。</p>
+<h4 id="模型的硬件约束">模型的硬件约束</h4>
+<p>因为 大型 <code>DLRM</code> 的 <code>Embedding Table</code>
+通常有几十GB，将 <code>Embedding Table</code>
+全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
+CPU-only ② CPU-GPU。</p>
 <ul>
-<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
-<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
-<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
-<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
-j-1))\)</span></li>
+<li><strong>CPU-only</strong>
+<ul>
+<li><code>Bottom MLP</code> 和 <code>Embedding Table</code>
+均运行在CPU</li>
+</ul></li>
+<li><strong>CPU-GPU</strong>
+<ul>
+<li><code>Bottom MLP</code> 运行在GPU， <code>Embedding Table</code>
+均运行在CPU</li>
+</ul></li>
 </ul>
-<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
-<li><p><strong>重叠子问题</strong>：在求解 LCS
-的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
-class="math inline">\(X\)</span> 和 <span
-class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span>
-个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
-</ol>
-<h2 id="求解">求解</h2>
-<p>动态规划的求解步骤如下：</p>
+<p>可以看到， <code>Embedding Table</code>
+都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
+<h2 id="动机">动机</h2>
+<p>文章的动机从两点出发，阐述为什么现有的资源分配方案会导致次优性能（sub-optimal
+performance）：</p>
 <ol type="1">
-<li><p>定义状态</p>
-<ul>
-<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
-class="math inline">\(dp\)</span> 表示，其中 <span
-class="math inline">\(dp[i][j]\)</span> 表示序列 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和序列 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
-</ul></li>
-<li><p>状态转移方程</p>
-<ul>
-<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
-<ul>
-<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
-<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = max(dp[i-1][j],
-dp[i][j-1])\)</span></li>
-</ul></li>
-</ul></li>
+<li><code>RecSys</code>的不同模块具有异构资源需求</li>
+<li><code>Embedding Table</code>不同部分的访问频率相差极大</li>
 </ol>
-<p>python代码实现如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
-<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 3]</p>
-<h2 id="扩充">扩充</h2>
-<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
-class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<h3 id="异构资源需求">异构资源需求</h3>
+<p>Fig. 3 (a)
+展示了三个推荐模型（RM1，RM2，RM3）的不同模块<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 在 ①计算复杂度（FLOPS）和 ②内存大小
+上的差别。可以看出：<u><code>Bottom MLP</code>在计算复杂度上远高于
+<code>Embedding Table</code>，但是内存占用远远小于
+<code>Embedding Table</code></u></p>
+<p>Fig.3 (b)
+展示了三个推荐模型的不同模块在两种硬件约束下的延时占比。原文虽然没有讨论，但可以推测，<u>在CPU-only架构下，推理的延时开销主要集中在<code>Bottom MLP</code>的计算；在CPU-GPU架构下，延时的开销在于将 <code>Embedding Table</code>
+的数据从CPU传输到GPU</u></p>
+<center>
+<img src='/imgs/ElasticRec/异构资源需求.png' width='500'/>
+</center>
+<p>此外，文章还讨论了吞吐量的瓶颈问题，Fig.
+4展示了作者的想法，实际上<code>Bottom MLP</code>
+计算开销大，内存占用小，适合扩充副本来提升吞吐量；而
+<code>Embedding Table</code>
+本身吞吐量就很大，但是内存占用大，所以对于副本扩充应该谨慎。</p>
+<center>
+<img src='/imgs/ElasticRec/吞吐量.png' width='500'/>
+</center>
+<p>当然，作者还通过实验，验证了不同硬件约束下不同模块的吞吐量存在差异，来支撑上述想法：</p>
+<center>
+<img src='/imgs/ElasticRec/图5.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>综上所述，文章说明<code>RecSys</code>中不同模块的<strong>异构资源需求</strong>，以及<strong>吞吐量的差异</strong>。为后续对不同模块分别进行切分提供了实验依据</font></p>
+</blockquote>
+<h3 id="embedding-table-的倾斜访问模式">Embedding Table
+的倾斜访问模式</h3>
+<p>这一个实证分析较为简单，主要验证<code>Embedding Table</code>不同索引的访问频率的差异，如Fig.
+6所示，在三个数据集中，大部分的访问集中在少数的索引（热点嵌入，hot
+embeddings）</p>
+<center>
+<img src='/imgs/ElasticRec/倾斜访问.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>换句话说，将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</font></p>
+</blockquote>
+<h2 id="方法设计">方法设计</h2>
+<p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
 <ol type="1">
-<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
-<li>如果当前<span
-class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
-class="math inline">\(X[i]\)</span>（<span
-class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
-class="math inline">\(X\)</span>和<span
-class="math inline">\(Y\)</span>都向前推进一位</li>
-<li>如果当前<span
-class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
-class="math inline">\(X[i-1]\)</span>和<span
-class="math inline">\(Y[j]\)</span>中产生，还是在<span
-class="math inline">\(X[i]\)</span>和<span
-class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
-class="math inline">\(dp[i-1][j]\)</span> 和 <span
-class="math inline">\(dp[i][j-1]\)</span></li>
+<li>部署开销估计</li>
+<li><code>Embedding Table</code>划分</li>
+<li>推理时重索引</li>
 </ol>
-<p>所以代码如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
-<p>回溯路径为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, 2, <font color=blue>3</font>]</p>
+<center>
+<img src='/imgs/ElasticRec/架构.png' width='500'/>
+</center>
+<h3 id="部署开销估计">部署开销估计</h3>
 ]]></content>
       <categories>
-        <category>leetcode基础算法</category>
+        <category>文献精读</category>
       </categories>
       <tags>
-        <tag>算法</tag>
-        <tag>leetcode</tag>
-        <tag>动态规划</tag>
+        <tag>微服务</tag>
+        <tag>推荐系统</tag>
+        <tag>资源管理</tag>
+        <tag>面向AI的微服务</tag>
+        <tag>ISCA</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</title>
+    <url>/2024/05/13/MicoHECL/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：MicroHECL: High-Efficient Root Cause Localization in
+Large-Scale Microservice Systems</p>
+<p>来源：ICSE 2021</p>
+<p>作者：复旦大学CodeWisdom团队，阿里云</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
+<ul>
+<li>动态构建一段时间窗口内的服务调用图</li>
+<li>对不同异常类型进行个性化异常检测</li>
+<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
+</ul>
+<h2 id="背景">背景</h2>
+<p>工业微服务系统包含大量的微服务（e.g.,
+alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
+<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
+<ul>
+<li>性能异常（Performance Anomaly）</li>
+<li>可靠性异常（Reliability Anomaly）</li>
+<li>流量异常（Traffic Anomaly）</li>
+</ul>
+<h2 id="microhecl-概述">MicroHECL 概述</h2>
+<center>
+<img src="/imgs/MicroHECL/MicroHECL.png"/>
+</center>
+<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
+<h3 id="服务调用图构建">服务调用图构建</h3>
+<p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<strong><em>30min</em></strong>内的服务依赖图（service
+call
+graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如<span
+class="math inline">\(S_i \to S_j\)</span>代表微服务<span
+class="math inline">\(S_i\)</span>调用了微服务<span
+class="math inline">\(S_j\)</span>；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
+<h3 id="异常传播链分析">异常传播链分析</h3>
+<p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
+<ul>
+<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
+<li>异常传播链扩展</li>
+<li>根因排序</li>
+</ul>
+<h4 id="分析入口服务">分析入口服务</h4>
+文章首先根据经验定义了三种故障类型的传播方向：
+<center>
+<img src="/imgs/MicroHECL/direction.png" width="500"/>
+</center>
+<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a
+href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
+<center>
+<img src="/imgs/MicroHECL/chain.png"/>
+</center>
+<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig.
+2所示，整个过程描述如下： &gt; 1. 将入口服务<span
+class="math inline">\(S_5\)</span>纳入异常传播链 &gt; 2.
+异常检测。检测<span class="math inline">\(S_5\)</span>的邻居节点<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>的异常类型 &gt; 3. 确认<span
+class="math inline">\(S_4\)</span>的异常类型为<strong>Traffic
+Anomaly</strong>，<span
+class="math inline">\(S_7\)</span>的异常类型为<strong>Performance
+Anomaly</strong> &gt; 4. 检测是否符合传播方向（<span
+class="math inline">\(S_4\)</span>是否是<span
+class="math inline">\(S_5\)</span>的上游，<span
+class="math inline">\(S_7\)</span>是否是<span
+class="math inline">\(S_5\)</span>的下游） &gt; 5. 符合，将<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>添加到异常传播链 &gt; 6. 从<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>出发，对邻居节点重复上述步骤</p>
+<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a
+href="#33-服务异常检测">3.3节</a>会提到。</p>
+<h4 id="异常传播链扩展">异常传播链扩展</h4>
+<p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游/下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig.
+2对于<span class="math inline">\(S_4\)</span>方向的传播分析，以<span
+class="math inline">\(S_1\)</span>结束；对于<span
+class="math inline">\(S_7\)</span>方向的传播分析，以<span
+class="math inline">\(S_9\)</span>和<span
+class="math inline">\(S_{10}\)</span>结束。</p>
+<h4 id="候选根因定位">候选根因定位</h4>
+<p>本文选择异常传播链的末端服务作为候选根因，比如Fig.
+2中的候选根因服务为<span class="math inline">\(S_1\)</span>，<span
+class="math inline">\(S_9\)</span>和<span
+class="math inline">\(S_{10}\)</span>。那么如何排名呢？</p>
+<ul>
+<li>选取入口服务过去60min的业务指标 <span
+class="math inline">\(X\)</span></li>
+<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>,
+<code>EC</code> or <code>QPS</code>）<span
+class="math inline">\(Y\)</span></li>
+<li>计算两者之间的皮尔逊相关系数：</li>
+</ul>
+<p><span class="math display">\[
+   P(X,
+Y)=\frac{\sum_{i=1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i=1}^n{(X_i-\overline{X})^2}\sum_{i=1}^n{(Y_i-\overline{Y})^2}}}
+\]</span></p>
+<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
+<h3 id="服务异常检测">服务异常检测</h3>
+<p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance
+Anomaly，Reliability Anomaly，Traffic
+Anomaly）分别设计了异常检测方法。</p>
+<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
+<center>
+<img src="/imgs/MicroHECL/metrics.png"/>
+</center>
+<h4 id="性能异常检测">性能异常检测</h4>
+<p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig.
+3
+(d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
+<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
+<blockquote>
+<ul>
+<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
+<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4=12种特征。</p>
+<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
+<h4 id="可靠性异常检测">可靠性异常检测</h4>
+<p>这里提到<code>EC</code>大多时候都是0（Fig.2
+(b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
+<p>所以，文章采用随机森林（Random
+Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
+<blockquote>
+<ul>
+<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
+<li>检测窗口内最大错误率（<code>EC</code>/sum(<code>QPS</code>)）。</li>
+<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
+<h4 id="流量异常检测">流量异常检测</h4>
+<p><code>QPS</code>大多满足正态分布（Fig.2
+(c,f)），所以直接采用3-sigma进行检测。 &gt;
+这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，选择过去<strong><em>1h</em></strong>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
+<h4 id="剪枝">剪枝</h4>
+<p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
+<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
+<blockquote>
+<p>例子：Fig. 2中的 <span class="math inline">\(S_1 \to S_4\)</span> 和
+<span class="math inline">\(S_4 \to S_5\)</span> 都是<strong>Traffic
+Anomaly</strong> 的传播路径，如果<span class="math inline">\(S_1 \to
+S_4\)</span> 的 <code>QPS</code> 和 <span class="math inline">\(S_4 \to
+S_5\)</span> 的 <code>QPS</code>
+没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉<span
+class="math inline">\(S_1 \to S_4\)</span>，那么<span
+class="math inline">\(S_4\)</span>就取代<span
+class="math inline">\(S_1\)</span>变成了候选根因。</p>
+</blockquote>
+<p>这里的检测窗口选取的过去<strong><em>60min</em></strong>。剪枝操作执行在异常节点加入异常调用链之前。</p>
+<h2 id="总结">总结</h2>
+<p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="ImpactTracer"></a> [1] Xie R, Yang J, Li J, et al.
+ImpactTracer: Root Cause Localization in Microservices Based on Fault
+Propagation Modeling, (DATE), 2023.
+<a>https://ieeexplore.ieee.org/abstract/document/10137078/</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>根因定位</tag>
+        <tag>ICSE</tag>
       </tags>
   </entry>
   <entry>
@@ -423,7 +509,7 @@ class="math inline">\(\mathcal{T}\)</span>中每个trace <span
 class="math inline">\(t\)</span> 计算采样概率 <span
 class="math inline">\(\rho\)</span>。整个过程定义为：</p>
 <p><span class="math display">\[
-   S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
+S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
 \]</span></p>
 <p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
 class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
@@ -787,6 +873,142 @@ diagnosis, ESEC/FSE. 2020: 1387-1397.
       </tags>
   </entry>
   <entry>
+    <title>最长公共子序列（Longest Common Subsequence）</title>
+    <url>/2024/11/20/LCS/</url>
+    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
+<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
+字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
+<font color=red>BCAB</font>。</p>
+<blockquote>
+<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
+比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
+<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
+lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
+<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
+the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+</blockquote>
+<h2 id="题目">题目</h2>
+<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
+和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
+公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
+是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
+&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
+的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
+&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
+<p>示例 1：</p>
+<p>输入：text1 = "abcde", text2 = "ace"<br />
+输出：3<br />
+解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
+<p>示例 2：</p>
+<p>输入：text1 = "abc", text2 = "abc"<br />
+输出：3<br />
+解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
+<p>示例 3：</p>
+<p>输入：text1 = "abc", text2 = "def"<br />
+输出：0<br />
+解释：两个字符串没有公共子序列，返回 0 。</p>
+<p>提示：</p>
+<ul>
+<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
+<li>text1 和 text2 仅由小写英文字符组成。</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>最长公共子序列（Longest Common Subsequence,
+LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<ol type="1">
+<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
+<ul>
+<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
+<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
+<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
+<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
+j-1))\)</span></li>
+</ul>
+<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
+<li><p><strong>重叠子问题</strong>：在求解 LCS
+的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
+class="math inline">\(X\)</span> 和 <span
+class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span>
+个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
+</ol>
+<h2 id="求解">求解</h2>
+<p>动态规划的求解步骤如下：</p>
+<ol type="1">
+<li><p>定义状态</p>
+<ul>
+<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
+class="math inline">\(dp\)</span> 表示，其中 <span
+class="math inline">\(dp[i][j]\)</span> 表示序列 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和序列 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
+</ul></li>
+<li><p>状态转移方程</p>
+<ul>
+<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
+<ul>
+<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
+<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = max(dp[i-1][j],
+dp[i][j-1])\)</span></li>
+</ul></li>
+</ul></li>
+</ol>
+<p>python代码实现如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
+<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 3]</p>
+<h2 id="扩充">扩充</h2>
+<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
+class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<ol type="1">
+<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
+<li>如果当前<span
+class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
+class="math inline">\(X[i]\)</span>（<span
+class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
+class="math inline">\(X\)</span>和<span
+class="math inline">\(Y\)</span>都向前推进一位</li>
+<li>如果当前<span
+class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
+class="math inline">\(X[i-1]\)</span>和<span
+class="math inline">\(Y[j]\)</span>中产生，还是在<span
+class="math inline">\(X[i]\)</span>和<span
+class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
+class="math inline">\(dp[i-1][j]\)</span> 和 <span
+class="math inline">\(dp[i][j-1]\)</span></li>
+</ol>
+<p>所以代码如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
+<p>回溯路径为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, 2, <font color=blue>3</font>]</p>
+]]></content>
+      <categories>
+        <category>leetcode基础算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>leetcode</tag>
+        <tag>动态规划</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>前缀树（Prefix Tree）</title>
     <url>/2024/11/25/trie_tree/</url>
     <content><![CDATA[<p>Trie 树，又叫前缀树，字典树，
@@ -1091,183 +1313,6 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
         <tag>trace</tag>
         <tag>实证分析</tag>
         <tag>SoCC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</title>
-    <url>/2024/05/13/MicoHECL/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：MicroHECL: High-Efficient Root Cause Localization in
-Large-Scale Microservice Systems</p>
-<p>来源：ICSE 2021</p>
-<p>作者：复旦大学CodeWisdom团队，阿里云</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
-<ul>
-<li>动态构建一段时间窗口内的服务调用图</li>
-<li>对不同异常类型进行个性化异常检测</li>
-<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
-</ul>
-<h2 id="背景">背景</h2>
-<p>工业微服务系统包含大量的微服务（e.g.,
-alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
-<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
-<ul>
-<li>性能异常（Performance Anomaly）</li>
-<li>可靠性异常（Reliability Anomaly）</li>
-<li>流量异常（Traffic Anomaly）</li>
-</ul>
-<h2 id="microhecl-概述">MicroHECL 概述</h2>
-<center>
-<img src="/imgs/MicroHECL/MicroHECL.png"/>
-</center>
-<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
-<h3 id="服务调用图构建">服务调用图构建</h3>
-<p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<strong><em>30min</em></strong>内的服务依赖图（service
-call
-graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如<span
-class="math inline">\(S_i \to S_j\)</span>代表微服务<span
-class="math inline">\(S_i\)</span>调用了微服务<span
-class="math inline">\(S_j\)</span>；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
-<h3 id="异常传播链分析">异常传播链分析</h3>
-<p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
-<ul>
-<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
-<li>异常传播链扩展</li>
-<li>根因排序</li>
-</ul>
-<h4 id="分析入口服务">分析入口服务</h4>
-文章首先根据经验定义了三种故障类型的传播方向：
-<center>
-<img src="/imgs/MicroHECL/direction.png" width="500"/>
-</center>
-<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a
-href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
-<center>
-<img src="/imgs/MicroHECL/chain.png"/>
-</center>
-<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig.
-2所示，整个过程描述如下： &gt; 1. 将入口服务<span
-class="math inline">\(S_5\)</span>纳入异常传播链 &gt; 2.
-异常检测。检测<span class="math inline">\(S_5\)</span>的邻居节点<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>的异常类型 &gt; 3. 确认<span
-class="math inline">\(S_4\)</span>的异常类型为<strong>Traffic
-Anomaly</strong>，<span
-class="math inline">\(S_7\)</span>的异常类型为<strong>Performance
-Anomaly</strong> &gt; 4. 检测是否符合传播方向（<span
-class="math inline">\(S_4\)</span>是否是<span
-class="math inline">\(S_5\)</span>的上游，<span
-class="math inline">\(S_7\)</span>是否是<span
-class="math inline">\(S_5\)</span>的下游） &gt; 5. 符合，将<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>添加到异常传播链 &gt; 6. 从<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>出发，对邻居节点重复上述步骤</p>
-<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a
-href="#33-服务异常检测">3.3节</a>会提到。</p>
-<h4 id="异常传播链扩展">异常传播链扩展</h4>
-<p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游/下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig.
-2对于<span class="math inline">\(S_4\)</span>方向的传播分析，以<span
-class="math inline">\(S_1\)</span>结束；对于<span
-class="math inline">\(S_7\)</span>方向的传播分析，以<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>结束。</p>
-<h4 id="候选根因定位">候选根因定位</h4>
-<p>本文选择异常传播链的末端服务作为候选根因，比如Fig.
-2中的候选根因服务为<span class="math inline">\(S_1\)</span>，<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>。那么如何排名呢？</p>
-<ul>
-<li>选取入口服务过去60min的业务指标 <span
-class="math inline">\(X\)</span></li>
-<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>,
-<code>EC</code> or <code>QPS</code>）<span
-class="math inline">\(Y\)</span></li>
-<li>计算两者之间的皮尔逊相关系数：</li>
-</ul>
-<p><span class="math display">\[
-   P(X,
-Y)=\frac{\sum_{i=1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i=1}^n{(X_i-\overline{X})^2}\sum_{i=1}^n{(Y_i-\overline{Y})^2}}}
-\]</span></p>
-<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
-<h3 id="服务异常检测">服务异常检测</h3>
-<p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance
-Anomaly，Reliability Anomaly，Traffic
-Anomaly）分别设计了异常检测方法。</p>
-<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
-<center>
-<img src="/imgs/MicroHECL/metrics.png"/>
-</center>
-<h4 id="性能异常检测">性能异常检测</h4>
-<p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig.
-3
-(d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
-<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
-<blockquote>
-<ul>
-<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
-<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4=12种特征。</p>
-<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
-<h4 id="可靠性异常检测">可靠性异常检测</h4>
-<p>这里提到<code>EC</code>大多时候都是0（Fig.2
-(b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
-<p>所以，文章采用随机森林（Random
-Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
-<blockquote>
-<ul>
-<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
-<li>检测窗口内最大错误率（<code>EC</code>/sum(<code>QPS</code>)）。</li>
-<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
-<h4 id="流量异常检测">流量异常检测</h4>
-<p><code>QPS</code>大多满足正态分布（Fig.2
-(c,f)），所以直接采用3-sigma进行检测。 &gt;
-这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，选择过去<strong><em>1h</em></strong>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
-<h4 id="剪枝">剪枝</h4>
-<p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
-<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
-<blockquote>
-<p>例子：Fig. 2中的 <span class="math inline">\(S_1 \to S_4\)</span> 和
-<span class="math inline">\(S_4 \to S_5\)</span> 都是<strong>Traffic
-Anomaly</strong> 的传播路径，如果<span class="math inline">\(S_1 \to
-S_4\)</span> 的 <code>QPS</code> 和 <span class="math inline">\(S_4 \to
-S_5\)</span> 的 <code>QPS</code>
-没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉<span
-class="math inline">\(S_1 \to S_4\)</span>，那么<span
-class="math inline">\(S_4\)</span>就取代<span
-class="math inline">\(S_1\)</span>变成了候选根因。</p>
-</blockquote>
-<p>这里的检测窗口选取的过去<strong><em>60min</em></strong>。剪枝操作执行在异常节点加入异常调用链之前。</p>
-<h2 id="总结">总结</h2>
-<p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="ImpactTracer"></a> [1] Xie R, Yang J, Li J, et al.
-ImpactTracer: Root Cause Localization in Microservices Based on Fault
-Propagation Modeling, (DATE), 2023.
-<a>https://ieeexplore.ieee.org/abstract/document/10137078/</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>根因定位</tag>
-        <tag>ICSE</tag>
       </tags>
   </entry>
 </search>
