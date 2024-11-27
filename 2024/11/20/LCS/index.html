@@ -1,288 +1,400 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
 
-    
+<link rel="stylesheet" href="/css/main.css">
 
-    
+<link rel="stylesheet" href="https://fonts.loli.net/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
 
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuaiyuxie.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
 
-
-    <meta charset="utf-8">
-    
-    
-    
-    
-    <title>最长公共子序列（Longest Common Subsequence） | 衍射的博客 | 记录学习中的点点滴滴</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    
-    <meta name="theme-color" content="#3F51B5">
-    
-    
-    <meta name="keywords" content="算法,动态规划">
-    <meta name="description" content="最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。 比如：字符串 ABCBDAB 和 字符串 BDCAB 的LCS为 BCAB。  LCS在计算机领域有诸多应用，比如可以：  比较 DNA 序列或蛋白质序列。 比较不同版本的文件，找出更">
+  <meta name="description" content="最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。 比如：字符串 ABCBDAB 和 字符串 BDCAB 的LCS为 BCAB。  LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 - 比较不同版">
 <meta property="og:type" content="article">
 <meta property="og:title" content="最长公共子序列（Longest Common Subsequence）">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/11/20/LCS/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。 比如：字符串 ABCBDAB 和 字符串 BDCAB 的LCS为 BCAB。  LCS在计算机领域有诸多应用，比如可以：  比较 DNA 序列或蛋白质序列。 比较不同版本的文件，找出更">
+<meta property="og:description" content="最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。 比如：字符串 ABCBDAB 和 字符串 BDCAB 的LCS为 BCAB。  LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 - 比较不同版">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-11-20T03:35:01.000Z">
-<meta property="article:modified_time" content="2024-11-25T06:30:19.331Z">
+<meta property="article:modified_time" content="2024-11-27T08:49:50.357Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="算法">
+<meta property="article:tag" content="leetcode">
 <meta property="article:tag" content="动态规划">
 <meta name="twitter:card" content="summary">
-    
-        <link rel="alternate" type="application/atom+xml" title="衍射的博客" href="/atom.xml">
-    
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="stylesheet" href="//unpkg.com/hexo-theme-material-indigo@latest/css/style.css">
-    <script>window.lazyScripts=[]</script>
 
-    <!-- custom head -->
-    
+<link rel="canonical" href="https://shuaiyuxie.github.io/2024/11/20/LCS/">
 
-<meta name="generator" content="Hexo 4.2.1"></head>
 
-<body>
-    <div id="loading" class="active"></div>
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
 
-    <aside id="menu" class="hide" >
-  <div class="inner flex-row-vertical">
-    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
-        <i class="icon icon-lg icon-close"></i>
-    </a>
-    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
-      <div class="brand">
-        <a href="/" class="avatar waves-effect waves-circle waves-light">
-          <img src="/img/avatar.jpg">
-        </a>
-        <hgroup class="introduce">
-          <h5 class="nickname">谢帅宇</h5>
-          <a href="mailto:634206017@qq.com" title="634206017@qq.com" class="mail">634206017@qq.com</a>
-        </hgroup>
-      </div>
-    </div>
-    <div class="scroll-wrap flex-col">
-      <ul class="nav">
-        
-            <li class="waves-block waves-effect">
-              <a href="/"  >
-                <i class="icon icon-lg icon-home"></i>
-                主页
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/archives"  >
-                <i class="icon icon-lg icon-archives"></i>
-                Archives
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/tags"  >
-                <i class="icon icon-lg icon-tags"></i>
-                Tags
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/categories"  >
-                <i class="icon icon-lg icon-th-list"></i>
-                Categories
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="https://github.com/yscoder" target="_blank" >
-                <i class="icon icon-lg icon-github"></i>
-                Github
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="http://www.weibo.com/ysweb" target="_blank" >
-                <i class="icon icon-lg icon-weibo"></i>
-                Weibo
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/custom"  >
-                <i class="icon icon-lg icon-link"></i>
-                测试
-              </a>
-            </li>
-        
-      </ul>
+  <title>最长公共子序列（Longest Common Subsequence） | 衍射的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="衍射的博客" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
     </div>
   </div>
-</aside>
 
-    <main id="main">
-        <header class="top-header" id="header">
-    <div class="flex-row">
-        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
-          <i class="icon icon-lg icon-navicon"></i>
-        </a>
-        <div class="flex-col header-title ellipsis">最长公共子序列（Longest Common Subsequence）</div>
-        
-        <div class="search-wrap" id="search-wrap">
-            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
-                <i class="icon icon-lg icon-chevron-left"></i>
-            </a>
-            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
-            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
-                <i class="icon icon-lg icon-search"></i>
-            </a>
-        </div>
-        
-        
-        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
-            <i class="icon icon-lg icon-share-alt"></i>
-        </a>
-        
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">衍射的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">记录学习中的点点滴滴</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
-</header>
-<header class="content-header post-header">
-
-    <div class="container fade-scale">
-        <h1 class="title">最长公共子序列（Longest Common Subsequence）</h1>
-        <h5 class="subtitle">
-            
-                <time datetime="2024-11-20T03:35:01.000Z" itemprop="datePublished" class="page-time">
-  2024-11-20
-</time>
+  </div>
+</div>
 
 
-            
-        </h5>
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-github">
+
+    <a href="https://github.com/theoryXie" rel="noopener" target="_blank"><i class="fa fa-folder fa-fw"></i>github</a>
+
+  </li>
+        <li class="menu-item menu-item-homepage">
+
+    <a href="https://theoryxie.github.io/" rel="noopener" target="_blank"><i class="fa fa-user fa-fw"></i>homepage</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
     </div>
+  </div>
+
+</div>
+    </header>
 
     
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/theoryXie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
 
 
-</header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
 
+          <div class="content post posts-expand">
+            
 
-<div class="container body-wrap">
     
-    <aside class="post-widget">
-        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
-            <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#题目"><span class="post-toc-number">1.</span> <span class="post-toc-text">题目</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#分析"><span class="post-toc-number">2.</span> <span class="post-toc-text">分析</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#求解"><span class="post-toc-number">3.</span> <span class="post-toc-text">求解</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#扩充"><span class="post-toc-number">4.</span> <span class="post-toc-text">扩充</span></a></li></ol>
-        </nav>
-    </aside>
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/11/20/LCS/">
 
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
 
-<article id="post-LCS"
-  class="post-article article-type-post fade" itemprop="blogPost">
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          最长公共子序列（Longest Common Subsequence）
+        </h1>
 
-    <div class="post-card">
-        <h1 class="post-card-title">最长公共子序列（Longest Common Subsequence）</h1>
         <div class="post-meta">
-            <time class="post-time" title="2024-11-20 11:35:01" datetime="2024-11-20T03:35:01.000Z"  itemprop="datePublished">2024-11-20</time>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
 
-            
+              <time title="创建时间：2024-11-20 11:35:01" itemprop="dateCreated datePublished" datetime="2024-11-20T11:35:01+08:00">2024-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-27 16:49:50" itemprop="dateModified" datetime="2024-11-27T16:49:50+08:00">2024-11-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leetcode%E5%9F%BA%E7%A1%80%E7%AE%97%E6%B3%95/" itemprop="url" rel="index"><span itemprop="name">leetcode基础算法</span></a>
+                </span>
+            </span>
 
-
-            
-<span id="busuanzi_container_page_pv" title="文章总阅读量" style='display:none'>
-    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
-</span>
-
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
 
         </div>
-        <div class="post-content" id="post-content" itemprop="postContent">
-            <p> 最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
-<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和 字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为 <font color=red>BCAB</font>。</p>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
+<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
+字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
+<font color=red>BCAB</font>。</p>
 <blockquote>
-<p>LCS在计算机领域有诸多应用，比如可以：</p>
-<ul>
-<li>比较 DNA 序列或蛋白质序列。</li>
-<li>比较不同版本的文件，找出更改的部分</li>
-<li>文本（代码）相似性检</li>
-<li>…</li>
-</ul>
-<p>假设有两个版本的文件：</p>
-<ul>
-<li>文件 V1: The quick brown fox jumps over the lazy dog.</li>
-<li>文件 V2: A quick brown dog jumps over the lazy cat.</li>
-</ul>
-<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
+比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
+<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
+lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
+<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
+the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
 </blockquote>
-<h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><p>leetcode 1143 是最长公共子序列的经典问题：</p>
-<blockquote>
-<p>给定两个字符串 text1 和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在 公共子序列 ，返回 0 。</p>
-<p>一个字符串的 子序列 是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。</p>
-<ul>
-<li>例如，”ace” 是 “abcde” 的子序列，但 “aec” 不是 “abcde” 的子序列。<br>两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</li>
-</ul>
-<p>两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
-</blockquote>
+<h2 id="题目">题目</h2>
+<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
+和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
+公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
+是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
+&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
+的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
+&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
 <p>示例 1：</p>
-<p>输入：text1 &#x3D; “abcde”, text2 &#x3D; “ace”<br>输出：3<br>解释：最长公共子序列是 “ace” ，它的长度为 3 。</p>
+<p>输入：text1 = "abcde", text2 = "ace"<br />
+输出：3<br />
+解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
 <p>示例 2：</p>
-<p>输入：text1 &#x3D; “abc”, text2 &#x3D; “abc”<br>输出：3<br>解释：最长公共子序列是 “abc” ，它的长度为 3 。</p>
+<p>输入：text1 = "abc", text2 = "abc"<br />
+输出：3<br />
+解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
 <p>示例 3：</p>
-<p>输入：text1 &#x3D; “abc”, text2 &#x3D; “def”<br>输出：0<br>解释：两个字符串没有公共子序列，返回 0 。</p>
+<p>输入：text1 = "abc", text2 = "def"<br />
+输出：0<br />
+解释：两个字符串没有公共子序列，返回 0 。</p>
 <p>提示：</p>
 <ul>
-<li>1 &lt;&#x3D; text1.length, text2.length &lt;&#x3D; 1000</li>
+<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
 <li>text1 和 text2 仅由小写英文字符组成。</li>
 </ul>
-<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>最长公共子序列（Longest Common Subsequence, LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
-<ol>
+<h2 id="分析">分析</h2>
+<p>最长公共子序列（Longest Common Subsequence,
+LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<ol type="1">
 <li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
 <ul>
-<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即 $LCS(i, j) &#x3D; LCS(i-1, j-1) + 1$</li>
-<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即 $LCS(i, j) &#x3D; max(LCS(i-1, j), LCS(i, j-1))$</li>
+<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
+<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
+<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
+<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
+j-1))\)</span></li>
 </ul>
-<p> 这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p>
-</li>
-<li><p><strong>重叠子问题</strong>：在求解 LCS 的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 $X$ 和 $Y$ 的LCS时，可能会多次计算 $X$ 的前 $i$ 个字符和 $Y$ 的前 $j$ 个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p>
-</li>
+<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
+<li><p><strong>重叠子问题</strong>：在求解 LCS
+的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
+class="math inline">\(X\)</span> 和 <span
+class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span>
+个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
 </ol>
-<h2 id="求解"><a href="#求解" class="headerlink" title="求解"></a>求解</h2><p>动态规划的求解步骤如下：</p>
-<ol>
+<h2 id="求解">求解</h2>
+<p>动态规划的求解步骤如下：</p>
+<ol type="1">
 <li><p>定义状态</p>
 <ul>
-<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 $dp$ 表示，其中 $dp[i][j]$ 表示序列 $X$ 的前 $i$ 个字符和序列 $Y$ 的前 $j$ 个字符的最长公共子序列的长度。</li>
-</ul>
-</li>
+<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
+class="math inline">\(dp\)</span> 表示，其中 <span
+class="math inline">\(dp[i][j]\)</span> 表示序列 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和序列 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
+</ul></li>
 <li><p>状态转移方程</p>
 <ul>
 <li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
 <ul>
-<li>if $X[i]&#x3D;&#x3D;Y[j]$， $dp[i][j] &#x3D; dp[i-1][j-1] + 1$</li>
-<li>if  $X[i]!&#x3D;Y[j]$， $dp[i][j] &#x3D; max(dp[i-1][j], dp[i][j-1])$</li>
-</ul>
-</li>
-</ul>
-</li>
+<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
+<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = max(dp[i-1][j],
+dp[i][j-1])\)</span></li>
+</ul></li>
+</ul></li>
 </ol>
 <p>python代码实现如下：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
-
-<p>最终的$dp$表为：</p>
+<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
 <p>[0, 0, 0, 0]</p>
 <p>[0, 1, 1, 1]</p>
 <p>[0, 1, 1, 1]</p>
 <p>[0, 1, 2, 2]</p>
 <p>[0, 1, 2, 2]</p>
 <p>[0, 1, 2, 3]</p>
-<h2 id="扩充"><a href="#扩充" class="headerlink" title="扩充"></a>扩充</h2><p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据$dp$表进行回溯，思路为</p>
-<ol>
-<li>从$dp[n][m]$开始向前回溯</li>
-<li>如果当前$X[i]&#x3D;&#x3D;Y[j]$，那么说明此时$X[i]$（$Y[j]$）属于LCS的一部分，则加入LCS；同时$X$和$Y$都向前推进一位</li>
-<li>如果当前$X[i]!&#x3D;Y[j]$，那么我们需要找出LCS是在$X[i-1]$和$Y[j]$中产生，还是在$X[i]$和$Y[j-1]$中产生，则只需要对比$dp[i-1][j]$ 和 $dp[i][j-1]$</li>
+<h2 id="扩充">扩充</h2>
+<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
+class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<ol type="1">
+<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
+<li>如果当前<span
+class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
+class="math inline">\(X[i]\)</span>（<span
+class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
+class="math inline">\(X\)</span>和<span
+class="math inline">\(Y\)</span>都向前推进一位</li>
+<li>如果当前<span
+class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
+class="math inline">\(X[i-1]\)</span>和<span
+class="math inline">\(Y[j]\)</span>中产生，还是在<span
+class="math inline">\(X[i]\)</span>和<span
+class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
+class="math inline">\(dp[i-1][j]\)</span> 和 <span
+class="math inline">\(dp[i][j-1]\)</span></li>
 </ol>
 <p>所以代码如下：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
-
 <p>回溯路径为：</p>
 <p>[0, 0, 0, 0]</p>
 <p>[0, <font color=blue>1</font>, 1, 1]</p>
@@ -291,327 +403,316 @@
 <p>[0, 1, <font color=blue>2</font>, 2]</p>
 <p>[0, 1, 2, <font color=blue>3</font>]</p>
 
-        </div>
-
-        <blockquote class="post-copyright">
-    
-    <div class="content">
-        
-<span class="post-time">
-    最后更新时间：<time datetime="2024-11-25T06:30:19.331Z" itemprop="dateUpdated">2024-11-25 14:30:19</time>
-</span><br>
-
-
-        
-        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/2024/11/20/LCS/" target="_blank" rel="external">https://shuaiyuxie.github.io/2024/11/20/LCS/</a>
-        
-    </div>
-    
-    <footer>
-        <a href="https://shuaiyuxie.github.io">
-            <img src="/img/avatar.jpg" alt="谢帅宇">
-            谢帅宇
-        </a>
-    </footer>
-</blockquote>
-
-        
-<div class="page-reward">
-    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
-</div>
-
-
-
-        <div class="post-footer">
-            
-	<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" rel="tag">动态规划</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%AE%97%E6%B3%95/" rel="tag">算法</a></li></ul>
-
-
-            
-<div class="page-share-wrap">
-    
-
-<div class="page-share" id="pageShare">
-    <ul class="reset share-icons">
-      <li>
-        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/11/20/LCS/&title=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
-          <i class="icon icon-weibo"></i>
-        </a>
-      </li>
-      <li>
-        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
-          <i class="icon icon-weixin"></i>
-        </a>
-      </li>
-      <li>
-        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/11/20/LCS/&title=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
-          <i class="icon icon-qq"></i>
-        </a>
-      </li>
-      <li>
-        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/11/20/LCS/" data-title=" Facebook">
-          <i class="icon icon-facebook"></i>
-        </a>
-      </li>
-      <li>
-        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/11/20/LCS/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
-          <i class="icon icon-twitter"></i>
-        </a>
-      </li>
-      <li>
-        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/11/20/LCS/" data-title=" Google+">
-          <i class="icon icon-google-plus"></i>
-        </a>
-      </li>
-    </ul>
- </div>
-
-
-
-    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
-        <i class="icon icon-share-alt icon-lg"></i>
-    </a>
-</div>
-
-
-
-        </div>
     </div>
 
     
-<nav class="post-nav flex-row flex-justify-between">
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>谢帅宇
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://shuaiyuxie.github.io/2024/11/20/LCS/" title="最长公共子序列（Longest Common Subsequence）">https://shuaiyuxie.github.io/2024/11/20/LCS/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%AE%97%E6%B3%95/" rel="tag"># 算法</a>
+              <a href="/tags/leetcode/" rel="tag"># leetcode</a>
+              <a href="/tags/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" rel="tag"># 动态规划</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/06/23/TraStrainer/" rel="prev" title="[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State">
+      <i class="fa fa-chevron-left"></i> [FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/11/20/EM/" rel="next" title="期望最大算法（Expectation Maximization Algorithm）">
+      期望最大算法（Expectation Maximization Algorithm） <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
   
-    <div class="waves-block waves-effect prev">
-      <a href="/2024/11/20/EM/" id="post-prev" class="post-nav-link">
-        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
-        <h4 class="title">期望最大算法（Expectation Maximization Algorithm）</h4>
-      </a>
-    </div>
+  
   
 
-  
-    <div class="waves-block waves-effect next">
-      <a href="/2024/06/23/TraStrainer/" id="post-next" class="post-nav-link">
-        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
-        <h4 class="title">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</h4>
-      </a>
-    </div>
-  
-</nav>
 
 
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</article>
-
-<div id="reward" class="page-modal reward-lay">
-    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <h3 class="reward-title">
-        <i class="icon icon-quote-left"></i>
-        谢谢大爷~
-        <i class="icon icon-quote-right"></i>
-    </h3>
-    <div class="reward-content">
-        
-        <div class="reward-code">
-            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
-        </div>
-        
-        <label class="reward-toggle">
-            <input id="rewardToggle" type="checkbox" class="reward-toggle-check"
-                data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
-            <div class="reward-toggle-ctrol">
-                <span class="reward-toggle-item wechat">微信</span>
-                <span class="reward-toggle-label"></span>
-                <span class="reward-toggle-item alipay">支付宝</span>
-            </div>
-        </label>
-        
-    </div>
-</div>
-
-
-
-</div>
-
-        <footer class="footer">
-    <div class="top">
-        
-<p>
-    <span id="busuanzi_container_site_uv" style='display:none'>
-        站点总访客数：<span id="busuanzi_value_site_uv"></span>
-    </span>
-    <span id="busuanzi_container_site_pv" style='display:none'>
-        站点总访问量：<span id="busuanzi_value_site_pv"></span>
-    </span>
-</p>
-
-
-        <p>
-            
-                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
-            
-            <span>博客内容遵循 <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
-        </p>
-    </div>
-    <div class="bottom">
-        <p><span>谢帅宇 &copy; 2015 - 2024</span>
-            <span>
-                
-                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
-            </span>
-        </p>
-    </div>
-</footer>
-
-    </main>
-    <div class="mask" id="mask"></div>
-<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
-
-
-
-<div class="global-share" id="globalShare">
-    <ul class="reset share-icons">
-      <li>
-        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/11/20/LCS/&title=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
-          <i class="icon icon-weibo"></i>
-        </a>
-      </li>
-      <li>
-        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
-          <i class="icon icon-weixin"></i>
-        </a>
-      </li>
-      <li>
-        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/11/20/LCS/&title=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
-          <i class="icon icon-qq"></i>
-        </a>
-      </li>
-      <li>
-        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/11/20/LCS/" data-title=" Facebook">
-          <i class="icon icon-facebook"></i>
-        </a>
-      </li>
-      <li>
-        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《最长公共子序列（Longest Common Subsequence）》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/11/20/LCS/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
-          <i class="icon icon-twitter"></i>
-        </a>
-      </li>
-      <li>
-        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/11/20/LCS/" data-title=" Google+">
-          <i class="icon icon-google-plus"></i>
-        </a>
-      </li>
-    </ul>
- </div>
-
-
-<div class="page-modal wx-share" id="wxShare">
-    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACM0lEQVR42u3ay26DQAwF0Pz/T1Op2wZybVO1zBxWUUTIHBaWX69XfB3f1/Xnn/df33n2zdkzb7gwMDAeyzguryoj+e31Qc/uPzsbBgbGPoz8ccmfTfB5QMfAwMCoHmgSZJP/xcDAwJgE3Pz+3q8wMDAw8iL2uowsFJytYH1bLY6BgfFAxl2Dgd/4/AfzDQwMjH/GOIpXnvbl31SD7JtTYWBgLM3I1yCS9n2euuWNubysxcDA2IdxtK58qJnneOUXjYGBsTQjGTRO1iyqjbMkWGNgYOzG6B0xHzRWi9VmYw4DA2NRRm95Ii9i54255FQYGBg7MKrt+3zZohfEy0kkBgbGZox8nyFfo7+rbXeadGJgYGzA6LX1o6Ttpm21D68PAwNjA0ZvZNgrWfM12cJaBgYGxtKMPKjdNTCofvMhKazGZgwMjAcyeoPD6ppFdbSQr71+6BpiYGAszag2vPLEMS9x8+EBBgbG2ozkQZPBwHycmZ8QAwNjB0Z1AaK3Fn8UrwIMAwNjUUbeSuuF0WopW00WMTAw9mFUR5WFha3ijKJaML/ZGcHAwFiOUQ2C1SFl3iybLGRgYGCszZiUlNXFr14oj14TBgbG0ozqsvtktatarCbPwcDA2IfRC7K9hfs8NFdbfhgYGDswessWk7Cbw6KkEAMDA2OQxuULGaOQjYGBgREvT+QrF5P1i1FqiIGB8VjGfBO2d/TJixtFbgwMjEcxbigg4wyt18ibjE4xMDAezvgCDmcFUimwjEwAAAAASUVORK5CYII=" alt="微信分享二维码">
-</div>
-
-
-
-
-    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
-<script>
-var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
-
-
-</script>
-
-<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/main.min.js"></script>
-
-
-<div class="search-panel" id="search-panel">
-    <ul class="search-result" id="search-result"></ul>
-</div>
-<template id="search-tpl">
-<li class="item">
-    <a href="{path}" class="waves-block waves-effect">
-        <div class="title ellipsis" title="{title}">{title}</div>
-        <div class="flex-row flex-middle">
-            <div class="tags ellipsis">
-                {tags}
-            </div>
-            <time class="flex-col time">{date}</time>
-        </div>
-    </a>
-</li>
-</template>
-
-<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/search.min.js" async></script>
-
-
-
-<!-- mathjax config similar to math.stackexchange -->
-
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
-        processEscapes: true,
-        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-    }
-});
-
-MathJax.Hub.Queue(function() {
-    var all = MathJax.Hub.getAllJax(), i;
-    for(i=0; i < all.length; i += 1) {
-        all[i].SourceElement().parentNode.className += ' has-jax';
-    }
-});
-</script>
-
-<script async src="//cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
-
-
-
-
-<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-
-
+          </div>
+          
 
 <script>
-(function() {
-    var OriginTitile = document.title, titleTime;
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            document.title = '等你回来';
-            clearTimeout(titleTime);
-        } else {
-            document.title = '(つェ⊂)咦!又好了!';
-            titleTime = setTimeout(function() {
-                document.title = OriginTitile;
-            },2000);
-        }
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
     });
-})();
+  }
 </script>
 
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
 
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#题目"><span class="nav-number">1.</span> <span class="nav-text">题目</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#分析"><span class="nav-number">2.</span> <span class="nav-text">分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#求解"><span class="nav-number">3.</span> <span class="nav-text">求解</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#扩充"><span class="nav-number">4.</span> <span class="nav-text">扩充</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="谢帅宇"
+      src="/images/head.png">
+  <p class="site-author-name" itemprop="name">谢帅宇</p>
+  <div class="site-description" itemprop="description">我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">谢帅宇</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">30k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">54 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
 
 </body>
 </html>

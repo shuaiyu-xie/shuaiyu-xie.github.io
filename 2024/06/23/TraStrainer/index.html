@@ -1,32 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
 
-    
+<link rel="stylesheet" href="/css/main.css">
 
-    
+<link rel="stylesheet" href="https://fonts.loli.net/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
 
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuaiyuxie.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
 
-
-    <meta charset="utf-8">
-    
-    
-    
-    
-    <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State | 衍射的博客 | 记录学习中的点点滴滴</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    
-    <meta name="theme-color" content="#3F51B5">
-    
-    
-    <meta name="keywords" content="微服务,trace,trace采样,FSE">
-    <meta name="description" content="题目：TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State 来源：FSE 2024 作者：中山大学DDS实验室  摘要微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace sampling 技术被用来缓解这种压力。trace sampling 分为两种：  ra">
+  <meta name="description" content="题目：TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State 来源：FSE 2024 作者：中山大学DDS实验室  摘要 微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace sampling 技术被用来缓解这种压力。trace sampling">
 <meta property="og:type" content="article">
 <meta property="og:title" content="[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State">
 <meta property="og:url" content="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/index.html">
 <meta property="og:site_name" content="衍射的博客">
-<meta property="og:description" content="题目：TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State 来源：FSE 2024 作者：中山大学DDS实验室  摘要微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace sampling 技术被用来缓解这种压力。trace sampling 分为两种：  ra">
+<meta property="og:description" content="题目：TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State 来源：FSE 2024 作者：中山大学DDS实验室  摘要 微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace sampling 技术被用来缓解这种压力。trace sampling">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/TraStrainer/trace-metric.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/TraStrainer/metric-importance.png">
@@ -35,7 +34,7 @@
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/TraStrainer/metric-anomaly.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/TraStrainer/vote.png">
 <meta property="article:published_time" content="2024-06-23T07:42:10.000Z">
-<meta property="article:modified_time" content="2024-11-21T06:46:10.246Z">
+<meta property="article:modified_time" content="2024-11-27T12:34:22.801Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="trace">
@@ -43,597 +42,755 @@
 <meta property="article:tag" content="FSE">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://shuaiyuxie.github.io/imgs/TraStrainer/trace-metric.png">
-    
-        <link rel="alternate" type="application/atom+xml" title="衍射的博客" href="/atom.xml">
-    
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="stylesheet" href="//unpkg.com/hexo-theme-material-indigo@latest/css/style.css">
-    <script>window.lazyScripts=[]</script>
 
-    <!-- custom head -->
-    
+<link rel="canonical" href="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/">
 
-<meta name="generator" content="Hexo 4.2.1"></head>
 
-<body>
-    <div id="loading" class="active"></div>
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
 
-    <aside id="menu" class="hide" >
-  <div class="inner flex-row-vertical">
-    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
-        <i class="icon icon-lg icon-close"></i>
-    </a>
-    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
-      <div class="brand">
-        <a href="/" class="avatar waves-effect waves-circle waves-light">
-          <img src="/img/avatar.jpg">
-        </a>
-        <hgroup class="introduce">
-          <h5 class="nickname">谢帅宇</h5>
-          <a href="mailto:634206017@qq.com" title="634206017@qq.com" class="mail">634206017@qq.com</a>
-        </hgroup>
-      </div>
-    </div>
-    <div class="scroll-wrap flex-col">
-      <ul class="nav">
-        
-            <li class="waves-block waves-effect">
-              <a href="/"  >
-                <i class="icon icon-lg icon-home"></i>
-                主页
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/archives"  >
-                <i class="icon icon-lg icon-archives"></i>
-                Archives
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/tags"  >
-                <i class="icon icon-lg icon-tags"></i>
-                Tags
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/categories"  >
-                <i class="icon icon-lg icon-th-list"></i>
-                Categories
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="https://github.com/yscoder" target="_blank" >
-                <i class="icon icon-lg icon-github"></i>
-                Github
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="http://www.weibo.com/ysweb" target="_blank" >
-                <i class="icon icon-lg icon-weibo"></i>
-                Weibo
-              </a>
-            </li>
-        
-            <li class="waves-block waves-effect">
-              <a href="/custom"  >
-                <i class="icon icon-lg icon-link"></i>
-                测试
-              </a>
-            </li>
-        
-      </ul>
+  <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State | 衍射的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="衍射的博客" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
     </div>
   </div>
-</aside>
 
-    <main id="main">
-        <header class="top-header" id="header">
-    <div class="flex-row">
-        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
-          <i class="icon icon-lg icon-navicon"></i>
-        </a>
-        <div class="flex-col header-title ellipsis">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</div>
-        
-        <div class="search-wrap" id="search-wrap">
-            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
-                <i class="icon icon-lg icon-chevron-left"></i>
-            </a>
-            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
-            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
-                <i class="icon icon-lg icon-search"></i>
-            </a>
-        </div>
-        
-        
-        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
-            <i class="icon icon-lg icon-share-alt"></i>
-        </a>
-        
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">衍射的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">记录学习中的点点滴滴</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
-</header>
-<header class="content-header post-header">
-
-    <div class="container fade-scale">
-        <h1 class="title">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</h1>
-        <h5 class="subtitle">
-            
-                <time datetime="2024-06-23T07:42:10.000Z" itemprop="datePublished" class="page-time">
-  2024-06-23
-</time>
+  </div>
+</div>
 
 
-	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
 
-            
-        </h5>
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-github">
+
+    <a href="https://github.com/theoryXie" rel="noopener" target="_blank"><i class="fa fa-folder fa-fw"></i>github</a>
+
+  </li>
+        <li class="menu-item menu-item-homepage">
+
+    <a href="https://theoryxie.github.io/" rel="noopener" target="_blank"><i class="fa fa-user fa-fw"></i>homepage</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
     </div>
+  </div>
+
+</div>
+    </header>
 
     
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/theoryXie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
 
 
-</header>
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
 
+          <div class="content post posts-expand">
+            
 
-<div class="container body-wrap">
     
-    <aside class="post-widget">
-        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
-            <h4>TOC</h4>
-            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#摘要"><span class="post-toc-number">1.</span> <span class="post-toc-text">摘要</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#动机"><span class="post-toc-number">2.</span> <span class="post-toc-text">动机</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#问题定义"><span class="post-toc-number">3.</span> <span class="post-toc-text">问题定义</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#TraStrainer-概要"><span class="post-toc-number">4.</span> <span class="post-toc-text">TraStrainer 概要</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#Trace-Encoder"><span class="post-toc-number">4.1.</span> <span class="post-toc-text">Trace Encoder</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#System-Bias-Extractor"><span class="post-toc-number">4.2.</span> <span class="post-toc-text">System Bias Extractor</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#System-Biased-Sampler"><span class="post-toc-number">4.3.</span> <span class="post-toc-text">System-Biased Sampler</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#Diversity-Biased-Sampler"><span class="post-toc-number">4.4.</span> <span class="post-toc-text">Diversity-Biased Sampler</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#Composite-Sampler"><span class="post-toc-number">4.5.</span> <span class="post-toc-text">Composite Sampler</span></a></li></ol></li></ol>
-        </nav>
-    </aside>
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/">
 
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
 
-<article id="post-TraStrainer"
-  class="post-article article-type-post fade" itemprop="blogPost">
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          [FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State
+        </h1>
 
-    <div class="post-card">
-        <h1 class="post-card-title">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</h1>
         <div class="post-meta">
-            <time class="post-time" title="2024-06-23 15:42:10" datetime="2024-06-23T07:42:10.000Z"  itemprop="datePublished">2024-06-23</time>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
 
-            
-	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/">文献精读</a></li></ul>
+              <time title="创建时间：2024-06-23 15:42:10" itemprop="dateCreated datePublished" datetime="2024-06-23T15:42:10+08:00">2024-06-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-27 20:34:22" itemprop="dateModified" datetime="2024-11-27T20:34:22+08:00">2024-11-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
 
-
-
-            
-<span id="busuanzi_container_page_pv" title="文章总阅读量" style='display:none'>
-    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
-</span>
-
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
 
         </div>
-        <div class="post-content" id="post-content" itemprop="postContent">
-            <blockquote>
-<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</p>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
+System Runtime State</p>
 <p>来源：FSE 2024</p>
 <p>作者：中山大学DDS实验室</p>
 </blockquote>
-<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
+sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
 <ul>
-<li><code>random sampling</code>：又称 head sampling，即以固定概率决定每条trace是否采样</li>
-<li><code>biased sampling</code>：又称 tail sampling，即根据trace的状态决定是否采样</li>
+<li><code>random sampling</code>：又称 head
+sampling，即以固定概率决定每条trace是否采样</li>
+<li><code>biased sampling</code>：又称 tail
+sampling，即根据trace的状态决定是否采样</li>
 </ul>
-<p>很明显，<code>random sampling</code> 实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code> 能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
-<p>先前的 <code>biased sampling</code> 工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system runtime state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
+<p>很明显，<code>random sampling</code>
+实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
+能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
+<p>先前的 <code>biased sampling</code>
+工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
+runtime
+state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
 <center>
 <img src="/imgs/TraStrainer/trace-metric.png"/>
 </center>
-
-<p>本文提出了TraStrainer，从以下角度进行在线采样：</p>
+<p>本文提出了TraStrainer，从以下角度进行在线采样： -
+考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
+考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
+密度采样+系统采样 <span class="math inline">\(\to\)</span>
+最终采样决策</p>
+<h2 id="动机">动机</h2>
+<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
+<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
+traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
+<ol type="1">
+<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
+common-case traces也有很大的用处:</p>
 <ul>
-<li>考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样</li>
-<li>考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样</li>
-<li>密度采样+系统采样 $\to$ 最终采样决策</li>
-</ul>
-<h2 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h2><p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
-<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
-<ol>
-<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明 common-case traces也有很大的用处:</p>
-<ul>
-<li><strong>common-case traces 可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case traces。而我们分析这些common-case traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
-<li><strong>common-case traces 有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
-</ul>
-</li>
-<li><p><strong>结合 system runtime state 有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig. 3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A 的CPU被打满，到达 Node A 的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A 的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p>
-</li>
+<li><strong>common-case traces
+可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
+traces。而我们分析这些common-case
+traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
+<li><strong>common-case traces
+有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
+traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
+</ul></li>
+<li><p><strong>结合 system runtime state
+有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
+3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
+的CPU被打满，到达 Node A
+的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
+的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
 </ol>
 <center>
 <img src="/imgs/TraStrainer/metric-importance.png"/>
 </center>
-
 <p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
-<h2 id="问题定义"><a href="#问题定义" class="headerlink" title="问题定义"></a>问题定义</h2><p>给定一段时间收集的traces $\mathcal{T}$、对应的系统状态指标 $\mathcal{M}$、采样率 $\beta$，需要对$\mathcal{T}$中每个trace $t$ 计算采样概率 $\rho$。整个过程定义为：</p>
-<p>$$<br>   S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T’}<br>$$</p>
-<p>其中，$\mathcal{T’}$是$\mathcal{T}$的采样子集。</p>
-<h2 id="TraStrainer-概要"><a href="#TraStrainer-概要" class="headerlink" title="TraStrainer 概要"></a>TraStrainer 概要</h2><center>
+<h2 id="问题定义">问题定义</h2>
+<p>给定一段时间收集的traces <span
+class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
+class="math inline">\(\mathcal{M}\)</span>、采样率 <span
+class="math inline">\(\beta\)</span>，需要对<span
+class="math inline">\(\mathcal{T}\)</span>中每个trace <span
+class="math inline">\(t\)</span> 计算采样概率 <span
+class="math inline">\(\rho\)</span>。整个过程定义为：</p>
+<p><span class="math display">\[
+   S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
+\]</span></p>
+<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
+class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
+<h2 id="trastrainer-概要">TraStrainer 概要</h2>
+<center>
 <img src="/imgs/TraStrainer/TraStrainer.png"/>
 </center>
-
 <p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
 <ul>
 <li><p><strong>Runtime Data Preprocessing</strong>：</p>
 <ul>
 <li>Trace Encoder：对trace进行结构和状态编码</li>
 <li>System Bias Extractor：将当前系统状态指标进行编码</li>
-</ul>
-</li>
+</ul></li>
 <li><p><strong>Comprehensive Sampling</strong>：</p>
 <ul>
 <li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
 <li>Diversity-Biased Sampler：优先采样edge cases traces</li>
 <li>Composite Sampler：结合上述两种采样器进行最终决策</li>
+</ul></li>
 </ul>
-</li>
-</ul>
-<h3 id="Trace-Encoder"><a href="#Trace-Encoder" class="headerlink" title="Trace Encoder"></a>Trace Encoder</h3><p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
+<h3 id="trace-encoder">Trace Encoder</h3>
+<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
 <center>
 <img src="/imgs/TraStrainer/encoder-example.png"/>
 </center>
-
-<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标$m_1$就是（$C$, $SQLConnectionTime$）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算$m_1$的值$f_{m_1}$，作者将所有与$m_1$相关的span的duration结合起来，具体计算如下：</p>
-<p>$$<br>   f_{m_1}&#x3D;(|S_a|+1)*\sum_{i&#x3D;1}^{n}s_{m_1i}.duration<br>$$</p>
-<p>$s_{m_1i}$即与指标$m_1$相关的span，而$|S_a|$即相关span中异常span的个数（状态码为error，Fig.5中为1）</p>
-<blockquote>
-<p>注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
-</blockquote>
+<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
+Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
+class="math inline">\(m_1\)</span>就是（<span
+class="math inline">\(C\)</span>, <span
+class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
+class="math inline">\(m_1\)</span>的值<span
+class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
+class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
+<p><span class="math display">\[
+   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
+\]</span></p>
+<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
+class="math inline">\(m_1\)</span>相关的span，而<span
+class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
+&gt;
+注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
 <p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
-<h3 id="System-Bias-Extractor"><a href="#System-Bias-Extractor" class="headerlink" title="System Bias Extractor"></a>System Bias Extractor</h3><p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
+<h3 id="system-bias-extractor">System Bias Extractor</h3>
+<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
 <center>
 <img src="/imgs/TraStrainer/metric-anomaly.png"/>
 </center>
-
-<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值$v_k’$，并通过以下公式计算指标异常程度：<br>$$<br>   \alpha&#x3D;\frac{v_k’-v_k}{max(v_k’, v_k)}<br>$$</p>
-<p>这个公式通过预测值与真实值的差距计算异常度。所有指标$\mathcal{M}$的异常度拼在一起就是<code>preference vector</code> $\mathcal{P}$。</p>
-<h3 id="System-Biased-Sampler"><a href="#System-Biased-Sampler" class="headerlink" title="System-Biased Sampler"></a>System-Biased Sampler</h3><p>System-Biased Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
-<p>本文定义了一个固定长度look-back window，由$k$条最近收集的历史traces组成：$[t_1,…,t_k]$。System-Biased Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为$t_i&#x3D;[f_{1i},…,f_{ni}]$。对历史traces每一维指标计算均值$\mu_i$和标准差$\sigma_i$，则对新到来的trace $t_{k+1}$ 的第$i$个指标注意力分数计算如下：<br>$$<br>   a_i &#x3D; \frac{|f_{ik+1}-\mu_i|}{\sigma_i}<br>$$</p>
-<p>$t_{k+1}$的所有指标的注意力分数记为 $\mathcal{A}&#x3D;[a_1,…,a_n]$，TraStrainer通过将注意力分数$\mathcal{A}$和<code>preference vector</code> $\mathcal{P}$ 进行点积得到面向系统的采样概率$p_s$：<br>$$<br>   p_s(t_{k+1})&#x3D; \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1<br>$$ </p>
-<p>以上操作是将点积$P·\mathcal{A}(t_{k+1})$通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
-<h3 id="Diversity-Biased-Sampler"><a href="#Diversity-Biased-Sampler" class="headerlink" title="Diversity-Biased Sampler"></a>Diversity-Biased Sampler</h3><p>Diversity-Biased Sampler的目标是考虑edge-case traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case traces。</p>
-<p>论文将look-back window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace $t_{k+1}$ 归于最近的类 $c_{k+1}’$。$c_{k+1}’$的质量为$ma_{k+1}’$，计算 trace $t_{k+1}$ 和 所属类$c_{k+1}’$ 之间的Jaccard相似度$si(t_{k+1})$。</p>
-<p><strong>一般来说，所属类$c_{k+1}’$的质量和$si(t_{k+1})$越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率$p_d(t_{k+1})$计算如下：<br>$$<br>   p_d(t_{k+1})&#x3D;\frac{\frac{1}{ma_{k+1}’*si(t_{k+1})}}{\sum_{i&#x3D;1}^{k+1}\frac{1}{ma_{i}’*si(t_{i})}}<br>$$</p>
-<h3 id="Composite-Sampler"><a href="#Composite-Sampler" class="headerlink" title="Composite Sampler"></a>Composite Sampler</h3><p>对于新到trace $t$，综合两个采样概率 $p_s(t)$ 和 $p_d(t)$ 后，考虑采样额度 $\beta$，基于动态投票机制（dynamic voting mechanism）最终决策。</p>
+<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
+href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
+class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
+<span class="math display">\[
+   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
+\]</span></p>
+<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
+class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>。</p>
+<h3 id="system-biased-sampler">System-Biased Sampler</h3>
+<p>System-Biased
+Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
+<p>本文定义了一个固定长度look-back window，由<span
+class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
+class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
+Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
+class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
+class="math inline">\(\mu_i\)</span>和标准差<span
+class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
+class="math inline">\(t_{k+1}\)</span> 的第<span
+class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
+class="math display">\[
+   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
+\]</span></p>
+<p><span
+class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
+class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
+class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>
+进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
+<span class="math display">\[
+   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
+\]</span></p>
+<p>以上操作是将点积<span
+class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
+<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
+<p>Diversity-Biased Sampler的目标是考虑edge-case
+traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
+traces。</p>
+<p>论文将look-back
+window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
+<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
+class="math inline">\(c_{k+1}&#39;\)</span>。<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
+class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
+class="math inline">\(t_{k+1}\)</span> 和 所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
+class="math inline">\(si(t_{k+1})\)</span>。</p>
+<p><strong>一般来说，所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
+class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
+class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
+class="math display">\[
+   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
+\]</span></p>
+<h3 id="composite-sampler">Composite Sampler</h3>
+<p>对于新到trace <span
+class="math inline">\(t\)</span>，综合两个采样概率 <span
+class="math inline">\(p_s(t)\)</span> 和 <span
+class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
+class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
+mechanism）最终决策。</p>
 <center>
 <img src="/imgs/TraStrainer/vote.png"/>
 </center>
+<p>首先统计过去look-back window里采样概率 <span
+class="math inline">\(\theta\)</span>，如果： - <span
+class="math inline">\(\theta \geq
+\beta\)</span>，必须两个采样决策都为True，才采样 - <span
+class="math inline">\(\theta \leq
+\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
+<div>
+<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
+Qiang Xu. 2023. Are transformers effective for time series forecasting?.
+In Proceedings of the AAAI conference on artificial intelligence, Vol.
+37. 11121–11128.</p>
+</div>
 
-<p>首先统计过去look-back window里采样概率 $\theta$，如果：</p>
-<ul>
-<li>$\theta \geq \beta$，必须两个采样决策都为True，才采样</li>
-<li>$\theta \leq \beta$，只需要有一个采样决策为True，即可采样</li>
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>谢帅宇
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/" title="[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State">https://shuaiyuxie.github.io/2024/06/23/TraStrainer/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
 </ul>
-<div><a name="DLinear"></a>
-[1] Ailing Zeng, Muxi Chen, Lei Zhang, and Qiang Xu. 2023. Are transformers effective for time series forecasting?. In  Proceedings of the AAAI conference on artificial intelligence, Vol. 37. 11121–11128.
 </div>
 
 
-        </div>
-
-        <blockquote class="post-copyright">
-    
-    <div class="content">
-        
-<span class="post-time">
-    最后更新时间：<time datetime="2024-11-21T06:46:10.246Z" itemprop="dateUpdated">2024-11-21 14:46:10</time>
-</span><br>
-
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+              <a href="/tags/trace/" rel="tag"># trace</a>
+              <a href="/tags/trace%E9%87%87%E6%A0%B7/" rel="tag"># trace采样</a>
+              <a href="/tags/FSE/" rel="tag"># FSE</a>
+          </div>
 
         
-        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/2024/06/23/TraStrainer/" target="_blank" rel="external">https://shuaiyuxie.github.io/2024/06/23/TraStrainer/</a>
+
+
         
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/06/22/MicroDig/" rel="prev" title="[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph">
+      <i class="fa fa-chevron-left"></i> [TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/11/20/LCS/" rel="next" title="最长公共子序列（Longest Common Subsequence）">
+      最长公共子序列（Longest Common Subsequence） <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
+      </footer>
     
-    <footer>
-        <a href="https://shuaiyuxie.github.io">
-            <img src="/img/avatar.jpg" alt="谢帅宇">
-            谢帅宇
-        </a>
-    </footer>
-</blockquote>
-
-        
-<div class="page-reward">
-    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
-</div>
-
-
-
-        <div class="post-footer">
-            
-	<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/FSE/" rel="tag">FSE</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/trace/" rel="tag">trace</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/trace%E9%87%87%E6%A0%B7/" rel="tag">trace采样</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li></ul>
-
-
-            
-<div class="page-share-wrap">
-    
-
-<div class="page-share" id="pageShare">
-    <ul class="reset share-icons">
-      <li>
-        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&title=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
-          <i class="icon icon-weibo"></i>
-        </a>
-      </li>
-      <li>
-        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
-          <i class="icon icon-weixin"></i>
-        </a>
-      </li>
-      <li>
-        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&title=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
-          <i class="icon icon-qq"></i>
-        </a>
-      </li>
-      <li>
-        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/" data-title=" Facebook">
-          <i class="icon icon-facebook"></i>
-        </a>
-      </li>
-      <li>
-        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
-          <i class="icon icon-twitter"></i>
-        </a>
-      </li>
-      <li>
-        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/" data-title=" Google+">
-          <i class="icon icon-google-plus"></i>
-        </a>
-      </li>
-    </ul>
- </div>
-
-
-
-    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
-        <i class="icon icon-share-alt icon-lg"></i>
-    </a>
-</div>
-
-
-
-        </div>
-    </div>
-
-    
-<nav class="post-nav flex-row flex-justify-between">
+  </article>
   
-    <div class="waves-block waves-effect prev">
-      <a href="/2024/11/20/LCS/" id="post-prev" class="post-nav-link">
-        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
-        <h4 class="title">最长公共子序列（Longest Common Subsequence）</h4>
-      </a>
-    </div>
+  
   
 
-  
-    <div class="waves-block waves-effect next">
-      <a href="/2024/06/22/MicroDig/" id="post-next" class="post-nav-link">
-        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
-        <h4 class="title">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</h4>
-      </a>
-    </div>
-  
-</nav>
 
 
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</article>
-
-<div id="reward" class="page-modal reward-lay">
-    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <h3 class="reward-title">
-        <i class="icon icon-quote-left"></i>
-        谢谢大爷~
-        <i class="icon icon-quote-right"></i>
-    </h3>
-    <div class="reward-content">
-        
-        <div class="reward-code">
-            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
-        </div>
-        
-        <label class="reward-toggle">
-            <input id="rewardToggle" type="checkbox" class="reward-toggle-check"
-                data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
-            <div class="reward-toggle-ctrol">
-                <span class="reward-toggle-item wechat">微信</span>
-                <span class="reward-toggle-label"></span>
-                <span class="reward-toggle-item alipay">支付宝</span>
-            </div>
-        </label>
-        
-    </div>
-</div>
-
-
-
-</div>
-
-        <footer class="footer">
-    <div class="top">
-        
-<p>
-    <span id="busuanzi_container_site_uv" style='display:none'>
-        站点总访客数：<span id="busuanzi_value_site_uv"></span>
-    </span>
-    <span id="busuanzi_container_site_pv" style='display:none'>
-        站点总访问量：<span id="busuanzi_value_site_pv"></span>
-    </span>
-</p>
-
-
-        <p>
-            
-                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
-            
-            <span>博客内容遵循 <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
-        </p>
-    </div>
-    <div class="bottom">
-        <p><span>谢帅宇 &copy; 2015 - 2024</span>
-            <span>
-                
-                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
-            </span>
-        </p>
-    </div>
-</footer>
-
-    </main>
-    <div class="mask" id="mask"></div>
-<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
-
-
-
-<div class="global-share" id="globalShare">
-    <ul class="reset share-icons">
-      <li>
-        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&title=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&pic=https://shuaiyuxie.github.io/img/avatar.jpg" data-title="微博">
-          <i class="icon icon-weibo"></i>
-        </a>
-      </li>
-      <li>
-        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
-          <i class="icon icon-weixin"></i>
-        </a>
-      </li>
-      <li>
-        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&title=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&source=我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作" data-title=" QQ">
-          <i class="icon icon-qq"></i>
-        </a>
-      </li>
-      <li>
-        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/" data-title=" Facebook">
-          <i class="icon icon-facebook"></i>
-        </a>
-      </li>
-      <li>
-        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State》 — 衍射的博客&url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/&via=https://shuaiyuxie.github.io" data-title=" Twitter">
-          <i class="icon icon-twitter"></i>
-        </a>
-      </li>
-      <li>
-        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://shuaiyuxie.github.io/2024/06/23/TraStrainer/" data-title=" Google+">
-          <i class="icon icon-google-plus"></i>
-        </a>
-      </li>
-    </ul>
- </div>
-
-
-<div class="page-modal wx-share" id="wxShare">
-    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACLklEQVR42u3aSa7bMBQEwH//SztAVgkS2d2PykdEFleGoKm0oN/09RWv18919fvXI1fH/zzn6inJmcOFgYHxWMbr7UoYOeDq/u8/2ft3w8DAOIexfrsWn/CSd8PAwMBIArt8k70roMTAwMDIk9X8RdtwEAMDA2OWxObB4ixZ/aZcHAMD44GM9cbAv/v9rf0NDAyM/5Kxvmm2oeFd2/dvd8DAwNia8b4NmaSOs/ZkAqiHNjAwMLZmJLFWgmlJ+VhY/qExMDBOYLThYN7yzMcp2jAUAwPjBEb+yJy0MiiWf6AoicXAwHg4I0kgZ+NfSVI6a1ViYGCczMjL93kpv92OhyQMDIwDGLNhi7sanO2n/MtxDAyMrRn5hFVeGlu5amWYAwMDY1dGGwjmhbbZqERbaMPAwDiBce+gQ7vVtm2A+h8DAwNjO0Z76/YBbasgT6QxMDD2ZsyS0vVm5M1FOgwMjAMYbaF/1ozMR9DaJigGBsbejLwx0BbO2mCxLa4VSSwGBsbDGbMSW/KAPJWdhYw3VAoxMDAexVgf/Jq1Le9KmDEwMPZmzFLE2dDYeqD5ocGJgYGxKeNVrnaQa2VEoxjFwMDA2JrRlv7zwLEd/1pJmDEwME5gtG2A9aAwT4PzbRoDA+MERrvJrrcQ2vXhHwMDAwMjHvlaGfCabfcYGBgYsxJ/O9KaX3V5JgYGxgGMdmBrlpqu1/8+bLgYGBibMtYTyHzwNAn7EuoQg4GB8TzGD2gyqHbzClRVAAAAAElFTkSuQmCC" alt="微信分享二维码">
-</div>
-
-
-
-
-    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
-<script>
-var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
-
-
-</script>
-
-<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/main.min.js"></script>
-
-
-<div class="search-panel" id="search-panel">
-    <ul class="search-result" id="search-result"></ul>
-</div>
-<template id="search-tpl">
-<li class="item">
-    <a href="{path}" class="waves-block waves-effect">
-        <div class="title ellipsis" title="{title}">{title}</div>
-        <div class="flex-row flex-middle">
-            <div class="tags ellipsis">
-                {tags}
-            </div>
-            <time class="flex-col time">{date}</time>
-        </div>
-    </a>
-</li>
-</template>
-
-<script src="//unpkg.com/hexo-theme-material-indigo@latest/js/search.min.js" async></script>
-
-
-
-<!-- mathjax config similar to math.stackexchange -->
-
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
-        processEscapes: true,
-        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-    }
-});
-
-MathJax.Hub.Queue(function() {
-    var all = MathJax.Hub.getAllJax(), i;
-    for(i=0; i < all.length; i += 1) {
-        all[i].SourceElement().parentNode.className += ' has-jax';
-    }
-});
-</script>
-
-<script async src="//cdn.bootcss.com/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
-
-
-
-
-<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-
-
+          </div>
+          
 
 <script>
-(function() {
-    var OriginTitile = document.title, titleTime;
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            document.title = '等你回来';
-            clearTimeout(titleTime);
-        } else {
-            document.title = '(つェ⊂)咦!又好了!';
-            titleTime = setTimeout(function() {
-                document.title = OriginTitile;
-            },2000);
-        }
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
     });
-})();
+  }
 </script>
 
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
 
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#动机"><span class="nav-number">2.</span> <span class="nav-text">动机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#问题定义"><span class="nav-number">3.</span> <span class="nav-text">问题定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#trastrainer-概要"><span class="nav-number">4.</span> <span class="nav-text">TraStrainer 概要</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#trace-encoder"><span class="nav-number">4.1.</span> <span class="nav-text">Trace Encoder</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#system-bias-extractor"><span class="nav-number">4.2.</span> <span class="nav-text">System Bias Extractor</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#system-biased-sampler"><span class="nav-number">4.3.</span> <span class="nav-text">System-Biased Sampler</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#diversity-biased-sampler"><span class="nav-number">4.4.</span> <span class="nav-text">Diversity-Biased Sampler</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#composite-sampler"><span class="nav-number">4.5.</span> <span class="nav-text">Composite Sampler</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="谢帅宇"
+      src="/images/head.png">
+  <p class="site-author-name" itemprop="name">谢帅宇</p>
+  <div class="site-description" itemprop="description">我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">谢帅宇</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">30k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">54 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
 
 </body>
 </html>
