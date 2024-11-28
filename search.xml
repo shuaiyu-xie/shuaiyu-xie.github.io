@@ -1,114 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>期望最大算法（Expectation Maximization Algorithm）</title>
-    <url>/2024/11/20/EM/</url>
-    <content><![CDATA[<h2 id="介绍">介绍</h2>
-<p>期望最大化算法（Expectation-Maximization algorithm,
-EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent
-variables）的概率模型。</p>
-<p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
-<h2 id="应用举例">应用举例</h2>
-<p>假设我们有一组一维数据<span class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
-<ul>
-<li>第1个分布 <span class="math inline">\(N(\mu_1,
-\sigma_1)\)</span>，其中<span class="math inline">\(\mu_1=5\)</span>,
-<span class="math inline">\(\sigma_1=9\)</span></li>
-<li>第2个分布 <span class="math inline">\(N(\mu_2,
-\sigma_2)\)</span>，其中<span class="math inline">\(\mu_2=15\)</span>,
-<span class="math inline">\(\sigma_2=0.5\)</span></li>
-</ul>
-<p>两个分布的权重满足：<span
-class="math inline">\(\sum_{k=1}^2\pi_k=1\)</span></p>
-<p>我们目前手中只有这一组一维观测数据<span
-class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
-<p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
-
-$$
-    z_i= \begin{cases}
-        0& x_i \in N(\mu_1, \sigma_1^2)\\
-        1& x_i \in N(\mu_2, \sigma_2^2)
-        \end{cases}
-$$
-
-<p>隐变量<span class="math inline">\(z_i\)</span>表示数据点<span
-class="math inline">\(x_i\)</span>由哪个分布生成。而隐变量<span
-class="math inline">\(z_i\)</span>的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
-
-$$
-    L(\theta)=\prod_{i=1}^{n}f(x_i;\theta) \\
-    \begin{aligned}
-    ln L(\theta) &= \sum_{i=1}^{n}ln f(x_i:\theta) \\
-    &=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
-    \end{aligned}
-$$
-但由于 $\pi_k$未知，所以难以进行最大似然估计。
-
-<h2 id="em算法步骤">EM算法步骤</h2>
-<p>我们首先用两个正态分布混合生成观测数据：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
-<p>并随机给予两个分布初始参数以及权重，代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure></p>
-<p>EM算法分为两个步骤： ### E步（期望步, Expectation step）：
-我们需要计算每个数据点 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
-
-$$
-\begin{aligned}
-P(z_i=1|x_i, \theta)&=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
-&=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2) + \pi_2N(x_i|\mu_2, \sigma_2^2)}
-\end{aligned}
-$$
-
-<p>同理可以求得<span class="math inline">\(P(z_i=2|x_i,
-\theta)\)</span>。代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure></p>
-<h3 id="m步最大化步-maximization-step">M步（最大化步, Maximization
-step）：</h3>
-<p>在E步得到 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率后，也是隐变量<span
-class="math inline">\(z_i\)</span>的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
-<blockquote>
-<p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
-</blockquote>
-<p><span class="math display">\[
-    \mu_k=\mathop{\arg\max}\limits_{\mu_k}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2=\mathop{\arg\max}\limits_{\sigma_k^2}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p>对上述两式进行求解可得各部分更新公式如下（<span
-class="math inline">\(\pi_k\)</span>更新同理）： <span
-class="math display">\[
-    \mu_k =
-\frac{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)x_i}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2 = \frac{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)(x_i-\mu_k)^2}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \pi_k=\frac{1}{n}\sum_{i=1}^{n}P(z_i=k|x_i,\theta)
-\]</span></p>
-<p>代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># M步: 更新参数</span></span><br><span class="line">pi1_new = np.mean(posterior1)</span><br><span class="line">pi2_new = np.mean(posterior2)</span><br><span class="line">mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br></pre></td></tr></table></figure></p>
-<p>完整代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成数据</span></span><br><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = <span class="number">100</span></span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples // <span class="number">2</span>),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples // <span class="number">2</span>)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化参数</span></span><br><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步: 计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># M步: 更新参数</span></span><br><span class="line">    pi1_new = np.mean(posterior1)</span><br><span class="line">    pi2_new = np.mean(posterior2)</span><br><span class="line">    mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">    mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">    sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">    sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 检查是否收敛</span></span><br><span class="line">    <span class="keyword">if</span> (abs(mu1_new - mu1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(mu2_new - mu2) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma1_new - sigma1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma2_new - sigma2) &lt; tolerance):</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 更新参数</span></span><br><span class="line">    mu1, mu2, sigma1, sigma2, pi1, pi2 = mu1_new, mu2_new, sigma1_new, sigma2_new, pi1_new, pi2_new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印最终结果</span></span><br><span class="line">print(<span class="string">f"迭代次数: <span class="subst">&#123;iteration&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ1: <span class="subst">&#123;mu1&#125;</span>, σ1: <span class="subst">&#123;sigma1&#125;</span>, π1: <span class="subst">&#123;pi1&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ2: <span class="subst">&#123;mu2&#125;</span>, σ2: <span class="subst">&#123;sigma2&#125;</span>, π2: <span class="subst">&#123;pi2&#125;</span>"</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制结果</span></span><br><span class="line">plt.hist(data, bins=<span class="number">30</span>, density=<span class="literal">True</span>, alpha=<span class="number">0.6</span>, color=<span class="string">'g'</span>)</span><br><span class="line">x = np.linspace(min(data), max(data), <span class="number">100</span>)</span><br><span class="line">plt.plot(x, pi1 * normal_pdf(x, mu1, sigma1), <span class="string">'r-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu1:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma1:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.plot(x, pi2 * normal_pdf(x, mu2, sigma2), <span class="string">'b-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu2:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma2:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.legend()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></p>
-结果输出如下：
-<center>
-<img src="/imgs/EM/EM.png"/>
-</center>
-]]></content>
-      <categories>
-        <category>通用算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>概率论</tag>
-        <tag>机器学习</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
     <url>/2024/11/27/ElasticRec/</url>
     <content><![CDATA[<blockquote>
@@ -118,11 +10,13 @@ Enabling Elastic Resource Scaling for Recommendation Models</p>
 <p>作者：韩国科学技术院</p>
 </blockquote>
 <h2 id="摘要">摘要</h2>
-<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：
-- <code>RecSys</code>中<code>Bottom MLP</code>模块 对于计算资源的需求高
--
-<code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</p>
-<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少部署时的内存消耗，提升<code>RecSys</code>的吞吐量。</p>
+<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：</p>
+<ul>
+<li><code>RecSys</code>中<code>Bottom MLP</code>模块
+对于计算资源的需求高</li>
+<li><code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</li>
+</ul>
+<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少<strong>部署时的内存消耗</strong>，提升<code>RecSys</code>的吞吐量。</p>
 <h2 id="背景">背景</h2>
 <p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
 <h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
@@ -180,16 +74,10 @@ Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2
 全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
 CPU-only ② CPU-GPU。</p>
 <ul>
-<li><strong>CPU-only</strong>
-<ul>
-<li><code>Bottom MLP</code> 和 <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
-<li><strong>CPU-GPU</strong>
-<ul>
-<li><code>Bottom MLP</code> 运行在GPU， <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
+<li><strong>CPU-only</strong>：<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 均运行在CPU</li>
+<li><strong>CPU-GPU</strong>：<code>Bottom MLP</code> 运行在GPU，
+<code>Embedding Table</code> 均运行在CPU</li>
 </ul>
 <p>可以看到， <code>Embedding Table</code>
 都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
@@ -244,13 +132,100 @@ embeddings，可以在提升吞吐量的同时，达到节省资源的目的</fo
 <p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
 <ol type="1">
 <li>部署开销估计</li>
-<li><code>Embedding Table</code>划分</li>
+<li>基于动态规划（DP）的<code>Embedding Table</code>划分</li>
 <li>推理时重索引</li>
 </ol>
 <center>
 <img src='/imgs/ElasticRec/架构.png' width='500'/>
 </center>
 <h3 id="部署开销估计">部署开销估计</h3>
+<p><strong>前置处理</strong>：将<code>Embedding Table</code>的index按照访问频率从大到小排序，hot
+embeddings集中在最左侧</p>
+<center>
+<img src='/imgs/ElasticRec/sort.png' width='500'/>
+</center>
+<p>根据动机中提到的“<strong>将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</strong>”，文章将<code>Embedding Table</code>切分为shards，每个shard包含了<code>Embedding Table</code>的一部分index。<u>那么如何切分<code>Embedding Table</code>，以及如何评估切分策略的优劣呢？</u></p>
+<p>文章首先定义了如何评估切分策略的优劣，切分策略的优劣由<font color='red'>固定吞吐量的前提下，所有shard的内存开销决定</font>。用最少的内存达到目标吞吐量，评估算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/cost_estimate.png' width='500'/>
+</center>
+<p>算法入口为<code>COST(k, j)</code>，表示范围为[k,j]的shard的内存消耗，这个内存消耗由两部分组成：</p>
+<ul>
+<li><code>REPLICAS(k,j)</code>：
+计算特定吞吐量下，shard应该被分配的副本数量
+<ol type="1">
+<li>计算shard被访问的概率<code>probability</code>和被访问的向量数<code>ns</code>，<code>probability = CDF(j)- CDF(k)</code>，<code>ns = probability × nt</code></li>
+<li>估计单个shard的副本在给定的访问向量数<code>ns</code>下能达到的<code>QPS</code>，<code>estimated QPS = QPS(ns)</code>，这里的<code>QPS()</code>是一个回归模型，可以线下测试得到</li>
+<li>估计达到目标吞吐量<code>target_traffic</code>需要的副本数，<code>num_replicas = target_traffic/estimated_QPS</code></li>
+</ol></li>
+<li><code>CAPACITY(k,j)</code>：对于shard的每一个副本，计算存储embedding的内存开销
+<ul>
+<li>直接计算shard的副本大小：<code>(j − k +1)×(size_of_a_single_embedding_vector)</code></li>
+</ul></li>
+</ul>
+<blockquote>
+<p>这里需要特别注意回归模型<code>QPS()</code>，输入的参数除了需要访问的向量数<code>ns</code>外，还需要考虑向量本身的大小，如下图所示，QPS既与向量数有关，也与向量本身维度相关</p>
+</blockquote>
+<center>
+<img src='/imgs/ElasticRec/QPS_predict.png' width='500'/>
+</center>
+<h3
+id="基于dp的embedding-table分区算法">基于DP的<code>Embedding Table</code>分区算法</h3>
+<p>在上一节中，当给定一个shard划分策略，我们可以评估每个shard在目标QPS下的内存开销，进而可以尝试找到给定QPS下最小内存开销的分区策略</p>
+<p><u>这里文章有一个前提，即无论怎么划分，所有shard的目标QPS都是一样的，这样可以保证不存在多余的资源浪费</u></p>
+<p>这个分区问题有两个操作：① 分多少shard
+②每个shard的范围。假设我们用<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>表示<code>Embedding Table</code>在<span
+class="math inline">\([0:x]\)</span>范围下，分区数量为<span
+class="math inline">\(num_{shards}\)</span>的最小内存开销。那么这个问题具有两个明显的特性：<strong>最优子结构</strong>和<strong>重叠子问题</strong></p>
+<ul>
+<li><p><strong>最优子结构</strong>：<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>可以由子问题的最优解构造而来，假设最后一个shard的大小为<span
+class="math inline">\(m\)</span>，那么可以简化表示为<span
+class="math inline">\(Mem[num_{shards}][x] =
+min(Mem[num_{shards}-1][x-m] + COST(m))\)</span>，比如下图中，<span
+class="math inline">\(Mem[3][5]=min(Mem[2][5-m]+COST(m))=Mem[2][3]+COST(4,5)=4\)</span></p>
+<center>
+<p><img src='/imgs/ElasticRec/DP.png' width='500'/></p>
+</center></li>
+<li><p><strong>重叠子问题</strong>：求解过程中会反复遇到相同的子问题，需要将结果存储到表中，避免重复计算</p></li>
+</ul>
+<p>因此，自然而然可以想到用动态规划（DP）求解，文章给出的算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/DP_algo.png' width='500'/>
+</center>
+<p>最后根据最小内存开销回溯DP表可以得到分区策略</p>
+<h3 id="推理时重索引">推理时重索引</h3>
+<p>这个部分的重点在于分区后，如何根据原始<code>Embedding Table</code>的index
+ID找到对应的shard中的某个embedding，以及确认index分别属于哪个input（为提高吞吐量，一个query包含了多个input）。</p>
+<center>
+<img src='/imgs/ElasticRec/remap.png' width='500'/>
+</center>
+<p>文章提出了两种索引：</p>
+<ul>
+<li><code>indices</code>：存储一次query要从<code>Embedding Table</code>中查找的具体ID。</li>
+<li><code>offset</code>：指示每个input对应的的<code>indices</code>中的起始位置。</li>
+</ul>
+<p><strong>对于Fig.
+11（a）未分区前</strong>，一个query（<code>indices</code>）包含了两个input，分别为红色的[1,
+7]，灰色的[3,4,8]，<code>offset</code>表示第一个input要从<code>indices</code>第0个元素算起，第二个input从<code>indices</code>第1个元素算起，即input1为[1,7]，input2为[3,4,8]</p>
+<p><strong>对于Fig.
+11（b）分区后</strong>，首先计算中间的<code>indices</code>，具体为根据<code>indices</code>中的index计算应该被分到哪个分区（减去之前分区的大小），可以很容易把<code>indices</code>划分为shard
+A 的[1,3,4]和shard B
+的[7,8]，同时把<code>offset</code>进行划分（基于indices）</p>
+<p><strong>对于Fig.
+11（b）分区后，由于各shard索引重置了</strong>，所以需要在中间的<code>indices</code>和<code>offset</code>的基础上，进行重索引，具体为减去之前分区的大小，比如Fig.
+11(b) 中 shard B的[7,8]减去shard
+A的大小后，变成[1,2]。这样便可以直接从各shard中查找embedding了</p>
+<h3 id="最终部署">最终部署</h3>
+<p>因为Kubernetes的 horizontal pod autoscaling
+提供了弹性伸缩时参考指标的接口，对于：</p>
+<ul>
+<li><code>Embedding Table</code>的shard，文章直接将每个shard可以承受的最大吞吐量作为参考指标，到达最大吞吐量则扩容</li>
+<li><code>Bottom MLP</code>，则采用SLA的65%作为扩容的阈值</li>
+</ul>
+<p>（这里不是很明白为什么要采用不同的阈值指标，为什么不都用吞吐量？）</p>
 ]]></content>
       <categories>
         <category>文献精读</category>
@@ -261,6 +236,246 @@ embeddings，可以在提升吞吐量的同时，达到节省资源的目的</fo
         <tag>资源管理</tag>
         <tag>面向AI的微服务</tag>
         <tag>ISCA</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>期望最大算法（Expectation Maximization Algorithm）</title>
+    <url>/2024/11/20/EM/</url>
+    <content><![CDATA[<h2 id="介绍">介绍</h2>
+<p>期望最大化算法（Expectation-Maximization algorithm,
+EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent
+variables）的概率模型。</p>
+<p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
+<h2 id="应用举例">应用举例</h2>
+<p>假设我们有一组一维数据<span class="math inline">\(X=\{x_1,
+x_2,...,x_n\}\)</span>，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
+<ul>
+<li>第1个分布 <span class="math inline">\(N(\mu_1,
+\sigma_1)\)</span>，其中<span class="math inline">\(\mu_1=5\)</span>,
+<span class="math inline">\(\sigma_1=9\)</span></li>
+<li>第2个分布 <span class="math inline">\(N(\mu_2,
+\sigma_2)\)</span>，其中<span class="math inline">\(\mu_2=15\)</span>,
+<span class="math inline">\(\sigma_2=0.5\)</span></li>
+</ul>
+<p>两个分布的权重满足：<span
+class="math inline">\(\sum_{k=1}^2\pi_k=1\)</span></p>
+<p>我们目前手中只有这一组一维观测数据<span
+class="math inline">\(X=\{x_1,
+x_2,...,x_n\}\)</span>，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
+<p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
+<p><span class="math display">\[
+    z_i= \begin{cases}
+        0&amp; x_i \in N(\mu_1, \sigma_1^2)\\
+        1&amp; x_i \in N(\mu_2, \sigma_2^2)
+        \end{cases}
+\]</span></p>
+<p>隐变量<span class="math inline">\(z_i\)</span>表示数据点<span
+class="math inline">\(x_i\)</span>由哪个分布生成。而隐变量<span
+class="math inline">\(z_i\)</span>的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
+<p><span class="math display">\[
+\begin{aligned}
+L(\theta)&amp;=\prod_{i=1}^{n}f(x_i;\theta) \\
+    ln L(\theta) &amp;= \sum_{i=1}^{n}ln f(x_i:\theta) \\
+    &amp;=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
+    \end{aligned}
+\]</span> 但由于 <span
+class="math inline">\(\pi_k\)</span>未知，所以难以进行最大似然估计。</p>
+<h2 id="em算法步骤">EM算法步骤</h2>
+<p>我们首先用两个正态分布混合生成观测数据：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
+<p>并随机给予两个分布初始参数以及权重，代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure></p>
+<p>EM算法分为两个步骤： ### E步（期望步, Expectation step）：
+我们需要计算每个数据点 <span class="math inline">\(x_i\)</span>
+属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
+<p><span class="math display">\[
+\begin{aligned}
+P(z_i=1|x_i,
+\theta)&amp;=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
+&amp;=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2)
++ \pi_2N(x_i|\mu_2, \sigma_2^2)}
+\end{aligned}
+\]</span></p>
+<p>同理可以求得<span class="math inline">\(P(z_i=2|x_i,
+\theta)\)</span>。代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure></p>
+<h3 id="m步最大化步-maximization-step">M步（最大化步, Maximization
+step）：</h3>
+<p>在E步得到 <span class="math inline">\(x_i\)</span>
+属于不同分布的后验概率后，也是隐变量<span
+class="math inline">\(z_i\)</span>的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
+<blockquote>
+<p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
+</blockquote>
+<p><span class="math display">\[
+    \mu_k=\mathop{\arg\max}\limits_{\mu_k}{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)}lnf(x_i;\mu_k,\sigma_k^2)
+\]</span></p>
+<p><span class="math display">\[
+    \sigma_k^2=\mathop{\arg\max}\limits_{\sigma_k^2}{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)}lnf(x_i;\mu_k,\sigma_k^2)
+\]</span></p>
+<p>对上述两式进行求解可得各部分更新公式如下（<span
+class="math inline">\(\pi_k\)</span>更新同理）： <span
+class="math display">\[
+    \mu_k =
+\frac{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)x_i}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
+\]</span></p>
+<p><span class="math display">\[
+    \sigma_k^2 = \frac{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)(x_i-\mu_k)^2}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
+\]</span></p>
+<p><span class="math display">\[
+    \pi_k=\frac{1}{n}\sum_{i=1}^{n}P(z_i=k|x_i,\theta)
+\]</span></p>
+<p>代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># M步: 更新参数</span></span><br><span class="line">pi1_new = np.mean(posterior1)</span><br><span class="line">pi2_new = np.mean(posterior2)</span><br><span class="line">mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br></pre></td></tr></table></figure></p>
+<p>完整代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成数据</span></span><br><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = <span class="number">100</span></span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples // <span class="number">2</span>),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples // <span class="number">2</span>)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化参数</span></span><br><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步: 计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># M步: 更新参数</span></span><br><span class="line">    pi1_new = np.mean(posterior1)</span><br><span class="line">    pi2_new = np.mean(posterior2)</span><br><span class="line">    mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">    mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">    sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">    sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 检查是否收敛</span></span><br><span class="line">    <span class="keyword">if</span> (abs(mu1_new - mu1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(mu2_new - mu2) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma1_new - sigma1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma2_new - sigma2) &lt; tolerance):</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 更新参数</span></span><br><span class="line">    mu1, mu2, sigma1, sigma2, pi1, pi2 = mu1_new, mu2_new, sigma1_new, sigma2_new, pi1_new, pi2_new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印最终结果</span></span><br><span class="line">print(<span class="string">f"迭代次数: <span class="subst">&#123;iteration&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ1: <span class="subst">&#123;mu1&#125;</span>, σ1: <span class="subst">&#123;sigma1&#125;</span>, π1: <span class="subst">&#123;pi1&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ2: <span class="subst">&#123;mu2&#125;</span>, σ2: <span class="subst">&#123;sigma2&#125;</span>, π2: <span class="subst">&#123;pi2&#125;</span>"</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制结果</span></span><br><span class="line">plt.hist(data, bins=<span class="number">30</span>, density=<span class="literal">True</span>, alpha=<span class="number">0.6</span>, color=<span class="string">'g'</span>)</span><br><span class="line">x = np.linspace(min(data), max(data), <span class="number">100</span>)</span><br><span class="line">plt.plot(x, pi1 * normal_pdf(x, mu1, sigma1), <span class="string">'r-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu1:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma1:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.plot(x, pi2 * normal_pdf(x, mu2, sigma2), <span class="string">'b-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu2:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma2:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.legend()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></p>
+结果输出如下：
+<center>
+<img src="/imgs/EM/EM.png"/>
+</center>
+]]></content>
+      <categories>
+        <category>通用算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>概率论</tag>
+        <tag>机器学习</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>最长公共子序列（Longest Common Subsequence）</title>
+    <url>/2024/11/20/LCS/</url>
+    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
+<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
+字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
+<font color=red>BCAB</font>。</p>
+<blockquote>
+<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
+比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
+<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
+lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
+<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
+the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+</blockquote>
+<h2 id="题目">题目</h2>
+<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
+和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
+公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
+是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
+&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
+的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
+&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
+<p>示例 1：</p>
+<p>输入：text1 = "abcde", text2 = "ace"<br />
+输出：3<br />
+解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
+<p>示例 2：</p>
+<p>输入：text1 = "abc", text2 = "abc"<br />
+输出：3<br />
+解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
+<p>示例 3：</p>
+<p>输入：text1 = "abc", text2 = "def"<br />
+输出：0<br />
+解释：两个字符串没有公共子序列，返回 0 。</p>
+<p>提示：</p>
+<ul>
+<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
+<li>text1 和 text2 仅由小写英文字符组成。</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>最长公共子序列（Longest Common Subsequence,
+LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<ol type="1">
+<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
+<ul>
+<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
+<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
+<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
+<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
+j-1))\)</span></li>
+</ul>
+<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
+<li><p><strong>重叠子问题</strong>：在求解 LCS
+的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
+class="math inline">\(X\)</span> 和 <span
+class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span>
+个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
+</ol>
+<h2 id="求解">求解</h2>
+<p>动态规划的求解步骤如下：</p>
+<ol type="1">
+<li><p>定义状态</p>
+<ul>
+<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
+class="math inline">\(dp\)</span> 表示，其中 <span
+class="math inline">\(dp[i][j]\)</span> 表示序列 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和序列 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
+</ul></li>
+<li><p>状态转移方程</p>
+<ul>
+<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
+<ul>
+<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
+<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = max(dp[i-1][j],
+dp[i][j-1])\)</span></li>
+</ul></li>
+</ul></li>
+</ol>
+<p>python代码实现如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
+<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 3]</p>
+<h2 id="扩充">扩充</h2>
+<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
+class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<ol type="1">
+<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
+<li>如果当前<span
+class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
+class="math inline">\(X[i]\)</span>（<span
+class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
+class="math inline">\(X\)</span>和<span
+class="math inline">\(Y\)</span>都向前推进一位</li>
+<li>如果当前<span
+class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
+class="math inline">\(X[i-1]\)</span>和<span
+class="math inline">\(Y[j]\)</span>中产生，还是在<span
+class="math inline">\(X[i]\)</span>和<span
+class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
+class="math inline">\(dp[i-1][j]\)</span> 和 <span
+class="math inline">\(dp[i][j-1]\)</span></li>
+</ol>
+<p>所以代码如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
+<p>回溯路径为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, 2, <font color=blue>3</font>]</p>
+]]></content>
+      <categories>
+        <category>leetcode基础算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>leetcode</tag>
+        <tag>动态规划</tag>
       </tags>
   </entry>
   <entry>
@@ -873,207 +1088,6 @@ diagnosis, ESEC/FSE. 2020: 1387-1397.
       </tags>
   </entry>
   <entry>
-    <title>最长公共子序列（Longest Common Subsequence）</title>
-    <url>/2024/11/20/LCS/</url>
-    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
-<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
-字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
-<font color=red>BCAB</font>。</p>
-<blockquote>
-<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
-比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
-<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
-lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
-<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
-the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
-</blockquote>
-<h2 id="题目">题目</h2>
-<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
-和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
-公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
-是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
-&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
-的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
-&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
-<p>示例 1：</p>
-<p>输入：text1 = "abcde", text2 = "ace"<br />
-输出：3<br />
-解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
-<p>示例 2：</p>
-<p>输入：text1 = "abc", text2 = "abc"<br />
-输出：3<br />
-解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
-<p>示例 3：</p>
-<p>输入：text1 = "abc", text2 = "def"<br />
-输出：0<br />
-解释：两个字符串没有公共子序列，返回 0 。</p>
-<p>提示：</p>
-<ul>
-<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
-<li>text1 和 text2 仅由小写英文字符组成。</li>
-</ul>
-<h2 id="分析">分析</h2>
-<p>最长公共子序列（Longest Common Subsequence,
-LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
-<ol type="1">
-<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
-<ul>
-<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
-<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
-<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
-<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
-j-1))\)</span></li>
-</ul>
-<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
-<li><p><strong>重叠子问题</strong>：在求解 LCS
-的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
-class="math inline">\(X\)</span> 和 <span
-class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span>
-个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
-</ol>
-<h2 id="求解">求解</h2>
-<p>动态规划的求解步骤如下：</p>
-<ol type="1">
-<li><p>定义状态</p>
-<ul>
-<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
-class="math inline">\(dp\)</span> 表示，其中 <span
-class="math inline">\(dp[i][j]\)</span> 表示序列 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和序列 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
-</ul></li>
-<li><p>状态转移方程</p>
-<ul>
-<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
-<ul>
-<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
-<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = max(dp[i-1][j],
-dp[i][j-1])\)</span></li>
-</ul></li>
-</ul></li>
-</ol>
-<p>python代码实现如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
-<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 3]</p>
-<h2 id="扩充">扩充</h2>
-<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
-class="math inline">\(dp\)</span>表进行回溯，思路为</p>
-<ol type="1">
-<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
-<li>如果当前<span
-class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
-class="math inline">\(X[i]\)</span>（<span
-class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
-class="math inline">\(X\)</span>和<span
-class="math inline">\(Y\)</span>都向前推进一位</li>
-<li>如果当前<span
-class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
-class="math inline">\(X[i-1]\)</span>和<span
-class="math inline">\(Y[j]\)</span>中产生，还是在<span
-class="math inline">\(X[i]\)</span>和<span
-class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
-class="math inline">\(dp[i-1][j]\)</span> 和 <span
-class="math inline">\(dp[i][j-1]\)</span></li>
-</ol>
-<p>所以代码如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
-<p>回溯路径为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, 2, <font color=blue>3</font>]</p>
-]]></content>
-      <categories>
-        <category>leetcode基础算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>leetcode</tag>
-        <tag>动态规划</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>前缀树（Prefix Tree）</title>
-    <url>/2024/11/25/trie_tree/</url>
-    <content><![CDATA[<p>Trie 树，又叫前缀树，字典树，
-是一种有序的树形数据结构，用于高效地存储和检索字符串数据集中的键。下图是维基百科上关于trie树的一个典型例子，我们可以很清晰地看到，这棵树存储了许多前缀相似的字符串，给定一个字符串，我们可以很容易知道这个字符串是否被存储，而不需要遍历比较。</p>
-<center>
-<p><img src="/imgs/trie/trie.png"/></p>
-</center>
-<p>这一数据结构有相当多的应用情景，例如：</p>
-<ul>
-<li>自动补全：
-<ul>
-<li>搜索提示：输入网址，跳出可能的选择</li>
-<li>输入提示：根据已经输入的字符预测可能的词组和句子</li>
-</ul></li>
-<li>拼写检查：存储合法的单词列表，快速查找是否存在合法的单词</li>
-<li>前缀匹配</li>
-<li>IP路由查找</li>
-</ul>
-<h2 id="题目">题目</h2>
-<p>leetcode 208 实现Trie（前缀树）</p>
-<blockquote>
-<p>请你实现 Trie 类：</p>
-<ul>
-<li><code>Trie()</code> 初始化前缀树对象。</li>
-<li><code>void insert(String word)</code> 向前缀树中插入字符串
-<code>word</code> 。</li>
-<li><code>boolean search(String word)</code> 如果字符串
-<code>word</code> 在前缀树中，返回
-<code>true</code>（即，在检索之前已经插入）；否则，返回
-<code>false</code> 。</li>
-<li><code>boolean startsWith(String prefix)</code>
-如果之前已经插入的字符串 <code>word</code> 的前缀之一为
-<code>prefix</code> ，返回 <code>true</code> ；否则，返回
-<code>false</code> 。</li>
-</ul>
-</blockquote>
-<p><strong>示例：</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">输入</span><br><span class="line">[&quot;Trie&quot;, &quot;insert&quot;, &quot;search&quot;, &quot;search&quot;, &quot;startsWith&quot;, &quot;insert&quot;, &quot;search&quot;]</span><br><span class="line">[[], [&quot;apple&quot;], [&quot;apple&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;]]</span><br><span class="line">输出</span><br><span class="line">[null, null, true, false, true, null, true]</span><br><span class="line"></span><br><span class="line">解释</span><br><span class="line">Trie trie &#x3D; new Trie();</span><br><span class="line">trie.insert(&quot;apple&quot;);</span><br><span class="line">trie.search(&quot;apple&quot;);   &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 False</span><br><span class="line">trie.startsWith(&quot;app&quot;); &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.insert(&quot;app&quot;);</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 True</span><br></pre></td></tr></table></figure>
-<p><strong>提示：</strong></p>
-<ul>
-<li><code>1 &lt;= word.length, prefix.length &lt;= 2000</code></li>
-<li><code>word</code> 和 <code>prefix</code> 仅由小写英文字母组成</li>
-<li><code>insert</code>、<code>search</code> 和 <code>startsWith</code>
-调用次数 <strong>总计</strong> 不超过 <code>3 * 104</code> 次</li>
-</ul>
-<h2 id="分析">分析</h2>
-<p>这道题有几个地方需要注意：</p>
-<ul>
-<li><code>insert</code>时，需要标记单词是否截止，因为trie中的节点既有可能是前缀，也有可能是单词</li>
-<li><code>search</code>与 <code>startswith</code>的区别在于，
-<code>startswith</code>只需要搜索下去，看看有没有对应的节点；而<code>search</code>还需要判断这个节点是否有截止信号</li>
-</ul>
-<h2 id="实现">实现</h2>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Trie</span><span class="params">(object)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.root = &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">insert</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: None</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                cur_node[c]=&#123;&#125;</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">                cur_node[<span class="number">0</span>]=<span class="number">0</span> <span class="comment"># 标记是否截止</span></span><br><span class="line">        <span class="comment"># 标记这个cur_node，标注上截止信号，代表这是一个词</span></span><br><span class="line">        cur_node[<span class="number">0</span>]=<span class="number">1</span></span><br><span class="line"></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">search</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="comment"># 判断有没有截止信号</span></span><br><span class="line">        <span class="keyword">if</span> cur_node[<span class="number">0</span>]==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">startsWith</span><span class="params">(self, prefix)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type prefix: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> prefix:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line">trie = Trie()</span><br><span class="line">trie.insert(<span class="string">"app"</span>)</span><br><span class="line">trie.insert(<span class="string">"apple"</span>)</span><br><span class="line">trie.insert(<span class="string">"beer"</span>)</span><br><span class="line">trie.insert(<span class="string">"add"</span>)</span><br><span class="line">trie.insert(<span class="string">"jam"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">print(trie.search(<span class="string">"apps"</span>))</span><br><span class="line">print(trie.startsWith(<span class="string">"app"</span>))</span><br><span class="line">print(trie.search(<span class="string">"app"</span>))</span><br></pre></td></tr></table></figure>
-]]></content>
-      <categories>
-        <category>leetcode基础算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>leetcode</tag>
-        <tag>数据结构</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</title>
     <url>/2024/05/08/alibaba-traces-socc-2021/</url>
     <content><![CDATA[<blockquote>
@@ -1313,6 +1327,71 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
         <tag>trace</tag>
         <tag>实证分析</tag>
         <tag>SoCC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>前缀树（Prefix Tree）</title>
+    <url>/2024/11/25/trie_tree/</url>
+    <content><![CDATA[<p>Trie 树，又叫前缀树，字典树，
+是一种有序的树形数据结构，用于高效地存储和检索字符串数据集中的键。下图是维基百科上关于trie树的一个典型例子，我们可以很清晰地看到，这棵树存储了许多前缀相似的字符串，给定一个字符串，我们可以很容易知道这个字符串是否被存储，而不需要遍历比较。</p>
+<center>
+<p><img src="/imgs/trie/trie.png"/></p>
+</center>
+<p>这一数据结构有相当多的应用情景，例如：</p>
+<ul>
+<li>自动补全：
+<ul>
+<li>搜索提示：输入网址，跳出可能的选择</li>
+<li>输入提示：根据已经输入的字符预测可能的词组和句子</li>
+</ul></li>
+<li>拼写检查：存储合法的单词列表，快速查找是否存在合法的单词</li>
+<li>前缀匹配</li>
+<li>IP路由查找</li>
+</ul>
+<h2 id="题目">题目</h2>
+<p>leetcode 208 实现Trie（前缀树）</p>
+<blockquote>
+<p>请你实现 Trie 类：</p>
+<ul>
+<li><code>Trie()</code> 初始化前缀树对象。</li>
+<li><code>void insert(String word)</code> 向前缀树中插入字符串
+<code>word</code> 。</li>
+<li><code>boolean search(String word)</code> 如果字符串
+<code>word</code> 在前缀树中，返回
+<code>true</code>（即，在检索之前已经插入）；否则，返回
+<code>false</code> 。</li>
+<li><code>boolean startsWith(String prefix)</code>
+如果之前已经插入的字符串 <code>word</code> 的前缀之一为
+<code>prefix</code> ，返回 <code>true</code> ；否则，返回
+<code>false</code> 。</li>
+</ul>
+</blockquote>
+<p><strong>示例：</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">输入</span><br><span class="line">[&quot;Trie&quot;, &quot;insert&quot;, &quot;search&quot;, &quot;search&quot;, &quot;startsWith&quot;, &quot;insert&quot;, &quot;search&quot;]</span><br><span class="line">[[], [&quot;apple&quot;], [&quot;apple&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;]]</span><br><span class="line">输出</span><br><span class="line">[null, null, true, false, true, null, true]</span><br><span class="line"></span><br><span class="line">解释</span><br><span class="line">Trie trie &#x3D; new Trie();</span><br><span class="line">trie.insert(&quot;apple&quot;);</span><br><span class="line">trie.search(&quot;apple&quot;);   &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 False</span><br><span class="line">trie.startsWith(&quot;app&quot;); &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.insert(&quot;app&quot;);</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 True</span><br></pre></td></tr></table></figure>
+<p><strong>提示：</strong></p>
+<ul>
+<li><code>1 &lt;= word.length, prefix.length &lt;= 2000</code></li>
+<li><code>word</code> 和 <code>prefix</code> 仅由小写英文字母组成</li>
+<li><code>insert</code>、<code>search</code> 和 <code>startsWith</code>
+调用次数 <strong>总计</strong> 不超过 <code>3 * 104</code> 次</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>这道题有几个地方需要注意：</p>
+<ul>
+<li><code>insert</code>时，需要标记单词是否截止，因为trie中的节点既有可能是前缀，也有可能是单词</li>
+<li><code>search</code>与 <code>startswith</code>的区别在于，
+<code>startswith</code>只需要搜索下去，看看有没有对应的节点；而<code>search</code>还需要判断这个节点是否有截止信号</li>
+</ul>
+<h2 id="实现">实现</h2>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Trie</span><span class="params">(object)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.root = &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">insert</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: None</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                cur_node[c]=&#123;&#125;</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">                cur_node[<span class="number">0</span>]=<span class="number">0</span> <span class="comment"># 标记是否截止</span></span><br><span class="line">        <span class="comment"># 标记这个cur_node，标注上截止信号，代表这是一个词</span></span><br><span class="line">        cur_node[<span class="number">0</span>]=<span class="number">1</span></span><br><span class="line"></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">search</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="comment"># 判断有没有截止信号</span></span><br><span class="line">        <span class="keyword">if</span> cur_node[<span class="number">0</span>]==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">startsWith</span><span class="params">(self, prefix)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type prefix: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> prefix:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line">trie = Trie()</span><br><span class="line">trie.insert(<span class="string">"app"</span>)</span><br><span class="line">trie.insert(<span class="string">"apple"</span>)</span><br><span class="line">trie.insert(<span class="string">"beer"</span>)</span><br><span class="line">trie.insert(<span class="string">"add"</span>)</span><br><span class="line">trie.insert(<span class="string">"jam"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">print(trie.search(<span class="string">"apps"</span>))</span><br><span class="line">print(trie.startsWith(<span class="string">"app"</span>))</span><br><span class="line">print(trie.search(<span class="string">"app"</span>))</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>leetcode基础算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>leetcode</tag>
+        <tag>数据结构</tag>
       </tags>
   </entry>
 </search>

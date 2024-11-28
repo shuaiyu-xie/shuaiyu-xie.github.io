@@ -34,8 +34,14 @@
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/%E5%9B%BE5.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/%E5%80%BE%E6%96%9C%E8%AE%BF%E9%97%AE.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/%E6%9E%B6%E6%9E%84.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/sort.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/cost_estimate.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/QPS_predict.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/DP.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/DP_algo.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/ElasticRec/remap.png">
 <meta property="article:published_time" content="2024-11-27T02:29:27.000Z">
-<meta property="article:modified_time" content="2024-11-27T14:01:21.278Z">
+<meta property="article:modified_time" content="2024-11-28T05:23:54.915Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="推荐系统">
@@ -237,10 +243,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2024-11-27 10:29:27 / 修改时间：22:01:21" itemprop="dateCreated datePublished" datetime="2024-11-27T10:29:27+08:00">2024-11-27</time>
+              <time title="创建时间：2024-11-27 10:29:27" itemprop="dateCreated datePublished" datetime="2024-11-27T10:29:27+08:00">2024-11-27</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-11-28 13:23:54" itemprop="dateModified" datetime="2024-11-28T13:23:54+08:00">2024-11-28</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -264,14 +276,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>2.7k</span>
+              <span>4.9k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>5 分钟</span>
+              <span>9 分钟</span>
             </span>
 
         </div>
@@ -290,11 +302,13 @@ Enabling Elastic Resource Scaling for Recommendation Models</p>
 <p>作者：韩国科学技术院</p>
 </blockquote>
 <h2 id="摘要">摘要</h2>
-<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：
-- <code>RecSys</code>中<code>Bottom MLP</code>模块 对于计算资源的需求高
--
-<code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</p>
-<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少部署时的内存消耗，提升<code>RecSys</code>的吞吐量。</p>
+<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：</p>
+<ul>
+<li><code>RecSys</code>中<code>Bottom MLP</code>模块
+对于计算资源的需求高</li>
+<li><code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</li>
+</ul>
+<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少<strong>部署时的内存消耗</strong>，提升<code>RecSys</code>的吞吐量。</p>
 <h2 id="背景">背景</h2>
 <p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
 <h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
@@ -352,16 +366,10 @@ Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2
 全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
 CPU-only ② CPU-GPU。</p>
 <ul>
-<li><strong>CPU-only</strong>
-<ul>
-<li><code>Bottom MLP</code> 和 <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
-<li><strong>CPU-GPU</strong>
-<ul>
-<li><code>Bottom MLP</code> 运行在GPU， <code>Embedding Table</code>
-均运行在CPU</li>
-</ul></li>
+<li><strong>CPU-only</strong>：<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 均运行在CPU</li>
+<li><strong>CPU-GPU</strong>：<code>Bottom MLP</code> 运行在GPU，
+<code>Embedding Table</code> 均运行在CPU</li>
 </ul>
 <p>可以看到， <code>Embedding Table</code>
 都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
@@ -416,13 +424,100 @@ embeddings，可以在提升吞吐量的同时，达到节省资源的目的</fo
 <p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
 <ol type="1">
 <li>部署开销估计</li>
-<li><code>Embedding Table</code>划分</li>
+<li>基于动态规划（DP）的<code>Embedding Table</code>划分</li>
 <li>推理时重索引</li>
 </ol>
 <center>
 <img src='/imgs/ElasticRec/架构.png' width='500'/>
 </center>
 <h3 id="部署开销估计">部署开销估计</h3>
+<p><strong>前置处理</strong>：将<code>Embedding Table</code>的index按照访问频率从大到小排序，hot
+embeddings集中在最左侧</p>
+<center>
+<img src='/imgs/ElasticRec/sort.png' width='500'/>
+</center>
+<p>根据动机中提到的“<strong>将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</strong>”，文章将<code>Embedding Table</code>切分为shards，每个shard包含了<code>Embedding Table</code>的一部分index。<u>那么如何切分<code>Embedding Table</code>，以及如何评估切分策略的优劣呢？</u></p>
+<p>文章首先定义了如何评估切分策略的优劣，切分策略的优劣由<font color='red'>固定吞吐量的前提下，所有shard的内存开销决定</font>。用最少的内存达到目标吞吐量，评估算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/cost_estimate.png' width='500'/>
+</center>
+<p>算法入口为<code>COST(k, j)</code>，表示范围为[k,j]的shard的内存消耗，这个内存消耗由两部分组成：</p>
+<ul>
+<li><code>REPLICAS(k,j)</code>：
+计算特定吞吐量下，shard应该被分配的副本数量
+<ol type="1">
+<li>计算shard被访问的概率<code>probability</code>和被访问的向量数<code>ns</code>，<code>probability = CDF(j)- CDF(k)</code>，<code>ns = probability × nt</code></li>
+<li>估计单个shard的副本在给定的访问向量数<code>ns</code>下能达到的<code>QPS</code>，<code>estimated QPS = QPS(ns)</code>，这里的<code>QPS()</code>是一个回归模型，可以线下测试得到</li>
+<li>估计达到目标吞吐量<code>target_traffic</code>需要的副本数，<code>num_replicas = target_traffic/estimated_QPS</code></li>
+</ol></li>
+<li><code>CAPACITY(k,j)</code>：对于shard的每一个副本，计算存储embedding的内存开销
+<ul>
+<li>直接计算shard的副本大小：<code>(j − k +1)×(size_of_a_single_embedding_vector)</code></li>
+</ul></li>
+</ul>
+<blockquote>
+<p>这里需要特别注意回归模型<code>QPS()</code>，输入的参数除了需要访问的向量数<code>ns</code>外，还需要考虑向量本身的大小，如下图所示，QPS既与向量数有关，也与向量本身维度相关</p>
+</blockquote>
+<center>
+<img src='/imgs/ElasticRec/QPS_predict.png' width='500'/>
+</center>
+<h3
+id="基于dp的embedding-table分区算法">基于DP的<code>Embedding Table</code>分区算法</h3>
+<p>在上一节中，当给定一个shard划分策略，我们可以评估每个shard在目标QPS下的内存开销，进而可以尝试找到给定QPS下最小内存开销的分区策略</p>
+<p><u>这里文章有一个前提，即无论怎么划分，所有shard的目标QPS都是一样的，这样可以保证不存在多余的资源浪费</u></p>
+<p>这个分区问题有两个操作：① 分多少shard
+②每个shard的范围。假设我们用<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>表示<code>Embedding Table</code>在<span
+class="math inline">\([0:x]\)</span>范围下，分区数量为<span
+class="math inline">\(num_{shards}\)</span>的最小内存开销。那么这个问题具有两个明显的特性：<strong>最优子结构</strong>和<strong>重叠子问题</strong></p>
+<ul>
+<li><p><strong>最优子结构</strong>：<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>可以由子问题的最优解构造而来，假设最后一个shard的大小为<span
+class="math inline">\(m\)</span>，那么可以简化表示为<span
+class="math inline">\(Mem[num_{shards}][x] =
+min(Mem[num_{shards}-1][x-m] + COST(m))\)</span>，比如下图中，<span
+class="math inline">\(Mem[3][5]=min(Mem[2][5-m]+COST(m))=Mem[2][3]+COST(4,5)=4\)</span></p>
+<center>
+<p><img src='/imgs/ElasticRec/DP.png' width='500'/></p>
+</center></li>
+<li><p><strong>重叠子问题</strong>：求解过程中会反复遇到相同的子问题，需要将结果存储到表中，避免重复计算</p></li>
+</ul>
+<p>因此，自然而然可以想到用动态规划（DP）求解，文章给出的算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/DP_algo.png' width='500'/>
+</center>
+<p>最后根据最小内存开销回溯DP表可以得到分区策略</p>
+<h3 id="推理时重索引">推理时重索引</h3>
+<p>这个部分的重点在于分区后，如何根据原始<code>Embedding Table</code>的index
+ID找到对应的shard中的某个embedding，以及确认index分别属于哪个input（为提高吞吐量，一个query包含了多个input）。</p>
+<center>
+<img src='/imgs/ElasticRec/remap.png' width='500'/>
+</center>
+<p>文章提出了两种索引：</p>
+<ul>
+<li><code>indices</code>：存储一次query要从<code>Embedding Table</code>中查找的具体ID。</li>
+<li><code>offset</code>：指示每个input对应的的<code>indices</code>中的起始位置。</li>
+</ul>
+<p><strong>对于Fig.
+11（a）未分区前</strong>，一个query（<code>indices</code>）包含了两个input，分别为红色的[1,
+7]，灰色的[3,4,8]，<code>offset</code>表示第一个input要从<code>indices</code>第0个元素算起，第二个input从<code>indices</code>第1个元素算起，即input1为[1,7]，input2为[3,4,8]</p>
+<p><strong>对于Fig.
+11（b）分区后</strong>，首先计算中间的<code>indices</code>，具体为根据<code>indices</code>中的index计算应该被分到哪个分区（减去之前分区的大小），可以很容易把<code>indices</code>划分为shard
+A 的[1,3,4]和shard B
+的[7,8]，同时把<code>offset</code>进行划分（基于indices）</p>
+<p><strong>对于Fig.
+11（b）分区后，由于各shard索引重置了</strong>，所以需要在中间的<code>indices</code>和<code>offset</code>的基础上，进行重索引，具体为减去之前分区的大小，比如Fig.
+11(b) 中 shard B的[7,8]减去shard
+A的大小后，变成[1,2]。这样便可以直接从各shard中查找embedding了</p>
+<h3 id="最终部署">最终部署</h3>
+<p>因为Kubernetes的 horizontal pod autoscaling
+提供了弹性伸缩时参考指标的接口，对于：</p>
+<ul>
+<li><code>Embedding Table</code>的shard，文章直接将每个shard可以承受的最大吞吐量作为参考指标，到达最大吞吐量则扩容</li>
+<li><code>Bottom MLP</code>，则采用SLA的65%作为扩容的阈值</li>
+</ul>
+<p>（这里不是很明白为什么要采用不同的阈值指标，为什么不都用吞吐量？）</p>
 
     </div>
 
@@ -526,7 +621,7 @@ embeddings，可以在提升吞吐量的同时，达到节省资源的目的</fo
       <div class="post-toc-wrap sidebar-panel">
           <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#背景"><span class="nav-number">2.</span> <span class="nav-text">背景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#深度推荐模型dlrm"><span class="nav-number">2.1.</span> <span class="nav-text">深度推荐模型（DLRM）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#模型服务架构model-serving-architectures"><span class="nav-number">2.2.</span> <span class="nav-text">模型服务架构（Model
 Serving Architectures）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#模型容器化"><span class="nav-number">2.2.1.</span> <span class="nav-text">模型容器化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#模型的自动伸缩"><span class="nav-number">2.2.2.</span> <span class="nav-text">模型的自动伸缩</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#模型的硬件约束"><span class="nav-number">2.2.3.</span> <span class="nav-text">模型的硬件约束</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#动机"><span class="nav-number">3.</span> <span class="nav-text">动机</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#异构资源需求"><span class="nav-number">3.1.</span> <span class="nav-text">异构资源需求</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#embedding-table-的倾斜访问模式"><span class="nav-number">3.2.</span> <span class="nav-text">Embedding Table
-的倾斜访问模式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#方法设计"><span class="nav-number">4.</span> <span class="nav-text">方法设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#部署开销估计"><span class="nav-number">4.1.</span> <span class="nav-text">部署开销估计</span></a></li></ol></li></ol></div>
+的倾斜访问模式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#方法设计"><span class="nav-number">4.</span> <span class="nav-text">方法设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#部署开销估计"><span class="nav-number">4.1.</span> <span class="nav-text">部署开销估计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基于dp的embedding-table分区算法"><span class="nav-number">4.2.</span> <span class="nav-text">基于DP的Embedding Table分区算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#推理时重索引"><span class="nav-number">4.3.</span> <span class="nav-text">推理时重索引</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#最终部署"><span class="nav-number">4.4.</span> <span class="nav-text">最终部署</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -595,13 +690,13 @@ Serving Architectures）</span></a><ol class="nav-child"><li class="nav-item nav
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">30k</span>
+    <span title="站点总字数">32k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">55 分钟</span>
+    <span title="站点阅读时长">59 分钟</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
