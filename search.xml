@@ -1,6 +1,838 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>期望最大算法（Expectation Maximization Algorithm）</title>
+    <url>/2024/11/20/EM/</url>
+    <content><![CDATA[<h2 id="介绍">介绍</h2>
+<p>期望最大化算法（Expectation-Maximization algorithm,
+EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent
+variables）的概率模型。</p>
+<p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
+<h2 id="应用举例">应用举例</h2>
+<p>假设我们有一组一维数据<span class="math inline">\(X=\{x_1,
+x_2,...,x_n\}\)</span>，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
+<ul>
+<li>第1个分布 <span class="math inline">\(N(\mu_1,
+\sigma_1)\)</span>，其中<span class="math inline">\(\mu_1=5\)</span>,
+<span class="math inline">\(\sigma_1=9\)</span></li>
+<li>第2个分布 <span class="math inline">\(N(\mu_2,
+\sigma_2)\)</span>，其中<span class="math inline">\(\mu_2=15\)</span>,
+<span class="math inline">\(\sigma_2=0.5\)</span></li>
+</ul>
+<p>两个分布的权重满足：<span
+class="math inline">\(\sum_{k=1}^2\pi_k=1\)</span></p>
+<p>我们目前手中只有这一组一维观测数据<span
+class="math inline">\(X=\{x_1,
+x_2,...,x_n\}\)</span>，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
+<p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
+<p><span class="math display">\[
+    z_i= \begin{cases}
+        0&amp; x_i \in N(\mu_1, \sigma_1^2)\\
+        1&amp; x_i \in N(\mu_2, \sigma_2^2)
+        \end{cases}
+\]</span></p>
+<p>隐变量<span class="math inline">\(z_i\)</span>表示数据点<span
+class="math inline">\(x_i\)</span>由哪个分布生成。而隐变量<span
+class="math inline">\(z_i\)</span>的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
+<p><span class="math display">\[
+\begin{aligned}
+L(\theta)&amp;=\prod_{i=1}^{n}f(x_i;\theta) \\
+    ln L(\theta) &amp;= \sum_{i=1}^{n}ln f(x_i:\theta) \\
+    &amp;=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
+    \end{aligned}
+\]</span> 但由于 <span
+class="math inline">\(\pi_k\)</span>未知，所以难以进行最大似然估计。</p>
+<h2 id="em算法步骤">EM算法步骤</h2>
+<p>我们首先用两个正态分布混合生成观测数据：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
+<p>并随机给予两个分布初始参数以及权重，代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure></p>
+<p>EM算法分为两个步骤： ### E步（期望步, Expectation step）：
+我们需要计算每个数据点 <span class="math inline">\(x_i\)</span>
+属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
+<p><span class="math display">\[
+\begin{aligned}
+P(z_i=1|x_i,
+\theta)&amp;=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
+&amp;=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2)
++ \pi_2N(x_i|\mu_2, \sigma_2^2)}
+\end{aligned}
+\]</span></p>
+<p>同理可以求得<span class="math inline">\(P(z_i=2|x_i,
+\theta)\)</span>。代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure></p>
+<h3 id="m步最大化步-maximization-step">M步（最大化步, Maximization
+step）：</h3>
+<p>在E步得到 <span class="math inline">\(x_i\)</span>
+属于不同分布的后验概率后，也是隐变量<span
+class="math inline">\(z_i\)</span>的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
+<blockquote>
+<p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
+</blockquote>
+<p><span class="math display">\[
+    \mu_k=\mathop{\arg\max}\limits_{\mu_k}{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)}lnf(x_i;\mu_k,\sigma_k^2)
+\]</span></p>
+<p><span class="math display">\[
+    \sigma_k^2=\mathop{\arg\max}\limits_{\sigma_k^2}{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)}lnf(x_i;\mu_k,\sigma_k^2)
+\]</span></p>
+<p>对上述两式进行求解可得各部分更新公式如下（<span
+class="math inline">\(\pi_k\)</span>更新同理）： <span
+class="math display">\[
+    \mu_k =
+\frac{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)x_i}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
+\]</span></p>
+<p><span class="math display">\[
+    \sigma_k^2 = \frac{\sum_{i=1}^{n}P(z_i=k|x_i,
+\theta)(x_i-\mu_k)^2}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
+\]</span></p>
+<p><span class="math display">\[
+    \pi_k=\frac{1}{n}\sum_{i=1}^{n}P(z_i=k|x_i,\theta)
+\]</span></p>
+<p>代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># M步: 更新参数</span></span><br><span class="line">pi1_new = np.mean(posterior1)</span><br><span class="line">pi2_new = np.mean(posterior2)</span><br><span class="line">mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br></pre></td></tr></table></figure></p>
+<p>完整代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成数据</span></span><br><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = <span class="number">100</span></span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples // <span class="number">2</span>),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples // <span class="number">2</span>)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化参数</span></span><br><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步: 计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># M步: 更新参数</span></span><br><span class="line">    pi1_new = np.mean(posterior1)</span><br><span class="line">    pi2_new = np.mean(posterior2)</span><br><span class="line">    mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">    mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">    sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">    sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 检查是否收敛</span></span><br><span class="line">    <span class="keyword">if</span> (abs(mu1_new - mu1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(mu2_new - mu2) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma1_new - sigma1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma2_new - sigma2) &lt; tolerance):</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 更新参数</span></span><br><span class="line">    mu1, mu2, sigma1, sigma2, pi1, pi2 = mu1_new, mu2_new, sigma1_new, sigma2_new, pi1_new, pi2_new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印最终结果</span></span><br><span class="line">print(<span class="string">f"迭代次数: <span class="subst">&#123;iteration&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ1: <span class="subst">&#123;mu1&#125;</span>, σ1: <span class="subst">&#123;sigma1&#125;</span>, π1: <span class="subst">&#123;pi1&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ2: <span class="subst">&#123;mu2&#125;</span>, σ2: <span class="subst">&#123;sigma2&#125;</span>, π2: <span class="subst">&#123;pi2&#125;</span>"</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制结果</span></span><br><span class="line">plt.hist(data, bins=<span class="number">30</span>, density=<span class="literal">True</span>, alpha=<span class="number">0.6</span>, color=<span class="string">'g'</span>)</span><br><span class="line">x = np.linspace(min(data), max(data), <span class="number">100</span>)</span><br><span class="line">plt.plot(x, pi1 * normal_pdf(x, mu1, sigma1), <span class="string">'r-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu1:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma1:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.plot(x, pi2 * normal_pdf(x, mu2, sigma2), <span class="string">'b-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu2:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma2:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.legend()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></p>
+结果输出如下：
+<center>
+<img src="/imgs/EM/EM.png"/>
+</center>
+]]></content>
+      <categories>
+        <category>通用算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>概率论</tag>
+        <tag>机器学习</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>最长公共子序列（Longest Common Subsequence）</title>
+    <url>/2024/11/20/LCS/</url>
+    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
+<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
+字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
+<font color=red>BCAB</font>。</p>
+<blockquote>
+<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
+比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
+<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
+lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
+<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
+the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+</blockquote>
+<h2 id="题目">题目</h2>
+<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
+和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
+公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
+是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
+&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
+的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
+&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
+<p>示例 1：</p>
+<p>输入：text1 = "abcde", text2 = "ace"<br />
+输出：3<br />
+解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
+<p>示例 2：</p>
+<p>输入：text1 = "abc", text2 = "abc"<br />
+输出：3<br />
+解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
+<p>示例 3：</p>
+<p>输入：text1 = "abc", text2 = "def"<br />
+输出：0<br />
+解释：两个字符串没有公共子序列，返回 0 。</p>
+<p>提示：</p>
+<ul>
+<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
+<li>text1 和 text2 仅由小写英文字符组成。</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>最长公共子序列（Longest Common Subsequence,
+LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<ol type="1">
+<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
+<ul>
+<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
+<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
+<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
+<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
+j-1))\)</span></li>
+</ul>
+<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
+<li><p><strong>重叠子问题</strong>：在求解 LCS
+的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
+class="math inline">\(X\)</span> 和 <span
+class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span>
+个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
+</ol>
+<h2 id="求解">求解</h2>
+<p>动态规划的求解步骤如下：</p>
+<ol type="1">
+<li><p>定义状态</p>
+<ul>
+<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
+class="math inline">\(dp\)</span> 表示，其中 <span
+class="math inline">\(dp[i][j]\)</span> 表示序列 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和序列 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
+</ul></li>
+<li><p>状态转移方程</p>
+<ul>
+<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
+<ul>
+<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
+<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = max(dp[i-1][j],
+dp[i][j-1])\)</span></li>
+</ul></li>
+</ul></li>
+</ol>
+<p>python代码实现如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
+<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 3]</p>
+<h2 id="扩充">扩充</h2>
+<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
+class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<ol type="1">
+<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
+<li>如果当前<span
+class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
+class="math inline">\(X[i]\)</span>（<span
+class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
+class="math inline">\(X\)</span>和<span
+class="math inline">\(Y\)</span>都向前推进一位</li>
+<li>如果当前<span
+class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
+class="math inline">\(X[i-1]\)</span>和<span
+class="math inline">\(Y[j]\)</span>中产生，还是在<span
+class="math inline">\(X[i]\)</span>和<span
+class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
+class="math inline">\(dp[i-1][j]\)</span> 和 <span
+class="math inline">\(dp[i][j-1]\)</span></li>
+</ol>
+<p>所以代码如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
+<p>回溯路径为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, 2, <font color=blue>3</font>]</p>
+]]></content>
+      <categories>
+        <category>leetcode基础算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>leetcode</tag>
+        <tag>动态规划</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</title>
+    <url>/2024/05/13/MicoHECL/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：MicroHECL: High-Efficient Root Cause Localization in
+Large-Scale Microservice Systems</p>
+<p>来源：ICSE 2021</p>
+<p>作者：复旦大学CodeWisdom团队，阿里云</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
+<ul>
+<li>动态构建一段时间窗口内的服务调用图</li>
+<li>对不同异常类型进行个性化异常检测</li>
+<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
+</ul>
+<h2 id="背景">背景</h2>
+<p>工业微服务系统包含大量的微服务（e.g.,
+alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
+<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
+<ul>
+<li>性能异常（Performance Anomaly）</li>
+<li>可靠性异常（Reliability Anomaly）</li>
+<li>流量异常（Traffic Anomaly）</li>
+</ul>
+<h2 id="microhecl-概述">MicroHECL 概述</h2>
+<center>
+<img src="/imgs/MicroHECL/MicroHECL.png"/>
+</center>
+<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
+<h3 id="服务调用图构建">服务调用图构建</h3>
+<p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<strong><em>30min</em></strong>内的服务依赖图（service
+call
+graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如<span
+class="math inline">\(S_i \to S_j\)</span>代表微服务<span
+class="math inline">\(S_i\)</span>调用了微服务<span
+class="math inline">\(S_j\)</span>；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
+<h3 id="异常传播链分析">异常传播链分析</h3>
+<p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
+<ul>
+<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
+<li>异常传播链扩展</li>
+<li>根因排序</li>
+</ul>
+<h4 id="分析入口服务">分析入口服务</h4>
+文章首先根据经验定义了三种故障类型的传播方向：
+<center>
+<img src="/imgs/MicroHECL/direction.png" width="500"/>
+</center>
+<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a
+href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
+<center>
+<img src="/imgs/MicroHECL/chain.png"/>
+</center>
+<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig.
+2所示，整个过程描述如下： &gt; 1. 将入口服务<span
+class="math inline">\(S_5\)</span>纳入异常传播链 &gt; 2.
+异常检测。检测<span class="math inline">\(S_5\)</span>的邻居节点<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>的异常类型 &gt; 3. 确认<span
+class="math inline">\(S_4\)</span>的异常类型为<strong>Traffic
+Anomaly</strong>，<span
+class="math inline">\(S_7\)</span>的异常类型为<strong>Performance
+Anomaly</strong> &gt; 4. 检测是否符合传播方向（<span
+class="math inline">\(S_4\)</span>是否是<span
+class="math inline">\(S_5\)</span>的上游，<span
+class="math inline">\(S_7\)</span>是否是<span
+class="math inline">\(S_5\)</span>的下游） &gt; 5. 符合，将<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>添加到异常传播链 &gt; 6. 从<span
+class="math inline">\(S_4\)</span>和<span
+class="math inline">\(S_7\)</span>出发，对邻居节点重复上述步骤</p>
+<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a
+href="#33-服务异常检测">3.3节</a>会提到。</p>
+<h4 id="异常传播链扩展">异常传播链扩展</h4>
+<p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游/下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig.
+2对于<span class="math inline">\(S_4\)</span>方向的传播分析，以<span
+class="math inline">\(S_1\)</span>结束；对于<span
+class="math inline">\(S_7\)</span>方向的传播分析，以<span
+class="math inline">\(S_9\)</span>和<span
+class="math inline">\(S_{10}\)</span>结束。</p>
+<h4 id="候选根因定位">候选根因定位</h4>
+<p>本文选择异常传播链的末端服务作为候选根因，比如Fig.
+2中的候选根因服务为<span class="math inline">\(S_1\)</span>，<span
+class="math inline">\(S_9\)</span>和<span
+class="math inline">\(S_{10}\)</span>。那么如何排名呢？</p>
+<ul>
+<li>选取入口服务过去60min的业务指标 <span
+class="math inline">\(X\)</span></li>
+<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>,
+<code>EC</code> or <code>QPS</code>）<span
+class="math inline">\(Y\)</span></li>
+<li>计算两者之间的皮尔逊相关系数：</li>
+</ul>
+<p><span class="math display">\[
+   P(X,
+Y)=\frac{\sum_{i=1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i=1}^n{(X_i-\overline{X})^2}\sum_{i=1}^n{(Y_i-\overline{Y})^2}}}
+\]</span></p>
+<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
+<h3 id="服务异常检测">服务异常检测</h3>
+<p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance
+Anomaly，Reliability Anomaly，Traffic
+Anomaly）分别设计了异常检测方法。</p>
+<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
+<center>
+<img src="/imgs/MicroHECL/metrics.png"/>
+</center>
+<h4 id="性能异常检测">性能异常检测</h4>
+<p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig.
+3
+(d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
+<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
+<blockquote>
+<ul>
+<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
+<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
+<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4=12种特征。</p>
+<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
+<h4 id="可靠性异常检测">可靠性异常检测</h4>
+<p>这里提到<code>EC</code>大多时候都是0（Fig.2
+(b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
+<p>所以，文章采用随机森林（Random
+Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
+<blockquote>
+<ul>
+<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
+<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
+<li>检测窗口内最大错误率（<code>EC</code>/sum(<code>QPS</code>)）。</li>
+<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
+</ul>
+</blockquote>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
+<h4 id="流量异常检测">流量异常检测</h4>
+<p><code>QPS</code>大多满足正态分布（Fig.2
+(c,f)），所以直接采用3-sigma进行检测。 &gt;
+这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
+<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，选择过去<strong><em>1h</em></strong>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
+<h4 id="剪枝">剪枝</h4>
+<p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
+<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
+<blockquote>
+<p>例子：Fig. 2中的 <span class="math inline">\(S_1 \to S_4\)</span> 和
+<span class="math inline">\(S_4 \to S_5\)</span> 都是<strong>Traffic
+Anomaly</strong> 的传播路径，如果<span class="math inline">\(S_1 \to
+S_4\)</span> 的 <code>QPS</code> 和 <span class="math inline">\(S_4 \to
+S_5\)</span> 的 <code>QPS</code>
+没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉<span
+class="math inline">\(S_1 \to S_4\)</span>，那么<span
+class="math inline">\(S_4\)</span>就取代<span
+class="math inline">\(S_1\)</span>变成了候选根因。</p>
+</blockquote>
+<p>这里的检测窗口选取的过去<strong><em>60min</em></strong>。剪枝操作执行在异常节点加入异常调用链之前。</p>
+<h2 id="总结">总结</h2>
+<p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="ImpactTracer"></a> [1] Xie R, Yang J, Li J, et al.
+ImpactTracer: Root Cause Localization in Microservices Based on Fault
+Propagation Modeling, (DATE), 2023.
+<a>https://ieeexplore.ieee.org/abstract/document/10137078/</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>根因定位</tag>
+        <tag>ICSE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[arxiv 2024] StatuScale: Status-aware and Elastic Scaling Strategy for Microservice Applications</title>
+    <url>/2024/12/12/StatusScaler/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：StatuScale: Status-aware and Elastic Scaling Strategy for
+Microservice Applications</p>
+<p>来源：arxiv 2024</p>
+<p>作者：中国科学院深圳先进技术研究院</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>相比于单体架构，微服务架构具有更好的弹性，可以进行微服务级别的弹性伸缩。<u>然而，现有的弹性伸缩无法检测<strong>突发流量</strong></u>，突发流量可能由很多原因引起：</p>
+<ul>
+<li>商店促销</li>
+<li>特殊活动</li>
+<li>软件故障</li>
+<li>...</li>
+</ul>
+<p>这些突发流量通常是短暂（short-lived）且超出预期的（unexpected），会造成瞬间的性能降级。微服务必须要快速分配足够数量的资源以保证性能。</p>
+<p>本文推出了一种状态感知的弹性伸缩控制器
+<code>StatusScale</code>，能够感知负载的趋势，预测流量峰值，并进行<strong>水平伸缩</strong>和<strong>垂直伸缩</strong>。此外，本文提出了一种新的指标：</p>
+<ul>
+<li><code>correlation factor</code>：评估资源使用的效率</li>
+</ul>
+<p>文章在 Sock-Shop 和 Hotel-Reservation
+应用上进行评估，将响应延时降低了接近10%，资源利用效率得到提高。</p>
+<h2 id="方法">方法</h2>
+<p><code>StatuScale</code>
+根据当前负载状态选择不同的资源分配方案（垂直和水平），架构如下：</p>
+<center>
+<img src="/imgs/statuscale/structure.png" width='500'/>
+</center>
+<ol type="1">
+<li><code>Load Preprocessor</code>是产生流量的模块</li>
+<li><code>Auto Scaler</code>是全文核心，分为：
+<ol type="1">
+<li><strong>Vertical
+Scaling</strong>：对负载状态进行预测，制定垂直伸缩方案</li>
+<li><strong>Horizontal
+Scaling</strong>：负载状态不稳定时，进行水平伸缩</li>
+</ol></li>
+<li><code>Performance Evaluator</code>是评估模块，主要评估响应延时、SLO违背率、资源利用效率、资源消耗等</li>
+</ol>
+<h3 id="系统建模">系统建模</h3>
+<p>弹性伸缩的优化目标和约束如下：</p>
+<p><span class="math display">\[
+    \mathop{\sum_{m\in M}{P_m/A_M \times \sum_{p\in
+P}{R_p/A_p}+\omega^t\sum_{m\in M}RT_m/A_M}}
+\]</span></p>
+<p><span class="math display">\[
+    s.t. \quad P_m \geq 1, \quad R_p, RT_m \geq 0,\quad A_p\geq A_M\geq
+0
+\]</span></p>
+<p><span class="math inline">\(M\)</span> 代表微服务集合，<span
+class="math inline">\(A_M\)</span> 代表应用中微服务的数量（即 <span
+class="math inline">\(|M|\)</span>），<span
+class="math inline">\(P\)</span> 代表应用中pod集合，<span
+class="math inline">\(A_p\)</span> 代表应用中pod的数量（即 <span
+class="math inline">\(|P|\)</span>），<span
+class="math inline">\(P_m\)</span> 代表微服务 <span
+class="math inline">\(m\)</span> 的pod数，<span
+class="math inline">\(R_p\)</span> 代表为pod <span
+class="math inline">\(P\)</span> 垂直分配的资源配额，<span
+class="math inline">\(RT_m\)</span> 代表微服务 <span
+class="math inline">\(m\)</span> 的响应延时。</p>
+<p>优化目标的前半部分是资源消耗（服务的平均pod数<span
+class="math inline">\(\times\)</span>pod平均资源额度），后半部分是平均延时，权重设置为
+<span
+class="math inline">\(\omega^t\)</span>。目标是同时优化资源消耗和响应延时。</p>
+<h3 id="垂直伸缩">垂直伸缩</h3>
+<p>微服务的负载可能由于特殊的用户活动（e.g.,
+商品促销）而陡然升高，进而导致服务资源不足而性能下降。所以监控、分析和理解负载的趋势是非常重要的。</p>
+<h4 id="基于-lightgbm-的负载预测器">基于 LightGBM 的负载预测器</h4>
+<p>为了能高效地进行负载预测，作者没有采用较重的深度学习或者机器学习模型，而是准备选用基于集成模型的
+LightGBM 来进行预测。</p>
+<p>遗憾的是，LightGBM 面临准确性问题，在Fig. 2中，作者试图用 LightGBM
+预测 Alibaba
+数据集的负载，但是出现了大量负载低估的情况。这些低估会导致资源分配较少，进而导致性能下降。</p>
+<center>
+<img src="/imgs/statuscale/alibaba-forecast.png" width='500'/>
+</center>
+<h4 id="load-status-detector">Load Status Detector</h4>
+<p>文章另辟蹊径，不再直接训练和预测负载的准确值，而是判断负载是否处于
+<strong>“stable”</strong> 状态。文章引入了金融分析中常用的
+<code>resistance line</code> 和 <code>support line</code>
+两个概念用来辅助判断。</p>
+<p>在 Fig. 3 (a)中，作者展示了如何根据 <code>resistance line</code> 和
+<code>support line</code>
+进行负载状态感知。图中橙色的点是预测时的低估点。首先将x轴分为6个时间窗口，每个时间窗口有5个数据点。</p>
+<ol type="1">
+<li>首先，<code>StatuScale</code>使用第1个窗口的数据去生成
+<code>resistance line</code> 和 <code>support line</code></li>
+<li>然后，去判断第2个窗口是否违背了第1个窗口的<code>resistance line</code>
+和 <code>support line</code>。如果违背了，则判断状态为
+<strong>“unstable”</strong>，采取特定的伸缩策略；如果没有违背，则判断状态为
+<strong>“stable”</strong>，则能够继续进行负载预测。Fig. 3 (a) 中状态为
+<strong>“stable”</strong></li>
+<li>合并第1个和第2个窗口的数据来更新<code>resistance line</code> 和
+<code>support line</code>，进而判断第3个窗口超过了<code>resistance line</code>，所以标记第3个窗口状态为
+<strong>“unstable”</strong></li>
+<li>第4个窗口重新生成<code>resistance line</code> 和
+<code>support line</code>，重复上述过程</li>
+</ol>
+总的来说，<code>resistance line</code> 和 <code>support line</code>
+相当于负载波动的上下边界，在边界内的负载一般都是
+<strong>“stable”</strong> 的。
+<center>
+<img src="/imgs/statuscale/resistance-line.png"/>
+</center>
+<p>对于<code>resistance line</code> 和
+<code>support line</code>的建模，作者摒弃了复杂的非线性函数，因为担心会导致过拟合。此外，作者又担心线性函数过于简单，所以决定采用分段线性函数（因为分段线性函数可以解决周期负载的判断问题），所以就有了
+<strong>“unstable”</strong> 后进行<code>resistance line</code> 和
+<code>support line</code>重置的环节。<code>resistance line</code>的定义如下：</p>
+<p><span class="math display">\[
+    f(t) = kt+b+\lambda c_v
+\]</span></p>
+<p><span class="math inline">\(k\)</span>, <span
+class="math inline">\(b\)</span>
+分别代表斜率和截距，可以通过多项式拟合数据点得到。<span
+class="math inline">\(t\)</span> 代表时间。<span
+class="math inline">\(c_v\)</span> 代表变异系数（<span
+class="math inline">\(\frac{\mu}{\sigma}\)</span>），用来表示样本的分散程度，也为<code>resistance line</code>留有了一定的容错空间。<span
+class="math inline">\(\lambda\)</span> 是权重超参数。</p>
+<h4 id="自适应pid控制器">自适应PID控制器</h4>
+<p>在上节中，<code>StatuScale</code>
+已经能判断出服务的负载状态，当负载状态为 <strong>“unstable”</strong>
+时，采用 PID
+控制器来维持状态的稳定，目标是使得<font color='blue'>CPU利用率稳定，以及满足SLO。</font></p>
+<p>PID 控制器是广泛使用的控制器，由 1）比例 proportional、 2）积分
+integral、 3）导数 derivative 组成。PID
+控制器旨在根据feedback更新参数，调整输出，使得状态稳定在目标值附加，输出的分数公式如下：</p>
+<p><span class="math display">\[
+    y(t) = k_Pe(t)+k_I\int_{t-w}^{t}{e(\tau)d\tau+k_D\frac{d}{dt}e(t)}
+\]</span></p>
+<p>其中，<span
+class="math inline">\(e(t)\)</span>代表时刻t的误差（给定值-测量值）。<span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>
+分别是比例增益（proportional）、积分系数（integral）以及导数系数（derivative），分别代表当前误差，过去一段时间的误差以及预测未来的误差的权重。</p>
+<center>
+<img src="/imgs/statuscale/PID.png" width='500'/>
+</center>
+<p>PID 控制器的各项权重 <span class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>
+对系统的稳定性影响很大，<code>StatuScale</code>
+引入了一种自适应调节各项权重的 A-PID 控制器。如 Fig.6 所示，A-PID 引入了
+BP 网络来调节 PID 的参数（i.e., <span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>）。BP 网络的配置如下：</p>
+<ul>
+<li>输入：<strong>输出值</strong>、<strong>目标值</strong>、<strong>误差</strong>、<strong>bias</strong></li>
+<li>中间层：hidden size = 5，激活函数为 tanh</li>
+<li>输出：<span class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>，激活函数为 sigmoid</li>
+</ul>
+<blockquote>
+<p>这里文章漏掉了最关键的 loss，我只能猜测 loss
+的原理是，<u>如果当前误差较大，我们希望新的参数能够更大幅度地改变，以便更快地纠正误差；反之，如果误差较小，则应谨慎调整参数，避免过度校正</u>，所以猜测
+loss 为 误差相关的函数。</p>
+</blockquote>
+<blockquote>
+<p>此外，A-PID的 output 是如何转化为 CPU 的分配？CPU
+target是多少？垂直伸缩这一块并不是讲的很清楚</p>
+</blockquote>
+<h3 id="水平伸缩">水平伸缩</h3>
+<p>文章认为水平伸缩比垂直伸缩更难，因为水平伸缩需要时间去创建和移除POD，并需要时间去进行负载均衡，同时不必要的水平伸缩操作会导致资源浪费。此处引用了ATOM<a
+href="#ATOM"><sup>1</sup></a>的结论：</p>
+<ul>
+<li>低负载：垂直伸缩更有优势，因为资源分配快</li>
+<li>高负载：水平伸缩更有优势，因为多个pod分布在多个机器上，将负载均衡了，大大降低了单个pod的压力</li>
+</ul>
+<p>所以 <code>StatuScale</code>
+会优先考虑垂直伸缩（在低负载下更有优势）；如果垂直伸缩无法满足需求，才会考虑用水平伸缩进行粗粒度调整。再用垂直伸缩进行细粒度调整。</p>
+<p>首先，<code>StatuScale</code>
+将会判断是否需要进行水平伸缩操作，计算当前CPU利用率 <span
+class="math inline">\(C_t\)</span> 与目标CPU利用率 <span
+class="math inline">\(CPU_{tar}\)</span>
+之间的差距，并根据这个差距生成一个转换后的结果 <span
+class="math inline">\(S_t\)</span>：</p>
+<p><span class="math display">\[
+    S_t = \begin{cases}
+        1-K^{(CPU_{tar}-C_t)}&amp; C_t ＜ CPU_{tar}\\
+        K^{C_t-(CPU_{tar})}-1&amp; C_t \geq CPU_{tar}
+        \end{cases}
+\]</span></p>
+<p>当前CPU利用率 <span class="math inline">\(C_t\)</span> 接近目标值
+<span class="math inline">\(CPU_{tar}\)</span>，<span
+class="math inline">\(|S_t|\)</span>接近0；否则，<span
+class="math inline">\(|S_t|\)</span>值将以指数倍数增长。<code>StatuScale</code>
+统计一段滑动窗口内的不同时间点的 <span
+class="math inline">\(S_t\)</span>
+的和（减少突发流量的影响），并与上下阈值进行比较，以决定是否进行弹性伸缩。</p>
+<blockquote>
+<p>但是文章并没有给出上下阈值的计算方式？</p>
+</blockquote>
+<p>当决定采用弹性伸缩时，给定当前副本数（<span
+class="math inline">\(R_c\)</span>），伸缩比例（<span
+class="math inline">\(\delta\)</span>），伸缩的副本数定义如下：</p>
+<p><span class="math display">\[
+    R_n = max(\delta R_c, 1)
+\]</span></p>
+<p>因为水平伸缩的pod需要一段时间才能生效，所以这段时间可能会频繁触发弹性伸缩，所以
+<code>StatuScale</code> 引入了 <strong>cooling-off</strong>
+周期来减少伸缩次数（这段时间不会触发第二次伸缩，默认为5min）</p>
+<p>接下来文章用垂直伸缩来进行细粒度资源调整，具体来说，就是通过一个衰减率来周期地减少资源配额，资源值设置如下：</p>
+<p><span class="math display">\[
+    V(t) = Vk^{\beta^t-1}
+\]</span></p>
+<p><span class="math inline">\(0&lt;\beta&lt;1\)</span> 是衰减率，<span
+class="math inline">\(V\)</span> 是资源初始值。 &gt;
+这里只有减少垂直资源分配，相当于减少水平伸缩多余的那部分资源</p>
+<h3 id="联合伸缩">联合伸缩</h3>
+<center>
+<img src="/imgs/statuscale/flow.png" width='500'/>
+</center>
+<p>文章的讲述顺序和方法流程是不一样的，所以最开始让我有点费解，真正的整体流程如上图所示：</p>
+<ol type="1">
+<li>首先判断是否需要水平伸缩，判断方式为上文中提到的计算一段时间的 <span
+class="math inline">\(S_t\)</span>，并与上下阈值比较
+<ol type="1">
+<li>如果需要水平伸缩，则计算<span
+class="math inline">\(R_n\)</span>，然后垂直细粒度资源调整（计算<span
+class="math inline">\(V(t)\)</span>）</li>
+<li>如果不需要，则需要进行垂直伸缩判断</li>
+</ol></li>
+<li>垂直伸缩检测需要对负载状态进行判断
+<ol type="1">
+<li>如果状态为 <strong>“stable”</strong>，则用 LightGBM 预测负载</li>
+<li>如果状态为 <strong>unstable</strong>，则使用 A-PID
+控制器将资源利用率维持在稳定状态</li>
+</ol></li>
+</ol>
+<blockquote>
+<p>值得注意的是，k8s的垂直伸缩应该会让容器重启（假如有10个副本，采用垂直伸缩后，相当于这10个副本都需要滚动更新），这真的会比水平伸缩快吗？</p>
+</blockquote>
+<p>整体算法如下图所示：</p>
+<center>
+<img src="/imgs/statuscale/algo.png" width='500'/>
+</center>
+<h2 id="实验评估">实验评估</h2>
+<h3 id="实验配置">实验配置</h3>
+<ul>
+<li><strong>集群配置</strong>：1 master + 2 worker，每个节点都是 4GB
+内存 和 4 CPU cores。这个配置算比较小的了</li>
+<li><strong>负载</strong>：文章的负载数据来自于 alibaba 的
+cluster-trace-v2018<a
+href="#statuscale-alibaba-trace"><sup>2</sup></a>，这个数据集里记录了8天内集群里机器和容器的资源使用情况，并调研了CPU负载和QPS的对应关系，如Fig.8所示，将CPU负载转化为QPS，文章使用这个作业负载作为实验的输入流量。负载的注入工具选择
+Locust</li>
+<li><strong>benchmark</strong>：选用 Sock-Shop 和 Hotel-Reservation</li>
+<li><strong>对比方法</strong>：选用了 GBMScaler，Showar，Hyscale
+<ul>
+<li><code>GBMScaler</code>：选用 LightGBM
+进行负载预测，但原文并没有提到如何用预测的结果进行 resource scaling</li>
+<li><code>Showar</code>：经典的混合伸缩方法，基于 3-<span
+class="math inline">\(\sigma\)</span>
+准则进行垂直伸缩，每T秒预估当前CPU分配为过去一段窗口的<span
+class="math inline">\(\mu+3\sigma\)</span>；基于 PID
+控制器进行水平伸缩（target设置为CPU利用率，<span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>的更新与
+<code>StatusScale</code>一致）</li>
+<li><code>Hyscale</code>：与kubernetes
+默认弹性伸缩器很像，只需要指定CPU阈值，然后通过水平和垂直伸缩来达到目标</li>
+</ul></li>
+</ul>
+<center>
+<img src="/imgs/statuscale/CPU-qps.png"/>
+</center>
+<h3 id="评估指标">评估指标</h3>
+<p>文章主要考虑<strong>系统性能</strong>和<strong>资源消耗</strong>，使用的指标如下：</p>
+<ol type="1">
+<li>response time （相同资源配额下，<span
+class="math inline">\(\int{R_t}dt\)</span>，<span
+class="math inline">\(R_t\)</span>是t时刻分配的资源）</li>
+<li>SLO violation（相同资源配额下，<span
+class="math inline">\(\int{R_t}dt\)</span>）</li>
+<li>Accuracy of supply-demand relationships. 这个是看 resource supply
+是否准确。在一段时间 <span
+class="math inline">\(T\)</span>内，总共可分配资源为 <span
+class="math inline">\(R\)</span>，t 时刻的资源需求为 <span
+class="math inline">\(d_t\)</span> （<span
+class="math inline">\(d_t\)</span> 是通过 Fig.8
+拟合出来的），有点类似于误差
+<ol type="1">
+<li><span class="math inline">\(a_U=\frac{1}{T\cdot
+R}\sum_{t=1}^{T}{(d_t-s_t)^+\Delta t}\)</span></li>
+<li><span class="math inline">\(a_O=\frac{1}{T\cdot
+R}\sum_{t=1}^{T}{(s_t-d_t)^+\Delta t}\)</span></li>
+</ol></li>
+<li>Correlation factor of supply-demand relationships. 这个指标用于衡量
+supply curve 与 demand curve
+的相似度（与上一个指标差别不大），本来应该用 <strong>Locust 收集的 QPS
+转化为 demand 的 CPU 利用率</strong>，以及用 <strong>Prometheus 收集的
+supply 的 CPU 利用率</strong>，然后计算两个曲线的 <code>R-square</code>
+（评估回归模型的性能指标）。但文章认为 Locust 与 Prometheus
+是两套监控系统，收集周期和统计方式有所区别，所以改用
+<code>Dynamic Time Warping</code> 算法来衡量两个时间序列的相似度:
+<ul>
+<li>首先，将两个curve进行量纲对齐。比如将第一个 curve （<span
+class="math inline">\(X=\{x_1,x_2,\dots,x_m\}\)</span>）转到第二个 curve
+（<span
+class="math inline">\(Y=\{y_1,y_2,\dots,y_m\}\)</span>）的量纲下：<span
+class="math inline">\(x^\prime_i=(x_i-\mu_x)\times\frac{\sigma_Y}{\sigma_X}+\mu_Y\)</span>，<span
+class="math inline">\(x^\prime_i\)</span> 是转化后的值</li>
+<li>定义距离矩阵 <span class="math inline">\(D\)</span>，<span
+class="math inline">\(D_{i,j}\)</span>代表 <span
+class="math inline">\(X\)</span> 的时间点 <span
+class="math inline">\(i\)</span> 和 <span
+class="math inline">\(Y\)</span> 的时间点 <span
+class="math inline">\(j\)</span>的距离，<span
+class="math inline">\(d(x_i,y_j)\)</span> 代表 <span
+class="math inline">\(x_i\)</span> 和 <span
+class="math inline">\(y_j\)</span> 的欧氏距离（也可以用其他距离），<span
+class="math inline">\(D_{i,j}\)</span>计算方式如下：</li>
+<li><span class="math display">\[
+  D_{i,j}=min\begin{cases}
+  D_{i-1,j}+d(x_i,y_j)\\
+  D_{i,j-1}+d(x_i,y_j)\\
+  D_{i-1,j-1}+d(x_i,y_j)
+  \end{cases}
+  \]</span></li>
+<li><span class="math inline">\(D_{m-1,n-1}\)</span> 代表 curve <span
+class="math inline">\(X\)</span> 与 curve <span
+class="math inline">\(Y\)</span> 的最小距离，则
+<code>correlation factor</code>计算如下：<span
+class="math inline">\(CF=max(m,n)/D_{m-1,n-1}\)</span></li>
+</ul></li>
+</ol>
+<h3 id="总实验">总实验</h3>
+<p><code>StatuScale</code>
+的目标有三个：①降低响应延时、②降低SLO违背率、③维持CPU利用率在目标水平（<span
+class="math inline">\(\pm1\%\)</span>）。</p>
+<center>
+<img src="/imgs/statuscale/sockshop-performance.png"/>
+</center>
+<ul>
+<li>Fig. 9(a)
+展示了不同scaler的平均延时和P95延时的分布（Locust可以求得），可以看出<code>StatuScale</code>的延时分布是比较偏低的，均值维持在50~70ms，P99维持在300多ms左右</li>
+<li>Fig. 9(b) 想展示的与Fig.
+9(a)差不多，展示的是四个scaler的延时的累积分布直方图（CDF），P95基本维持在250ms左右，说明几个scaler都很有作用（<strong>私以为应该加上一个没有设置采样器的方法作为对比</strong>）</li>
+<li>Fig. 9(c) 计算了不同SLO阈值下的违背情况</li>
+<li>Fig. 9(d) 计算了
+<code>correlation factor</code>，说明<code>StatuScale</code>的资源分配的曲线与负载波动（资源需求曲线）很相似。Fig.10
+展示了CPU使用（这里难道不应该是分配的CPU吗？）和负载的相似度。表格是对图像结果的数据展示</li>
+</ul>
+<p><code>StatuScale</code>也在Hotel-Reservation上进行了实验，结果比较相似，就不贴上来了。</p>
+<center>
+<img src="/imgs/statuscale/sockshop-performance2.png"/>
+</center>
+<h3 id="消融实验">消融实验</h3>
+<h4 id="消融-status-detector-module">消融 Status Detector Module</h4>
+<p><code>Status Detector</code>判断当前负载是否
+<strong>“stable”</strong>，如果 <strong>“stable”</strong>，则选择用
+LightGBM预测负载，然后转换成CPU需求；如果
+<strong>“unstable”</strong>，则用 A-PID
+将CPU利用率控制在某个阈值。文章选择了3个变体，衡量它们的延时（为什么还要消融A-PID和LightGBM？为什么不衡量其他指标？）。实验在
+Sock-Shop 上做，每组实验做3次</p>
+<ul>
+<li><code>StatusScale</code><span
+class="math inline">\(^\Delta\)</span>：消融 horizontal scaler</li>
+<li><code>StatusScale</code><span
+class="math inline">\(^\circ\)</span>：消融 horizontal scaler，load
+status detector 和 A-PID 控制器</li>
+<li><code>StatusScale</code><span
+class="math inline">\(^*\)</span>：消融 horizontal scaler，load status
+detector 和 load prediction（LightGBM）</li>
+</ul>
+<center>
+<img src="/imgs/statuscale/ablate-sd.png" width='700'/>
+</center>
+<p>上述实验说明了 load status detector 对 load
+prediction的影响很大（<code>StatusScale</code><span
+class="math inline">\(^\circ\)</span>）</p>
+<h4 id="消融-scaling-modes">消融 Scaling Modes</h4>
+<p>vertical scaling
+虽然能细粒度调节资源，但依然受限于单个机器硬件；horizontal scaling
+又容易造成资源浪费。文章设计了2个变体，实验在 Sock-Shop
+上做，每组实验做3次，但是加入了CPU使用率的对比：</p>
+<ul>
+<li><code>StatuScale</code><span
+class="math inline">\(^\square\)</span>：只使用 vertical scaling</li>
+<li><code>StatuScale</code><span
+class="math inline">\(^*\)</span>：只使用 horizontal scaling</li>
+</ul>
+<center>
+<img src="/imgs/statuscale/ablate-sm.png" width='700'/>
+</center>
+<p>可以看出，horizontal scaling （<code>StatuScale</code><span
+class="math inline">\(^*\)</span>）确实能最大限度降低延时，但是CPU资源利用率偏低；vertical
+scaling（<code>StatuScale</code><span
+class="math inline">\(^\square\)</span>）很难保证延时，但是CPU利用率高；<code>StatusScale</code>相当于在两者间做了均衡。</p>
+<div>
+<p><a name="ATOM"></a> [1] Alim Ul Gias, et.al. 2019. ATOM: Model-Driven
+Autoscaling for Microservices. In 2019 IEEE 39th ICDCS. 1994–2004.
+https://doi.org/10.1109/ICDCS.2019.00197</p>
+</div>
+<div>
+<p><a name="statuscale-alibaba-trace"></a> [2]
+https://github.com/alibaba/clusterdata/blob/master/cluster-trace-v2018/trace_2018.md</p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>资源管理</tag>
+        <tag>弹性伸缩</tag>
+        <tag>arxiv</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
     <url>/2024/11/27/ElasticRec/</url>
     <content><![CDATA[<blockquote>
@@ -306,7 +1138,7 @@ embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU�
 <p>这里我很好奇为什么不比较延时？<code>ElasticRec</code>延时应该比不过<code>Model-wise (cache)</code>，毕竟CPU和GPU交互需要时间。</p>
 </blockquote>
 <div>
-<p><a name="alibabaTrace"></a> [1]
+<p><a name="dlrm"></a> [1]
 <a>https://github.com/facebookresearch/dlrm</a></p>
 </div>
 ]]></content>
@@ -315,924 +1147,10 @@ embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU�
       </categories>
       <tags>
         <tag>微服务</tag>
-        <tag>推荐系统</tag>
         <tag>资源管理</tag>
+        <tag>推荐系统</tag>
         <tag>面向AI的微服务</tag>
         <tag>ISCA</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</title>
-    <url>/2024/06/22/MicroDig/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：Diagnosing Performance Issues for Large-Scale Microservice
-Systems with Heterogeneous Graph</p>
-<p>来源：TSC 2024</p>
-<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
-<ul>
-<li>基于调用和微服务之间的因果关系构建异构传播图</li>
-<li>采样面向异构的随机游走算法进行根因服务定位</li>
-</ul>
-<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3
-accuracy。</p>
-<h2 id="背景">背景</h2>
-<p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
-<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150
-billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end
-aggregated calls）。</p>
-<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a
-href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
-注：aggregated call在GMTA中提到过，应该就是一段时间（比如1
-min）内trace的聚合：
-<center>
-<img src="/imgs/MicroDig/GMTA-path.png"/>
-</center>
-<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。
-【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
-<h2 id="动机">动机</h2>
-<h3 id="调用关系异常传播的因果关系">调用关系≠异常传播的因果关系</h3>
-文章举了一个例子来说明这个观点：
-<center>
-<img src="/imgs/MicroDig/call-casual.png"/>
-</center>
-<p><span class="math inline">\(A \to B \to C\)</span>
-的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是<span
-class="math inline">\(C\)</span>，然而，操作员却没有在<span
-class="math inline">\(C\)</span>中发现有意义的故障报告。因为 <span
-class="math inline">\(B\)</span> 已经用尽了文件描述符，无法建立与 <span
-class="math inline">\(C\)</span> 的新连接，所以<span
-class="math inline">\(B \to C\)</span>有大量的异常出现。所以根因是<span
-class="math inline">\(B\)</span>不是<span
-class="math inline">\(C\)</span>，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
-<blockquote>
-<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
-</blockquote>
-<h3 id="异构传播图">异构传播图</h3>
-<p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous
-propagation graph）来描述故障传播的因果关系：</p>
-<center>
-<img src="/imgs/MicroDig/hpg.png"/>
-</center>
-<ul>
-<li><p>如上图所示，<span class="math inline">\(R(A,B)\)</span> 代表<span
-class="math inline">\(A \to B\)</span>的异常率（anomaly rate），<span
-class="math inline">\(R(A)\)</span> 代表服务<span
-class="math inline">\(A\)</span>
-本身的异常率。注意，服务本身的异常率，如<span
-class="math inline">\(R(A)\)</span>，在这个工作中是不可观测的；边的异常率，如<span
-class="math inline">\(R(A,B)\)</span>，是可以被观测的。</p></li>
-<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如<span
-class="math inline">\(R(A) \to R(A,B)\)</span>）。</p></li>
-<li><p>文章添加了一些假设：①服务之间是独立的，比如<span
-class="math inline">\(R(A)\)</span>和<span
-class="math inline">\(R(B)\)</span>是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如<span
-class="math inline">\(R(A,B)\)</span>和<span
-class="math inline">\(R(C,D)\)</span></p></li>
-</ul>
-<p>根据作者的设计，这里应该就能看到<span
-class="math inline">\(R(B,C)\)</span>是受<span
-class="math inline">\(R(B)\)</span>和<span
-class="math inline">\(R(C)\)</span>影响的了，从某种意义上给3.1的问题提供了思路。</p>
-<h2 id="microdig-架构">MicroDig 架构</h2>
-<center>
-<img src="/imgs/MicroDig/structure.png"/>
-</center>
-<p>可以看到MicroDig分为几个部分： 1. 性能监控 (Monitoring) 2.
-相关调用的识别 (Association Call Identification) 3. 异构传播图的构建
-(Heterogeneous Propagation Graph Construction) 4. 根因定位 (Root Cause
-Localization)</p>
-<h3 id="association-call-identification">Association Call
-Identification</h3>
-<p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
-<h4 id="构造port-level-异常子图">构造<code>port-level</code>
-异常子图</h4>
-<p>文章首先构造 <code>port-level</code>
-异常子图，<code>port-level</code>即接口级别，图中的节点都是接口，
-具体步骤如下：</p>
-<ol type="1">
-<li>构造 <code>port-level</code>
-调用图（为什么选用<code>port-level</code>）</li>
-<li>在调用图上进行
-<em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em>
-对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
-</ol>
-<blockquote>
-<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
-</blockquote>
-<h4 id="构造service-level-异常子图">构造<code>service-level</code>
-异常子图</h4>
-<p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务<span
-class="math inline">\(S\)</span>和<span
-class="math inline">\(S&#39;\)</span>，定义<span
-class="math inline">\(F(p,p&#39;)\)</span>和<span
-class="math inline">\(N(p,p&#39;)\)</span>分别为其中<code>port-level</code>边<span
-class="math inline">\(p \to
-p&#39;\)</span>的异常调用数和总调用数，那么时间点<span
-class="math inline">\(t\)</span>的<span class="math inline">\(S \to
-S&#39;\)</span>的异常率<span class="math inline">\(R_t(S,
-S&#39;)\)</span>为：</p>
-<p><span class="math display">\[
-    R_t(S, S&#39;)=\frac{\sum_{p\in S, p&#39; \in
-S&#39;}F_t(p,p&#39;)}{\sum_{p\in S, p&#39; \in S&#39;}N_t(p,p&#39;)}
-\]</span></p>
-<p>整个过程如图(a) (b)所示 ：</p>
-<center>
-<img src="/imgs/MicroDig/hpg-build.png"/>
-</center>
-<h4 id="构造-heterogeneous-propagation-graph">构造 Heterogeneous
-Propagation Graph</h4>
-<p>3.1
-中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous
-Propagation Graph （HPG）：</p>
-<center>
-<img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
-</center>
-<p>原理很简单： 1.
-<strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到
-HPG 2. <strong>设置call节点</strong>：对于每个服务<span
-class="math inline">\(S\)</span>，将<span
-class="math inline">\(S\)</span>的出边和入边作为节点加入HPG 3.
-<strong>call节点和service节点的关系</strong>：对于每个call节点（<span
-class="math inline">\(S \to S&#39;\)</span>），设置 <span
-class="math inline">\(S \to (S \to S&#39;)\)</span>，<span
-class="math inline">\((S \to S&#39;) \to S&#39;\)</span> 4.
-<strong>call节点和call节点的关系</strong>：对于每个服务<span
-class="math inline">\(S\)</span>，设置：出边 <span
-class="math inline">\(\to\)</span> 入边</p>
-<h3 id="根因服务定位">根因服务定位</h3>
-<p>异构传播图（HPG）有两种节点（service，call）和两种边（service <span
-class="math inline">\(\to\)</span> call, call <span
-class="math inline">\(\to\)</span>
-call）。本文采取针对异构图的随机游走算法来定位根因：</p>
-<center>
-<img src="/imgs/MicroDig/HPG-example.png" width="300"/>
-</center>
-<h4 id="转移权重">转移权重</h4>
-<p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
-<ol type="1">
-<li>对于call <span class="math inline">\(\to\)</span> call：比如<span
-class="math inline">\(C_{23} \to
-C_{12}\)</span>，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</li>
-<li>对于service <span class="math inline">\(\to\)</span> call：比如<span
-class="math inline">\(S_1 \to C_{12}\)</span>
-<ul>
-<li><p>首先计算service的异常程度，定义<span
-class="math inline">\(\mathbb{S}_U\)</span>和<span
-class="math inline">\(\mathbb{S}_D\)</span>分别表示服务<span
-class="math inline">\(S\)</span>的上游服务集合和下游服务集合，服务<span
-class="math inline">\(S\)</span>的异常程度<span
-class="math inline">\(\alpha_S\)</span>可以表示为： <span
-class="math display">\[
-\alpha_S = \frac{|\{S&#39;|S&#39;\in \mathbb{S}_U \cup \mathbb{S}_D,
-\theta(S&#39;)=1 \}|}{|\mathbb{S}_U \cup \mathbb{S}_D|}
-\]</span> 当<span
-class="math inline">\(S&#39;\)</span>有任意一条<code>port-level</code>的边是异常时，<span
-class="math inline">\(\theta(S&#39;)=1\)</span>。</p></li>
-<li><p>然后计算service <span class="math inline">\(\to\)</span>
-call的权重。对于任意一个call节点<span class="math inline">\(C=S_{caller}
-\to S_{callee}\)</span>，有两条service <span
-class="math inline">\(\to\)</span> call类型的边：<span
-class="math inline">\(S_{caller} \to C\)</span> 和 <span
-class="math inline">\(C \to
-S_{callee}\)</span>。这两条边的权重分别为：<span
-class="math inline">\(\omega_{caller}\)</span> 和 <span
-class="math inline">\(\omega_{callee}\)</span>，分别计算如下： <span
-class="math display">\[
-\omega_{caller}=max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]
-\]</span></p></li>
-</ul>
-<span class="math display">\[
-   \omega_{callee}=max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]
-\]</span> 其中，<span class="math inline">\(\Delta \alpha =
-\alpha(S_{caller})-\alpha(S_{callee})\)</span>，<span
-class="math inline">\(\Delta
-\eta\)</span>即当前服务的所有入边的权重-所有出边的权重。</li>
-</ol>
-<h4 id="异构随机游走">异构随机游走</h4>
-<p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
-<ul>
-<li><strong>backward
-edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward
-edge，权重是有向边的<span class="math inline">\(\rho\)</span>倍。</li>
-<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
-</ul>
-<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
-<center>
-<img src="/imgs/MicroDig/random-walk.png" width="500"/>
-</center>
-<h2 id="总结">总结</h2>
-<ul>
-<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
-<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
-<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
-</ul>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
-trace analysis for microservice architecture understanding and problem
-diagnosis, ESEC/FSE. 2020: 1387-1397.
-<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>根因定位</tag>
-        <tag>TSC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>期望最大算法（Expectation Maximization Algorithm）</title>
-    <url>/2024/11/20/EM/</url>
-    <content><![CDATA[<h2 id="介绍">介绍</h2>
-<p>期望最大化算法（Expectation-Maximization algorithm,
-EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent
-variables）的概率模型。</p>
-<p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
-<h2 id="应用举例">应用举例</h2>
-<p>假设我们有一组一维数据<span class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
-<ul>
-<li>第1个分布 <span class="math inline">\(N(\mu_1,
-\sigma_1)\)</span>，其中<span class="math inline">\(\mu_1=5\)</span>,
-<span class="math inline">\(\sigma_1=9\)</span></li>
-<li>第2个分布 <span class="math inline">\(N(\mu_2,
-\sigma_2)\)</span>，其中<span class="math inline">\(\mu_2=15\)</span>,
-<span class="math inline">\(\sigma_2=0.5\)</span></li>
-</ul>
-<p>两个分布的权重满足：<span
-class="math inline">\(\sum_{k=1}^2\pi_k=1\)</span></p>
-<p>我们目前手中只有这一组一维观测数据<span
-class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
-<p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
-<p><span class="math display">\[
-    z_i= \begin{cases}
-        0&amp; x_i \in N(\mu_1, \sigma_1^2)\\
-        1&amp; x_i \in N(\mu_2, \sigma_2^2)
-        \end{cases}
-\]</span></p>
-<p>隐变量<span class="math inline">\(z_i\)</span>表示数据点<span
-class="math inline">\(x_i\)</span>由哪个分布生成。而隐变量<span
-class="math inline">\(z_i\)</span>的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
-<p><span class="math display">\[
-\begin{aligned}
-L(\theta)&amp;=\prod_{i=1}^{n}f(x_i;\theta) \\
-    ln L(\theta) &amp;= \sum_{i=1}^{n}ln f(x_i:\theta) \\
-    &amp;=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
-    \end{aligned}
-\]</span> 但由于 <span
-class="math inline">\(\pi_k\)</span>未知，所以难以进行最大似然估计。</p>
-<h2 id="em算法步骤">EM算法步骤</h2>
-<p>我们首先用两个正态分布混合生成观测数据：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
-<p>并随机给予两个分布初始参数以及权重，代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure></p>
-<p>EM算法分为两个步骤： ### E步（期望步, Expectation step）：
-我们需要计算每个数据点 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
-<p><span class="math display">\[
-\begin{aligned}
-P(z_i=1|x_i,
-\theta)&amp;=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
-&amp;=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2)
-+ \pi_2N(x_i|\mu_2, \sigma_2^2)}
-\end{aligned}
-\]</span></p>
-<p>同理可以求得<span class="math inline">\(P(z_i=2|x_i,
-\theta)\)</span>。代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure></p>
-<h3 id="m步最大化步-maximization-step">M步（最大化步, Maximization
-step）：</h3>
-<p>在E步得到 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率后，也是隐变量<span
-class="math inline">\(z_i\)</span>的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
-<blockquote>
-<p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
-</blockquote>
-<p><span class="math display">\[
-    \mu_k=\mathop{\arg\max}\limits_{\mu_k}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2=\mathop{\arg\max}\limits_{\sigma_k^2}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p>对上述两式进行求解可得各部分更新公式如下（<span
-class="math inline">\(\pi_k\)</span>更新同理）： <span
-class="math display">\[
-    \mu_k =
-\frac{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)x_i}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2 = \frac{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)(x_i-\mu_k)^2}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \pi_k=\frac{1}{n}\sum_{i=1}^{n}P(z_i=k|x_i,\theta)
-\]</span></p>
-<p>代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># M步: 更新参数</span></span><br><span class="line">pi1_new = np.mean(posterior1)</span><br><span class="line">pi2_new = np.mean(posterior2)</span><br><span class="line">mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br></pre></td></tr></table></figure></p>
-<p>完整代码如下： <figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成数据</span></span><br><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = <span class="number">100</span></span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples // <span class="number">2</span>),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples // <span class="number">2</span>)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化参数</span></span><br><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步: 计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># M步: 更新参数</span></span><br><span class="line">    pi1_new = np.mean(posterior1)</span><br><span class="line">    pi2_new = np.mean(posterior2)</span><br><span class="line">    mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">    mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">    sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">    sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 检查是否收敛</span></span><br><span class="line">    <span class="keyword">if</span> (abs(mu1_new - mu1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(mu2_new - mu2) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma1_new - sigma1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma2_new - sigma2) &lt; tolerance):</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 更新参数</span></span><br><span class="line">    mu1, mu2, sigma1, sigma2, pi1, pi2 = mu1_new, mu2_new, sigma1_new, sigma2_new, pi1_new, pi2_new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印最终结果</span></span><br><span class="line">print(<span class="string">f"迭代次数: <span class="subst">&#123;iteration&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ1: <span class="subst">&#123;mu1&#125;</span>, σ1: <span class="subst">&#123;sigma1&#125;</span>, π1: <span class="subst">&#123;pi1&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ2: <span class="subst">&#123;mu2&#125;</span>, σ2: <span class="subst">&#123;sigma2&#125;</span>, π2: <span class="subst">&#123;pi2&#125;</span>"</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制结果</span></span><br><span class="line">plt.hist(data, bins=<span class="number">30</span>, density=<span class="literal">True</span>, alpha=<span class="number">0.6</span>, color=<span class="string">'g'</span>)</span><br><span class="line">x = np.linspace(min(data), max(data), <span class="number">100</span>)</span><br><span class="line">plt.plot(x, pi1 * normal_pdf(x, mu1, sigma1), <span class="string">'r-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu1:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma1:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.plot(x, pi2 * normal_pdf(x, mu2, sigma2), <span class="string">'b-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu2:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma2:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.legend()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></p>
-结果输出如下：
-<center>
-<img src="/imgs/EM/EM.png"/>
-</center>
-]]></content>
-      <categories>
-        <category>通用算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>概率论</tag>
-        <tag>机器学习</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</title>
-    <url>/2024/05/13/MicoHECL/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：MicroHECL: High-Efficient Root Cause Localization in
-Large-Scale Microservice Systems</p>
-<p>来源：ICSE 2021</p>
-<p>作者：复旦大学CodeWisdom团队，阿里云</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
-<ul>
-<li>动态构建一段时间窗口内的服务调用图</li>
-<li>对不同异常类型进行个性化异常检测</li>
-<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
-</ul>
-<h2 id="背景">背景</h2>
-<p>工业微服务系统包含大量的微服务（e.g.,
-alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
-<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
-<ul>
-<li>性能异常（Performance Anomaly）</li>
-<li>可靠性异常（Reliability Anomaly）</li>
-<li>流量异常（Traffic Anomaly）</li>
-</ul>
-<h2 id="microhecl-概述">MicroHECL 概述</h2>
-<center>
-<img src="/imgs/MicroHECL/MicroHECL.png"/>
-</center>
-<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
-<h3 id="服务调用图构建">服务调用图构建</h3>
-<p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<strong><em>30min</em></strong>内的服务依赖图（service
-call
-graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如<span
-class="math inline">\(S_i \to S_j\)</span>代表微服务<span
-class="math inline">\(S_i\)</span>调用了微服务<span
-class="math inline">\(S_j\)</span>；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
-<h3 id="异常传播链分析">异常传播链分析</h3>
-<p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
-<ul>
-<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
-<li>异常传播链扩展</li>
-<li>根因排序</li>
-</ul>
-<h4 id="分析入口服务">分析入口服务</h4>
-文章首先根据经验定义了三种故障类型的传播方向：
-<center>
-<img src="/imgs/MicroHECL/direction.png" width="500"/>
-</center>
-<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a
-href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
-<center>
-<img src="/imgs/MicroHECL/chain.png"/>
-</center>
-<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig.
-2所示，整个过程描述如下： &gt; 1. 将入口服务<span
-class="math inline">\(S_5\)</span>纳入异常传播链 &gt; 2.
-异常检测。检测<span class="math inline">\(S_5\)</span>的邻居节点<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>的异常类型 &gt; 3. 确认<span
-class="math inline">\(S_4\)</span>的异常类型为<strong>Traffic
-Anomaly</strong>，<span
-class="math inline">\(S_7\)</span>的异常类型为<strong>Performance
-Anomaly</strong> &gt; 4. 检测是否符合传播方向（<span
-class="math inline">\(S_4\)</span>是否是<span
-class="math inline">\(S_5\)</span>的上游，<span
-class="math inline">\(S_7\)</span>是否是<span
-class="math inline">\(S_5\)</span>的下游） &gt; 5. 符合，将<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>添加到异常传播链 &gt; 6. 从<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>出发，对邻居节点重复上述步骤</p>
-<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a
-href="#33-服务异常检测">3.3节</a>会提到。</p>
-<h4 id="异常传播链扩展">异常传播链扩展</h4>
-<p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游/下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig.
-2对于<span class="math inline">\(S_4\)</span>方向的传播分析，以<span
-class="math inline">\(S_1\)</span>结束；对于<span
-class="math inline">\(S_7\)</span>方向的传播分析，以<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>结束。</p>
-<h4 id="候选根因定位">候选根因定位</h4>
-<p>本文选择异常传播链的末端服务作为候选根因，比如Fig.
-2中的候选根因服务为<span class="math inline">\(S_1\)</span>，<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>。那么如何排名呢？</p>
-<ul>
-<li>选取入口服务过去60min的业务指标 <span
-class="math inline">\(X\)</span></li>
-<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>,
-<code>EC</code> or <code>QPS</code>）<span
-class="math inline">\(Y\)</span></li>
-<li>计算两者之间的皮尔逊相关系数：</li>
-</ul>
-<p><span class="math display">\[
-   P(X,
-Y)=\frac{\sum_{i=1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i=1}^n{(X_i-\overline{X})^2}\sum_{i=1}^n{(Y_i-\overline{Y})^2}}}
-\]</span></p>
-<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
-<h3 id="服务异常检测">服务异常检测</h3>
-<p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance
-Anomaly，Reliability Anomaly，Traffic
-Anomaly）分别设计了异常检测方法。</p>
-<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
-<center>
-<img src="/imgs/MicroHECL/metrics.png"/>
-</center>
-<h4 id="性能异常检测">性能异常检测</h4>
-<p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig.
-3
-(d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
-<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
-<blockquote>
-<ul>
-<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
-<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4=12种特征。</p>
-<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
-<h4 id="可靠性异常检测">可靠性异常检测</h4>
-<p>这里提到<code>EC</code>大多时候都是0（Fig.2
-(b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
-<p>所以，文章采用随机森林（Random
-Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
-<blockquote>
-<ul>
-<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
-<li>检测窗口内最大错误率（<code>EC</code>/sum(<code>QPS</code>)）。</li>
-<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
-<h4 id="流量异常检测">流量异常检测</h4>
-<p><code>QPS</code>大多满足正态分布（Fig.2
-(c,f)），所以直接采用3-sigma进行检测。 &gt;
-这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，选择过去<strong><em>1h</em></strong>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
-<h4 id="剪枝">剪枝</h4>
-<p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
-<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
-<blockquote>
-<p>例子：Fig. 2中的 <span class="math inline">\(S_1 \to S_4\)</span> 和
-<span class="math inline">\(S_4 \to S_5\)</span> 都是<strong>Traffic
-Anomaly</strong> 的传播路径，如果<span class="math inline">\(S_1 \to
-S_4\)</span> 的 <code>QPS</code> 和 <span class="math inline">\(S_4 \to
-S_5\)</span> 的 <code>QPS</code>
-没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉<span
-class="math inline">\(S_1 \to S_4\)</span>，那么<span
-class="math inline">\(S_4\)</span>就取代<span
-class="math inline">\(S_1\)</span>变成了候选根因。</p>
-</blockquote>
-<p>这里的检测窗口选取的过去<strong><em>60min</em></strong>。剪枝操作执行在异常节点加入异常调用链之前。</p>
-<h2 id="总结">总结</h2>
-<p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="ImpactTracer"></a> [1] Xie R, Yang J, Li J, et al.
-ImpactTracer: Root Cause Localization in Microservices Based on Fault
-Propagation Modeling, (DATE), 2023.
-<a>https://ieeexplore.ieee.org/abstract/document/10137078/</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>根因定位</tag>
-        <tag>ICSE</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>最长公共子序列（Longest Common Subsequence）</title>
-    <url>/2024/11/20/LCS/</url>
-    <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
-<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
-字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
-<font color=red>BCAB</font>。</p>
-<blockquote>
-<p>LCS在计算机领域有诸多应用，比如可以： - 比较 DNA 序列或蛋白质序列。 -
-比较不同版本的文件，找出更改的部分 - 文本（代码）相似性检 - ...</p>
-<p>假设有两个版本的文件： - 文件 V1: The quick brown fox jumps over the
-lazy dog. - 文件 V2: A quick brown dog jumps over the lazy cat.</p>
-<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
-the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
-</blockquote>
-<h2 id="题目">题目</h2>
-<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
-和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
-公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
-是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
-&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
-的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
-&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
-<p>示例 1：</p>
-<p>输入：text1 = "abcde", text2 = "ace"<br />
-输出：3<br />
-解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
-<p>示例 2：</p>
-<p>输入：text1 = "abc", text2 = "abc"<br />
-输出：3<br />
-解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
-<p>示例 3：</p>
-<p>输入：text1 = "abc", text2 = "def"<br />
-输出：0<br />
-解释：两个字符串没有公共子序列，返回 0 。</p>
-<p>提示：</p>
-<ul>
-<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
-<li>text1 和 text2 仅由小写英文字符组成。</li>
-</ul>
-<h2 id="分析">分析</h2>
-<p>最长公共子序列（Longest Common Subsequence,
-LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
-<ol type="1">
-<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
-<ul>
-<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
-<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
-<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
-<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
-j-1))\)</span></li>
-</ul>
-<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
-<li><p><strong>重叠子问题</strong>：在求解 LCS
-的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
-class="math inline">\(X\)</span> 和 <span
-class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span>
-个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
-</ol>
-<h2 id="求解">求解</h2>
-<p>动态规划的求解步骤如下：</p>
-<ol type="1">
-<li><p>定义状态</p>
-<ul>
-<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
-class="math inline">\(dp\)</span> 表示，其中 <span
-class="math inline">\(dp[i][j]\)</span> 表示序列 <span
-class="math inline">\(X\)</span> 的前 <span
-class="math inline">\(i\)</span> 个字符和序列 <span
-class="math inline">\(Y\)</span> 的前 <span
-class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
-</ul></li>
-<li><p>状态转移方程</p>
-<ul>
-<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
-<ul>
-<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
-<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
-class="math inline">\(dp[i][j] = max(dp[i-1][j],
-dp[i][j-1])\)</span></li>
-</ul></li>
-</ul></li>
-</ol>
-<p>python代码实现如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
-<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 1, 1]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 2]</p>
-<p>[0, 1, 2, 3]</p>
-<h2 id="扩充">扩充</h2>
-<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
-class="math inline">\(dp\)</span>表进行回溯，思路为</p>
-<ol type="1">
-<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
-<li>如果当前<span
-class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
-class="math inline">\(X[i]\)</span>（<span
-class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
-class="math inline">\(X\)</span>和<span
-class="math inline">\(Y\)</span>都向前推进一位</li>
-<li>如果当前<span
-class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
-class="math inline">\(X[i-1]\)</span>和<span
-class="math inline">\(Y[j]\)</span>中产生，还是在<span
-class="math inline">\(X[i]\)</span>和<span
-class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
-class="math inline">\(dp[i-1][j]\)</span> 和 <span
-class="math inline">\(dp[i][j-1]\)</span></li>
-</ol>
-<p>所以代码如下：</p>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
-<p>回溯路径为：</p>
-<p>[0, 0, 0, 0]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, <font color=blue>1</font>, 1, 1]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, <font color=blue>2</font>, 2]</p>
-<p>[0, 1, 2, <font color=blue>3</font>]</p>
-]]></content>
-      <categories>
-        <category>leetcode基础算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>leetcode</tag>
-        <tag>动态规划</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>前缀树（Prefix Tree）</title>
-    <url>/2024/11/25/trie_tree/</url>
-    <content><![CDATA[<p>Trie 树，又叫前缀树，字典树，
-是一种有序的树形数据结构，用于高效地存储和检索字符串数据集中的键。下图是维基百科上关于trie树的一个典型例子，我们可以很清晰地看到，这棵树存储了许多前缀相似的字符串，给定一个字符串，我们可以很容易知道这个字符串是否被存储，而不需要遍历比较。</p>
-<center>
-<p><img src="/imgs/trie/trie.png"/></p>
-</center>
-<p>这一数据结构有相当多的应用情景，例如：</p>
-<ul>
-<li>自动补全：
-<ul>
-<li>搜索提示：输入网址，跳出可能的选择</li>
-<li>输入提示：根据已经输入的字符预测可能的词组和句子</li>
-</ul></li>
-<li>拼写检查：存储合法的单词列表，快速查找是否存在合法的单词</li>
-<li>前缀匹配</li>
-<li>IP路由查找</li>
-</ul>
-<h2 id="题目">题目</h2>
-<p>leetcode 208 实现Trie（前缀树）</p>
-<blockquote>
-<p>请你实现 Trie 类：</p>
-<ul>
-<li><code>Trie()</code> 初始化前缀树对象。</li>
-<li><code>void insert(String word)</code> 向前缀树中插入字符串
-<code>word</code> 。</li>
-<li><code>boolean search(String word)</code> 如果字符串
-<code>word</code> 在前缀树中，返回
-<code>true</code>（即，在检索之前已经插入）；否则，返回
-<code>false</code> 。</li>
-<li><code>boolean startsWith(String prefix)</code>
-如果之前已经插入的字符串 <code>word</code> 的前缀之一为
-<code>prefix</code> ，返回 <code>true</code> ；否则，返回
-<code>false</code> 。</li>
-</ul>
-</blockquote>
-<p><strong>示例：</strong></p>
-<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">输入</span><br><span class="line">[&quot;Trie&quot;, &quot;insert&quot;, &quot;search&quot;, &quot;search&quot;, &quot;startsWith&quot;, &quot;insert&quot;, &quot;search&quot;]</span><br><span class="line">[[], [&quot;apple&quot;], [&quot;apple&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;]]</span><br><span class="line">输出</span><br><span class="line">[null, null, true, false, true, null, true]</span><br><span class="line"></span><br><span class="line">解释</span><br><span class="line">Trie trie &#x3D; new Trie();</span><br><span class="line">trie.insert(&quot;apple&quot;);</span><br><span class="line">trie.search(&quot;apple&quot;);   &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 False</span><br><span class="line">trie.startsWith(&quot;app&quot;); &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.insert(&quot;app&quot;);</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 True</span><br></pre></td></tr></table></figure>
-<p><strong>提示：</strong></p>
-<ul>
-<li><code>1 &lt;= word.length, prefix.length &lt;= 2000</code></li>
-<li><code>word</code> 和 <code>prefix</code> 仅由小写英文字母组成</li>
-<li><code>insert</code>、<code>search</code> 和 <code>startsWith</code>
-调用次数 <strong>总计</strong> 不超过 <code>3 * 104</code> 次</li>
-</ul>
-<h2 id="分析">分析</h2>
-<p>这道题有几个地方需要注意：</p>
-<ul>
-<li><code>insert</code>时，需要标记单词是否截止，因为trie中的节点既有可能是前缀，也有可能是单词</li>
-<li><code>search</code>与 <code>startswith</code>的区别在于，
-<code>startswith</code>只需要搜索下去，看看有没有对应的节点；而<code>search</code>还需要判断这个节点是否有截止信号</li>
-</ul>
-<h2 id="实现">实现</h2>
-<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Trie</span><span class="params">(object)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.root = &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">insert</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: None</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                cur_node[c]=&#123;&#125;</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">                cur_node[<span class="number">0</span>]=<span class="number">0</span> <span class="comment"># 标记是否截止</span></span><br><span class="line">        <span class="comment"># 标记这个cur_node，标注上截止信号，代表这是一个词</span></span><br><span class="line">        cur_node[<span class="number">0</span>]=<span class="number">1</span></span><br><span class="line"></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">search</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="comment"># 判断有没有截止信号</span></span><br><span class="line">        <span class="keyword">if</span> cur_node[<span class="number">0</span>]==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">startsWith</span><span class="params">(self, prefix)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type prefix: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> prefix:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line">trie = Trie()</span><br><span class="line">trie.insert(<span class="string">"app"</span>)</span><br><span class="line">trie.insert(<span class="string">"apple"</span>)</span><br><span class="line">trie.insert(<span class="string">"beer"</span>)</span><br><span class="line">trie.insert(<span class="string">"add"</span>)</span><br><span class="line">trie.insert(<span class="string">"jam"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">print(trie.search(<span class="string">"apps"</span>))</span><br><span class="line">print(trie.startsWith(<span class="string">"app"</span>))</span><br><span class="line">print(trie.search(<span class="string">"app"</span>))</span><br></pre></td></tr></table></figure>
-]]></content>
-      <categories>
-        <category>leetcode基础算法</category>
-      </categories>
-      <tags>
-        <tag>算法</tag>
-        <tag>leetcode</tag>
-        <tag>数据结构</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</title>
-    <url>/2024/06/23/TraStrainer/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
-System Runtime State</p>
-<p>来源：FSE 2024</p>
-<p>作者：中山大学DDS实验室</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
-sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
-<ul>
-<li><code>random sampling</code>：又称 head
-sampling，即以固定概率决定每条trace是否采样</li>
-<li><code>biased sampling</code>：又称 tail
-sampling，即根据trace的状态决定是否采样</li>
-</ul>
-<p>很明显，<code>random sampling</code>
-实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
-能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
-<p>先前的 <code>biased sampling</code>
-工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
-runtime
-state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
-<center>
-<img src="/imgs/TraStrainer/trace-metric.png"/>
-</center>
-<p>本文提出了TraStrainer，从以下角度进行在线采样： -
-考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
-考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
-密度采样+系统采样 <span class="math inline">\(\to\)</span>
-最终采样决策</p>
-<h2 id="动机">动机</h2>
-<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
-<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
-traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
-<ol type="1">
-<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
-common-case traces也有很大的用处:</p>
-<ul>
-<li><strong>common-case traces
-可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
-traces。而我们分析这些common-case
-traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
-<li><strong>common-case traces
-有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
-traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
-</ul></li>
-<li><p><strong>结合 system runtime state
-有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
-3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
-的CPU被打满，到达 Node A
-的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
-的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
-</ol>
-<center>
-<img src="/imgs/TraStrainer/metric-importance.png"/>
-</center>
-<p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
-<h2 id="问题定义">问题定义</h2>
-<p>给定一段时间收集的traces <span
-class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
-class="math inline">\(\mathcal{M}\)</span>、采样率 <span
-class="math inline">\(\beta\)</span>，需要对<span
-class="math inline">\(\mathcal{T}\)</span>中每个trace <span
-class="math inline">\(t\)</span> 计算采样概率 <span
-class="math inline">\(\rho\)</span>。整个过程定义为：</p>
-<p><span class="math display">\[
-S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
-\]</span></p>
-<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
-class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
-<h2 id="trastrainer-概要">TraStrainer 概要</h2>
-<center>
-<img src="/imgs/TraStrainer/TraStrainer.png"/>
-</center>
-<p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
-<ul>
-<li><p><strong>Runtime Data Preprocessing</strong>：</p>
-<ul>
-<li>Trace Encoder：对trace进行结构和状态编码</li>
-<li>System Bias Extractor：将当前系统状态指标进行编码</li>
-</ul></li>
-<li><p><strong>Comprehensive Sampling</strong>：</p>
-<ul>
-<li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
-<li>Diversity-Biased Sampler：优先采样edge cases traces</li>
-<li>Composite Sampler：结合上述两种采样器进行最终决策</li>
-</ul></li>
-</ul>
-<h3 id="trace-encoder">Trace Encoder</h3>
-<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
-<center>
-<img src="/imgs/TraStrainer/encoder-example.png"/>
-</center>
-<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
-Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
-class="math inline">\(m_1\)</span>就是（<span
-class="math inline">\(C\)</span>, <span
-class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
-class="math inline">\(m_1\)</span>的值<span
-class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
-class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
-<p><span class="math display">\[
-   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
-\]</span></p>
-<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
-class="math inline">\(m_1\)</span>相关的span，而<span
-class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
-&gt;
-注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
-<p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
-<h3 id="system-bias-extractor">System Bias Extractor</h3>
-<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
-<center>
-<img src="/imgs/TraStrainer/metric-anomaly.png"/>
-</center>
-<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
-href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
-class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
-<span class="math display">\[
-   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
-\]</span></p>
-<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
-class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>。</p>
-<h3 id="system-biased-sampler">System-Biased Sampler</h3>
-<p>System-Biased
-Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
-<p>本文定义了一个固定长度look-back window，由<span
-class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
-class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
-Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
-class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
-class="math inline">\(\mu_i\)</span>和标准差<span
-class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
-class="math inline">\(t_{k+1}\)</span> 的第<span
-class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
-class="math display">\[
-   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
-\]</span></p>
-<p><span
-class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
-class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
-class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>
-进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
-<span class="math display">\[
-   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
-\]</span></p>
-<p>以上操作是将点积<span
-class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
-<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
-<p>Diversity-Biased Sampler的目标是考虑edge-case
-traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
-traces。</p>
-<p>论文将look-back
-window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
-<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
-class="math inline">\(c_{k+1}&#39;\)</span>。<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
-class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
-class="math inline">\(t_{k+1}\)</span> 和 所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
-class="math inline">\(si(t_{k+1})\)</span>。</p>
-<p><strong>一般来说，所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
-class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
-class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
-class="math display">\[
-   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
-\]</span></p>
-<h3 id="composite-sampler">Composite Sampler</h3>
-<p>对于新到trace <span
-class="math inline">\(t\)</span>，综合两个采样概率 <span
-class="math inline">\(p_s(t)\)</span> 和 <span
-class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
-class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
-mechanism）最终决策。</p>
-<center>
-<img src="/imgs/TraStrainer/vote.png"/>
-</center>
-<p>首先统计过去look-back window里采样概率 <span
-class="math inline">\(\theta\)</span>，如果： - <span
-class="math inline">\(\theta \geq
-\beta\)</span>，必须两个采样决策都为True，才采样 - <span
-class="math inline">\(\theta \leq
-\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
-<div>
-<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
-Qiang Xu. 2023. Are transformers effective for time series forecasting?.
-In Proceedings of the AAAI conference on artificial intelligence, Vol.
-37. 11121–11128.</p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>trace采样</tag>
-        <tag>FSE</tag>
       </tags>
   </entry>
   <entry>
@@ -1475,6 +1393,503 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
         <tag>trace</tag>
         <tag>实证分析</tag>
         <tag>SoCC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</title>
+    <url>/2024/06/23/TraStrainer/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
+System Runtime State</p>
+<p>来源：FSE 2024</p>
+<p>作者：中山大学DDS实验室</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
+sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
+<ul>
+<li><code>random sampling</code>：又称 head
+sampling，即以固定概率决定每条trace是否采样</li>
+<li><code>biased sampling</code>：又称 tail
+sampling，即根据trace的状态决定是否采样</li>
+</ul>
+<p>很明显，<code>random sampling</code>
+实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
+能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
+<p>先前的 <code>biased sampling</code>
+工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
+runtime
+state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
+<center>
+<img src="/imgs/TraStrainer/trace-metric.png"/>
+</center>
+<p>本文提出了TraStrainer，从以下角度进行在线采样： -
+考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
+考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
+密度采样+系统采样 <span class="math inline">\(\to\)</span>
+最终采样决策</p>
+<h2 id="动机">动机</h2>
+<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
+<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
+traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
+<ol type="1">
+<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
+common-case traces也有很大的用处:</p>
+<ul>
+<li><strong>common-case traces
+可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
+traces。而我们分析这些common-case
+traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
+<li><strong>common-case traces
+有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
+traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
+</ul></li>
+<li><p><strong>结合 system runtime state
+有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
+3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
+的CPU被打满，到达 Node A
+的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
+的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
+</ol>
+<center>
+<img src="/imgs/TraStrainer/metric-importance.png"/>
+</center>
+<p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
+<h2 id="问题定义">问题定义</h2>
+<p>给定一段时间收集的traces <span
+class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
+class="math inline">\(\mathcal{M}\)</span>、采样率 <span
+class="math inline">\(\beta\)</span>，需要对<span
+class="math inline">\(\mathcal{T}\)</span>中每个trace <span
+class="math inline">\(t\)</span> 计算采样概率 <span
+class="math inline">\(\rho\)</span>。整个过程定义为：</p>
+<p><span class="math display">\[
+S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
+\]</span></p>
+<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
+class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
+<h2 id="trastrainer-概要">TraStrainer 概要</h2>
+<center>
+<img src="/imgs/TraStrainer/TraStrainer.png"/>
+</center>
+<p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
+<ul>
+<li><p><strong>Runtime Data Preprocessing</strong>：</p>
+<ul>
+<li>Trace Encoder：对trace进行结构和状态编码</li>
+<li>System Bias Extractor：将当前系统状态指标进行编码</li>
+</ul></li>
+<li><p><strong>Comprehensive Sampling</strong>：</p>
+<ul>
+<li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
+<li>Diversity-Biased Sampler：优先采样edge cases traces</li>
+<li>Composite Sampler：结合上述两种采样器进行最终决策</li>
+</ul></li>
+</ul>
+<h3 id="trace-encoder">Trace Encoder</h3>
+<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
+<center>
+<img src="/imgs/TraStrainer/encoder-example.png"/>
+</center>
+<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
+Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
+class="math inline">\(m_1\)</span>就是（<span
+class="math inline">\(C\)</span>, <span
+class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
+class="math inline">\(m_1\)</span>的值<span
+class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
+class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
+<p><span class="math display">\[
+   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
+\]</span></p>
+<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
+class="math inline">\(m_1\)</span>相关的span，而<span
+class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
+&gt;
+注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
+<p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
+<h3 id="system-bias-extractor">System Bias Extractor</h3>
+<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
+<center>
+<img src="/imgs/TraStrainer/metric-anomaly.png"/>
+</center>
+<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
+href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
+class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
+<span class="math display">\[
+   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
+\]</span></p>
+<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
+class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>。</p>
+<h3 id="system-biased-sampler">System-Biased Sampler</h3>
+<p>System-Biased
+Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
+<p>本文定义了一个固定长度look-back window，由<span
+class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
+class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
+Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
+class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
+class="math inline">\(\mu_i\)</span>和标准差<span
+class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
+class="math inline">\(t_{k+1}\)</span> 的第<span
+class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
+class="math display">\[
+   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
+\]</span></p>
+<p><span
+class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
+class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
+class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>
+进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
+<span class="math display">\[
+   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
+\]</span></p>
+<p>以上操作是将点积<span
+class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
+<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
+<p>Diversity-Biased Sampler的目标是考虑edge-case
+traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
+traces。</p>
+<p>论文将look-back
+window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
+<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
+class="math inline">\(c_{k+1}&#39;\)</span>。<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
+class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
+class="math inline">\(t_{k+1}\)</span> 和 所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
+class="math inline">\(si(t_{k+1})\)</span>。</p>
+<p><strong>一般来说，所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
+class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
+class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
+class="math display">\[
+   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
+\]</span></p>
+<h3 id="composite-sampler">Composite Sampler</h3>
+<p>对于新到trace <span
+class="math inline">\(t\)</span>，综合两个采样概率 <span
+class="math inline">\(p_s(t)\)</span> 和 <span
+class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
+class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
+mechanism）最终决策。</p>
+<center>
+<img src="/imgs/TraStrainer/vote.png"/>
+</center>
+<p>首先统计过去look-back window里采样概率 <span
+class="math inline">\(\theta\)</span>，如果： - <span
+class="math inline">\(\theta \geq
+\beta\)</span>，必须两个采样决策都为True，才采样 - <span
+class="math inline">\(\theta \leq
+\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
+<div>
+<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
+Qiang Xu. 2023. Are transformers effective for time series forecasting?.
+In Proceedings of the AAAI conference on artificial intelligence, Vol.
+37. 11121–11128.</p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>trace采样</tag>
+        <tag>FSE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</title>
+    <url>/2024/06/22/MicroDig/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：Diagnosing Performance Issues for Large-Scale Microservice
+Systems with Heterogeneous Graph</p>
+<p>来源：TSC 2024</p>
+<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
+<ul>
+<li>基于调用和微服务之间的因果关系构建异构传播图</li>
+<li>采样面向异构的随机游走算法进行根因服务定位</li>
+</ul>
+<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3
+accuracy。</p>
+<h2 id="背景">背景</h2>
+<p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
+<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150
+billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end
+aggregated calls）。</p>
+<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a
+href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
+注：aggregated call在GMTA中提到过，应该就是一段时间（比如1
+min）内trace的聚合：
+<center>
+<img src="/imgs/MicroDig/GMTA-path.png"/>
+</center>
+<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。
+【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
+<h2 id="动机">动机</h2>
+<h3 id="调用关系异常传播的因果关系">调用关系≠异常传播的因果关系</h3>
+文章举了一个例子来说明这个观点：
+<center>
+<img src="/imgs/MicroDig/call-casual.png"/>
+</center>
+<p><span class="math inline">\(A \to B \to C\)</span>
+的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是<span
+class="math inline">\(C\)</span>，然而，操作员却没有在<span
+class="math inline">\(C\)</span>中发现有意义的故障报告。因为 <span
+class="math inline">\(B\)</span> 已经用尽了文件描述符，无法建立与 <span
+class="math inline">\(C\)</span> 的新连接，所以<span
+class="math inline">\(B \to C\)</span>有大量的异常出现。所以根因是<span
+class="math inline">\(B\)</span>不是<span
+class="math inline">\(C\)</span>，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
+<blockquote>
+<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
+</blockquote>
+<h3 id="异构传播图">异构传播图</h3>
+<p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous
+propagation graph）来描述故障传播的因果关系：</p>
+<center>
+<img src="/imgs/MicroDig/hpg.png"/>
+</center>
+<ul>
+<li><p>如上图所示，<span class="math inline">\(R(A,B)\)</span> 代表<span
+class="math inline">\(A \to B\)</span>的异常率（anomaly rate），<span
+class="math inline">\(R(A)\)</span> 代表服务<span
+class="math inline">\(A\)</span>
+本身的异常率。注意，服务本身的异常率，如<span
+class="math inline">\(R(A)\)</span>，在这个工作中是不可观测的；边的异常率，如<span
+class="math inline">\(R(A,B)\)</span>，是可以被观测的。</p></li>
+<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如<span
+class="math inline">\(R(A) \to R(A,B)\)</span>）。</p></li>
+<li><p>文章添加了一些假设：①服务之间是独立的，比如<span
+class="math inline">\(R(A)\)</span>和<span
+class="math inline">\(R(B)\)</span>是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如<span
+class="math inline">\(R(A,B)\)</span>和<span
+class="math inline">\(R(C,D)\)</span></p></li>
+</ul>
+<p>根据作者的设计，这里应该就能看到<span
+class="math inline">\(R(B,C)\)</span>是受<span
+class="math inline">\(R(B)\)</span>和<span
+class="math inline">\(R(C)\)</span>影响的了，从某种意义上给3.1的问题提供了思路。</p>
+<h2 id="microdig-架构">MicroDig 架构</h2>
+<center>
+<img src="/imgs/MicroDig/structure.png"/>
+</center>
+<p>可以看到MicroDig分为几个部分： 1. 性能监控 (Monitoring) 2.
+相关调用的识别 (Association Call Identification) 3. 异构传播图的构建
+(Heterogeneous Propagation Graph Construction) 4. 根因定位 (Root Cause
+Localization)</p>
+<h3 id="association-call-identification">Association Call
+Identification</h3>
+<p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
+<h4 id="构造port-level-异常子图">构造<code>port-level</code>
+异常子图</h4>
+<p>文章首先构造 <code>port-level</code>
+异常子图，<code>port-level</code>即接口级别，图中的节点都是接口，
+具体步骤如下：</p>
+<ol type="1">
+<li>构造 <code>port-level</code>
+调用图（为什么选用<code>port-level</code>）</li>
+<li>在调用图上进行
+<em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em>
+对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
+</ol>
+<blockquote>
+<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
+</blockquote>
+<h4 id="构造service-level-异常子图">构造<code>service-level</code>
+异常子图</h4>
+<p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务<span
+class="math inline">\(S\)</span>和<span
+class="math inline">\(S&#39;\)</span>，定义<span
+class="math inline">\(F(p,p&#39;)\)</span>和<span
+class="math inline">\(N(p,p&#39;)\)</span>分别为其中<code>port-level</code>边<span
+class="math inline">\(p \to
+p&#39;\)</span>的异常调用数和总调用数，那么时间点<span
+class="math inline">\(t\)</span>的<span class="math inline">\(S \to
+S&#39;\)</span>的异常率<span class="math inline">\(R_t(S,
+S&#39;)\)</span>为：</p>
+<p><span class="math display">\[
+    R_t(S, S&#39;)=\frac{\sum_{p\in S, p&#39; \in
+S&#39;}F_t(p,p&#39;)}{\sum_{p\in S, p&#39; \in S&#39;}N_t(p,p&#39;)}
+\]</span></p>
+<p>整个过程如图(a) (b)所示 ：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-build.png"/>
+</center>
+<h4 id="构造-heterogeneous-propagation-graph">构造 Heterogeneous
+Propagation Graph</h4>
+<p>3.1
+中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous
+Propagation Graph （HPG）：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
+</center>
+<p>原理很简单： 1.
+<strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到
+HPG 2. <strong>设置call节点</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，将<span
+class="math inline">\(S\)</span>的出边和入边作为节点加入HPG 3.
+<strong>call节点和service节点的关系</strong>：对于每个call节点（<span
+class="math inline">\(S \to S&#39;\)</span>），设置 <span
+class="math inline">\(S \to (S \to S&#39;)\)</span>，<span
+class="math inline">\((S \to S&#39;) \to S&#39;\)</span> 4.
+<strong>call节点和call节点的关系</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，设置：出边 <span
+class="math inline">\(\to\)</span> 入边</p>
+<h3 id="根因服务定位">根因服务定位</h3>
+<p>异构传播图（HPG）有两种节点（service，call）和两种边（service <span
+class="math inline">\(\to\)</span> call, call <span
+class="math inline">\(\to\)</span>
+call）。本文采取针对异构图的随机游走算法来定位根因：</p>
+<center>
+<img src="/imgs/MicroDig/HPG-example.png" width="300"/>
+</center>
+<h4 id="转移权重">转移权重</h4>
+<p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
+<ol type="1">
+<li>对于call <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(C_{23} \to
+C_{12}\)</span>，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</li>
+<li>对于service <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(S_1 \to C_{12}\)</span>
+<ul>
+<li><p>首先计算service的异常程度，定义<span
+class="math inline">\(\mathbb{S}_U\)</span>和<span
+class="math inline">\(\mathbb{S}_D\)</span>分别表示服务<span
+class="math inline">\(S\)</span>的上游服务集合和下游服务集合，服务<span
+class="math inline">\(S\)</span>的异常程度<span
+class="math inline">\(\alpha_S\)</span>可以表示为： <span
+class="math display">\[
+\alpha_S = \frac{|\{S&#39;|S&#39;\in \mathbb{S}_U \cup \mathbb{S}_D,
+\theta(S&#39;)=1 \}|}{|\mathbb{S}_U \cup \mathbb{S}_D|}
+\]</span> 当<span
+class="math inline">\(S&#39;\)</span>有任意一条<code>port-level</code>的边是异常时，<span
+class="math inline">\(\theta(S&#39;)=1\)</span>。</p></li>
+<li><p>然后计算service <span class="math inline">\(\to\)</span>
+call的权重。对于任意一个call节点<span class="math inline">\(C=S_{caller}
+\to S_{callee}\)</span>，有两条service <span
+class="math inline">\(\to\)</span> call类型的边：<span
+class="math inline">\(S_{caller} \to C\)</span> 和 <span
+class="math inline">\(C \to
+S_{callee}\)</span>。这两条边的权重分别为：<span
+class="math inline">\(\omega_{caller}\)</span> 和 <span
+class="math inline">\(\omega_{callee}\)</span>，分别计算如下： <span
+class="math display">\[
+\omega_{caller}=max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]
+\]</span></p></li>
+</ul>
+<span class="math display">\[
+   \omega_{callee}=max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]
+\]</span> 其中，<span class="math inline">\(\Delta \alpha =
+\alpha(S_{caller})-\alpha(S_{callee})\)</span>，<span
+class="math inline">\(\Delta
+\eta\)</span>即当前服务的所有入边的权重-所有出边的权重。</li>
+</ol>
+<h4 id="异构随机游走">异构随机游走</h4>
+<p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
+<ul>
+<li><strong>backward
+edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward
+edge，权重是有向边的<span class="math inline">\(\rho\)</span>倍。</li>
+<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
+</ul>
+<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
+<center>
+<img src="/imgs/MicroDig/random-walk.png" width="500"/>
+</center>
+<h2 id="总结">总结</h2>
+<ul>
+<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
+<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
+<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
+</ul>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
+trace analysis for microservice architecture understanding and problem
+diagnosis, ESEC/FSE. 2020: 1387-1397.
+<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>根因定位</tag>
+        <tag>TSC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>前缀树（Prefix Tree）</title>
+    <url>/2024/11/25/trie_tree/</url>
+    <content><![CDATA[<p>Trie 树，又叫前缀树，字典树，
+是一种有序的树形数据结构，用于高效地存储和检索字符串数据集中的键。下图是维基百科上关于trie树的一个典型例子，我们可以很清晰地看到，这棵树存储了许多前缀相似的字符串，给定一个字符串，我们可以很容易知道这个字符串是否被存储，而不需要遍历比较。</p>
+<center>
+<p><img src="/imgs/trie/trie.png"/></p>
+</center>
+<p>这一数据结构有相当多的应用情景，例如：</p>
+<ul>
+<li>自动补全：
+<ul>
+<li>搜索提示：输入网址，跳出可能的选择</li>
+<li>输入提示：根据已经输入的字符预测可能的词组和句子</li>
+</ul></li>
+<li>拼写检查：存储合法的单词列表，快速查找是否存在合法的单词</li>
+<li>前缀匹配</li>
+<li>IP路由查找</li>
+</ul>
+<h2 id="题目">题目</h2>
+<p>leetcode 208 实现Trie（前缀树）</p>
+<blockquote>
+<p>请你实现 Trie 类：</p>
+<ul>
+<li><code>Trie()</code> 初始化前缀树对象。</li>
+<li><code>void insert(String word)</code> 向前缀树中插入字符串
+<code>word</code> 。</li>
+<li><code>boolean search(String word)</code> 如果字符串
+<code>word</code> 在前缀树中，返回
+<code>true</code>（即，在检索之前已经插入）；否则，返回
+<code>false</code> 。</li>
+<li><code>boolean startsWith(String prefix)</code>
+如果之前已经插入的字符串 <code>word</code> 的前缀之一为
+<code>prefix</code> ，返回 <code>true</code> ；否则，返回
+<code>false</code> 。</li>
+</ul>
+</blockquote>
+<p><strong>示例：</strong></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">输入</span><br><span class="line">[&quot;Trie&quot;, &quot;insert&quot;, &quot;search&quot;, &quot;search&quot;, &quot;startsWith&quot;, &quot;insert&quot;, &quot;search&quot;]</span><br><span class="line">[[], [&quot;apple&quot;], [&quot;apple&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;], [&quot;app&quot;]]</span><br><span class="line">输出</span><br><span class="line">[null, null, true, false, true, null, true]</span><br><span class="line"></span><br><span class="line">解释</span><br><span class="line">Trie trie &#x3D; new Trie();</span><br><span class="line">trie.insert(&quot;apple&quot;);</span><br><span class="line">trie.search(&quot;apple&quot;);   &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 False</span><br><span class="line">trie.startsWith(&quot;app&quot;); &#x2F;&#x2F; 返回 True</span><br><span class="line">trie.insert(&quot;app&quot;);</span><br><span class="line">trie.search(&quot;app&quot;);     &#x2F;&#x2F; 返回 True</span><br></pre></td></tr></table></figure>
+<p><strong>提示：</strong></p>
+<ul>
+<li><code>1 &lt;= word.length, prefix.length &lt;= 2000</code></li>
+<li><code>word</code> 和 <code>prefix</code> 仅由小写英文字母组成</li>
+<li><code>insert</code>、<code>search</code> 和 <code>startsWith</code>
+调用次数 <strong>总计</strong> 不超过 <code>3 * 104</code> 次</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>这道题有几个地方需要注意：</p>
+<ul>
+<li><code>insert</code>时，需要标记单词是否截止，因为trie中的节点既有可能是前缀，也有可能是单词</li>
+<li><code>search</code>与 <code>startswith</code>的区别在于，
+<code>startswith</code>只需要搜索下去，看看有没有对应的节点；而<code>search</code>还需要判断这个节点是否有截止信号</li>
+</ul>
+<h2 id="实现">实现</h2>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Trie</span><span class="params">(object)</span>:</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.root = &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">insert</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: None</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                cur_node[c]=&#123;&#125;</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">                cur_node[<span class="number">0</span>]=<span class="number">0</span> <span class="comment"># 标记是否截止</span></span><br><span class="line">        <span class="comment"># 标记这个cur_node，标注上截止信号，代表这是一个词</span></span><br><span class="line">        cur_node[<span class="number">0</span>]=<span class="number">1</span></span><br><span class="line"></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">search</span><span class="params">(self, word)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type word: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> word:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="comment"># 判断有没有截止信号</span></span><br><span class="line">        <span class="keyword">if</span> cur_node[<span class="number">0</span>]==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        </span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">startsWith</span><span class="params">(self, prefix)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type prefix: str</span></span><br><span class="line"><span class="string">        :rtype: bool</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        cur_node = self.root</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> prefix:</span><br><span class="line">            <span class="keyword">if</span> c <span class="keyword">in</span> cur_node.keys():</span><br><span class="line">                cur_node = cur_node[c]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    </span><br><span class="line">trie = Trie()</span><br><span class="line">trie.insert(<span class="string">"app"</span>)</span><br><span class="line">trie.insert(<span class="string">"apple"</span>)</span><br><span class="line">trie.insert(<span class="string">"beer"</span>)</span><br><span class="line">trie.insert(<span class="string">"add"</span>)</span><br><span class="line">trie.insert(<span class="string">"jam"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">trie.insert(<span class="string">"rental"</span>)</span><br><span class="line">print(trie.search(<span class="string">"apps"</span>))</span><br><span class="line">print(trie.startsWith(<span class="string">"app"</span>))</span><br><span class="line">print(trie.search(<span class="string">"app"</span>))</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>leetcode基础算法</category>
+      </categories>
+      <tags>
+        <tag>算法</tag>
+        <tag>leetcode</tag>
+        <tag>数据结构</tag>
       </tags>
   </entry>
 </search>

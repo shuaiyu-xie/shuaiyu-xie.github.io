@@ -200,6 +200,494 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/12/12/StatusScaler/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/12/12/StatusScaler/" class="post-title-link" itemprop="url">[arxiv 2024] StatuScale: Status-aware and Elastic Scaling Strategy for Microservice Applications</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-12-12 10:29:27" itemprop="dateCreated datePublished" datetime="2024-12-12T10:29:27+08:00">2024-12-12</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2024-12-16 16:19:30" itemprop="dateModified" datetime="2024-12-16T16:19:30+08:00">2024-12-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>7.5k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>14 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：StatuScale: Status-aware and Elastic Scaling Strategy for
+Microservice Applications</p>
+<p>来源：arxiv 2024</p>
+<p>作者：中国科学院深圳先进技术研究院</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>相比于单体架构，微服务架构具有更好的弹性，可以进行微服务级别的弹性伸缩。<u>然而，现有的弹性伸缩无法检测<strong>突发流量</strong></u>，突发流量可能由很多原因引起：</p>
+<ul>
+<li>商店促销</li>
+<li>特殊活动</li>
+<li>软件故障</li>
+<li>...</li>
+</ul>
+<p>这些突发流量通常是短暂（short-lived）且超出预期的（unexpected），会造成瞬间的性能降级。微服务必须要快速分配足够数量的资源以保证性能。</p>
+<p>本文推出了一种状态感知的弹性伸缩控制器
+<code>StatusScale</code>，能够感知负载的趋势，预测流量峰值，并进行<strong>水平伸缩</strong>和<strong>垂直伸缩</strong>。此外，本文提出了一种新的指标：</p>
+<ul>
+<li><code>correlation factor</code>：评估资源使用的效率</li>
+</ul>
+<p>文章在 Sock-Shop 和 Hotel-Reservation
+应用上进行评估，将响应延时降低了接近10%，资源利用效率得到提高。</p>
+<h2 id="方法">方法</h2>
+<p><code>StatuScale</code>
+根据当前负载状态选择不同的资源分配方案（垂直和水平），架构如下：</p>
+<center>
+<img src="/imgs/statuscale/structure.png" width='500'/>
+</center>
+<ol type="1">
+<li><code>Load Preprocessor</code>是产生流量的模块</li>
+<li><code>Auto Scaler</code>是全文核心，分为：
+<ol type="1">
+<li><strong>Vertical
+Scaling</strong>：对负载状态进行预测，制定垂直伸缩方案</li>
+<li><strong>Horizontal
+Scaling</strong>：负载状态不稳定时，进行水平伸缩</li>
+</ol></li>
+<li><code>Performance Evaluator</code>是评估模块，主要评估响应延时、SLO违背率、资源利用效率、资源消耗等</li>
+</ol>
+<h3 id="系统建模">系统建模</h3>
+<p>弹性伸缩的优化目标和约束如下：</p>
+<p><span class="math display">\[
+    \mathop{\sum_{m\in M}{P_m/A_M \times \sum_{p\in
+P}{R_p/A_p}+\omega^t\sum_{m\in M}RT_m/A_M}}
+\]</span></p>
+<p><span class="math display">\[
+    s.t. \quad P_m \geq 1, \quad R_p, RT_m \geq 0,\quad A_p\geq A_M\geq
+0
+\]</span></p>
+<p><span class="math inline">\(M\)</span> 代表微服务集合，<span
+class="math inline">\(A_M\)</span> 代表应用中微服务的数量（即 <span
+class="math inline">\(|M|\)</span>），<span
+class="math inline">\(P\)</span> 代表应用中pod集合，<span
+class="math inline">\(A_p\)</span> 代表应用中pod的数量（即 <span
+class="math inline">\(|P|\)</span>），<span
+class="math inline">\(P_m\)</span> 代表微服务 <span
+class="math inline">\(m\)</span> 的pod数，<span
+class="math inline">\(R_p\)</span> 代表为pod <span
+class="math inline">\(P\)</span> 垂直分配的资源配额，<span
+class="math inline">\(RT_m\)</span> 代表微服务 <span
+class="math inline">\(m\)</span> 的响应延时。</p>
+<p>优化目标的前半部分是资源消耗（服务的平均pod数<span
+class="math inline">\(\times\)</span>pod平均资源额度），后半部分是平均延时，权重设置为
+<span
+class="math inline">\(\omega^t\)</span>。目标是同时优化资源消耗和响应延时。</p>
+<h3 id="垂直伸缩">垂直伸缩</h3>
+<p>微服务的负载可能由于特殊的用户活动（e.g.,
+商品促销）而陡然升高，进而导致服务资源不足而性能下降。所以监控、分析和理解负载的趋势是非常重要的。</p>
+<h4 id="基于-lightgbm-的负载预测器">基于 LightGBM 的负载预测器</h4>
+<p>为了能高效地进行负载预测，作者没有采用较重的深度学习或者机器学习模型，而是准备选用基于集成模型的
+LightGBM 来进行预测。</p>
+<p>遗憾的是，LightGBM 面临准确性问题，在Fig. 2中，作者试图用 LightGBM
+预测 Alibaba
+数据集的负载，但是出现了大量负载低估的情况。这些低估会导致资源分配较少，进而导致性能下降。</p>
+<center>
+<img src="/imgs/statuscale/alibaba-forecast.png" width='500'/>
+</center>
+<h4 id="load-status-detector">Load Status Detector</h4>
+<p>文章另辟蹊径，不再直接训练和预测负载的准确值，而是判断负载是否处于
+<strong>“stable”</strong> 状态。文章引入了金融分析中常用的
+<code>resistance line</code> 和 <code>support line</code>
+两个概念用来辅助判断。</p>
+<p>在 Fig. 3 (a)中，作者展示了如何根据 <code>resistance line</code> 和
+<code>support line</code>
+进行负载状态感知。图中橙色的点是预测时的低估点。首先将x轴分为6个时间窗口，每个时间窗口有5个数据点。</p>
+<ol type="1">
+<li>首先，<code>StatuScale</code>使用第1个窗口的数据去生成
+<code>resistance line</code> 和 <code>support line</code></li>
+<li>然后，去判断第2个窗口是否违背了第1个窗口的<code>resistance line</code>
+和 <code>support line</code>。如果违背了，则判断状态为
+<strong>“unstable”</strong>，采取特定的伸缩策略；如果没有违背，则判断状态为
+<strong>“stable”</strong>，则能够继续进行负载预测。Fig. 3 (a) 中状态为
+<strong>“stable”</strong></li>
+<li>合并第1个和第2个窗口的数据来更新<code>resistance line</code> 和
+<code>support line</code>，进而判断第3个窗口超过了<code>resistance line</code>，所以标记第3个窗口状态为
+<strong>“unstable”</strong></li>
+<li>第4个窗口重新生成<code>resistance line</code> 和
+<code>support line</code>，重复上述过程</li>
+</ol>
+总的来说，<code>resistance line</code> 和 <code>support line</code>
+相当于负载波动的上下边界，在边界内的负载一般都是
+<strong>“stable”</strong> 的。
+<center>
+<img src="/imgs/statuscale/resistance-line.png"/>
+</center>
+<p>对于<code>resistance line</code> 和
+<code>support line</code>的建模，作者摒弃了复杂的非线性函数，因为担心会导致过拟合。此外，作者又担心线性函数过于简单，所以决定采用分段线性函数（因为分段线性函数可以解决周期负载的判断问题），所以就有了
+<strong>“unstable”</strong> 后进行<code>resistance line</code> 和
+<code>support line</code>重置的环节。<code>resistance line</code>的定义如下：</p>
+<p><span class="math display">\[
+    f(t) = kt+b+\lambda c_v
+\]</span></p>
+<p><span class="math inline">\(k\)</span>, <span
+class="math inline">\(b\)</span>
+分别代表斜率和截距，可以通过多项式拟合数据点得到。<span
+class="math inline">\(t\)</span> 代表时间。<span
+class="math inline">\(c_v\)</span> 代表变异系数（<span
+class="math inline">\(\frac{\mu}{\sigma}\)</span>），用来表示样本的分散程度，也为<code>resistance line</code>留有了一定的容错空间。<span
+class="math inline">\(\lambda\)</span> 是权重超参数。</p>
+<h4 id="自适应pid控制器">自适应PID控制器</h4>
+<p>在上节中，<code>StatuScale</code>
+已经能判断出服务的负载状态，当负载状态为 <strong>“unstable”</strong>
+时，采用 PID
+控制器来维持状态的稳定，目标是使得<font color='blue'>CPU利用率稳定，以及满足SLO。</font></p>
+<p>PID 控制器是广泛使用的控制器，由 1）比例 proportional、 2）积分
+integral、 3）导数 derivative 组成。PID
+控制器旨在根据feedback更新参数，调整输出，使得状态稳定在目标值附加，输出的分数公式如下：</p>
+<p><span class="math display">\[
+    y(t) = k_Pe(t)+k_I\int_{t-w}^{t}{e(\tau)d\tau+k_D\frac{d}{dt}e(t)}
+\]</span></p>
+<p>其中，<span
+class="math inline">\(e(t)\)</span>代表时刻t的误差（给定值-测量值）。<span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>
+分别是比例增益（proportional）、积分系数（integral）以及导数系数（derivative），分别代表当前误差，过去一段时间的误差以及预测未来的误差的权重。</p>
+<center>
+<img src="/imgs/statuscale/PID.png" width='500'/>
+</center>
+<p>PID 控制器的各项权重 <span class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>
+对系统的稳定性影响很大，<code>StatuScale</code>
+引入了一种自适应调节各项权重的 A-PID 控制器。如 Fig.6 所示，A-PID 引入了
+BP 网络来调节 PID 的参数（i.e., <span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>）。BP 网络的配置如下：</p>
+<ul>
+<li>输入：<strong>输出值</strong>、<strong>目标值</strong>、<strong>误差</strong>、<strong>bias</strong></li>
+<li>中间层：hidden size = 5，激活函数为 tanh</li>
+<li>输出：<span class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>，激活函数为 sigmoid</li>
+</ul>
+<blockquote>
+<p>这里文章漏掉了最关键的 loss，我只能猜测 loss
+的原理是，<u>如果当前误差较大，我们希望新的参数能够更大幅度地改变，以便更快地纠正误差；反之，如果误差较小，则应谨慎调整参数，避免过度校正</u>，所以猜测
+loss 为 误差相关的函数。</p>
+</blockquote>
+<blockquote>
+<p>此外，A-PID的 output 是如何转化为 CPU 的分配？CPU
+target是多少？垂直伸缩这一块并不是讲的很清楚</p>
+</blockquote>
+<h3 id="水平伸缩">水平伸缩</h3>
+<p>文章认为水平伸缩比垂直伸缩更难，因为水平伸缩需要时间去创建和移除POD，并需要时间去进行负载均衡，同时不必要的水平伸缩操作会导致资源浪费。此处引用了ATOM<a
+href="#ATOM"><sup>1</sup></a>的结论：</p>
+<ul>
+<li>低负载：垂直伸缩更有优势，因为资源分配快</li>
+<li>高负载：水平伸缩更有优势，因为多个pod分布在多个机器上，将负载均衡了，大大降低了单个pod的压力</li>
+</ul>
+<p>所以 <code>StatuScale</code>
+会优先考虑垂直伸缩（在低负载下更有优势）；如果垂直伸缩无法满足需求，才会考虑用水平伸缩进行粗粒度调整。再用垂直伸缩进行细粒度调整。</p>
+<p>首先，<code>StatuScale</code>
+将会判断是否需要进行水平伸缩操作，计算当前CPU利用率 <span
+class="math inline">\(C_t\)</span> 与目标CPU利用率 <span
+class="math inline">\(CPU_{tar}\)</span>
+之间的差距，并根据这个差距生成一个转换后的结果 <span
+class="math inline">\(S_t\)</span>：</p>
+<p><span class="math display">\[
+    S_t = \begin{cases}
+        1-K^{(CPU_{tar}-C_t)}&amp; C_t ＜ CPU_{tar}\\
+        K^{C_t-(CPU_{tar})}-1&amp; C_t \geq CPU_{tar}
+        \end{cases}
+\]</span></p>
+<p>当前CPU利用率 <span class="math inline">\(C_t\)</span> 接近目标值
+<span class="math inline">\(CPU_{tar}\)</span>，<span
+class="math inline">\(|S_t|\)</span>接近0；否则，<span
+class="math inline">\(|S_t|\)</span>值将以指数倍数增长。<code>StatuScale</code>
+统计一段滑动窗口内的不同时间点的 <span
+class="math inline">\(S_t\)</span>
+的和（减少突发流量的影响），并与上下阈值进行比较，以决定是否进行弹性伸缩。</p>
+<blockquote>
+<p>但是文章并没有给出上下阈值的计算方式？</p>
+</blockquote>
+<p>当决定采用弹性伸缩时，给定当前副本数（<span
+class="math inline">\(R_c\)</span>），伸缩比例（<span
+class="math inline">\(\delta\)</span>），伸缩的副本数定义如下：</p>
+<p><span class="math display">\[
+    R_n = max(\delta R_c, 1)
+\]</span></p>
+<p>因为水平伸缩的pod需要一段时间才能生效，所以这段时间可能会频繁触发弹性伸缩，所以
+<code>StatuScale</code> 引入了 <strong>cooling-off</strong>
+周期来减少伸缩次数（这段时间不会触发第二次伸缩，默认为5min）</p>
+<p>接下来文章用垂直伸缩来进行细粒度资源调整，具体来说，就是通过一个衰减率来周期地减少资源配额，资源值设置如下：</p>
+<p><span class="math display">\[
+    V(t) = Vk^{\beta^t-1}
+\]</span></p>
+<p><span class="math inline">\(0&lt;\beta&lt;1\)</span> 是衰减率，<span
+class="math inline">\(V\)</span> 是资源初始值。 &gt;
+这里只有减少垂直资源分配，相当于减少水平伸缩多余的那部分资源</p>
+<h3 id="联合伸缩">联合伸缩</h3>
+<center>
+<img src="/imgs/statuscale/flow.png" width='500'/>
+</center>
+<p>文章的讲述顺序和方法流程是不一样的，所以最开始让我有点费解，真正的整体流程如上图所示：</p>
+<ol type="1">
+<li>首先判断是否需要水平伸缩，判断方式为上文中提到的计算一段时间的 <span
+class="math inline">\(S_t\)</span>，并与上下阈值比较
+<ol type="1">
+<li>如果需要水平伸缩，则计算<span
+class="math inline">\(R_n\)</span>，然后垂直细粒度资源调整（计算<span
+class="math inline">\(V(t)\)</span>）</li>
+<li>如果不需要，则需要进行垂直伸缩判断</li>
+</ol></li>
+<li>垂直伸缩检测需要对负载状态进行判断
+<ol type="1">
+<li>如果状态为 <strong>“stable”</strong>，则用 LightGBM 预测负载</li>
+<li>如果状态为 <strong>unstable</strong>，则使用 A-PID
+控制器将资源利用率维持在稳定状态</li>
+</ol></li>
+</ol>
+<blockquote>
+<p>值得注意的是，k8s的垂直伸缩应该会让容器重启（假如有10个副本，采用垂直伸缩后，相当于这10个副本都需要滚动更新），这真的会比水平伸缩快吗？</p>
+</blockquote>
+<p>整体算法如下图所示：</p>
+<center>
+<img src="/imgs/statuscale/algo.png" width='500'/>
+</center>
+<h2 id="实验评估">实验评估</h2>
+<h3 id="实验配置">实验配置</h3>
+<ul>
+<li><strong>集群配置</strong>：1 master + 2 worker，每个节点都是 4GB
+内存 和 4 CPU cores。这个配置算比较小的了</li>
+<li><strong>负载</strong>：文章的负载数据来自于 alibaba 的
+cluster-trace-v2018<a
+href="#statuscale-alibaba-trace"><sup>2</sup></a>，这个数据集里记录了8天内集群里机器和容器的资源使用情况，并调研了CPU负载和QPS的对应关系，如Fig.8所示，将CPU负载转化为QPS，文章使用这个作业负载作为实验的输入流量。负载的注入工具选择
+Locust</li>
+<li><strong>benchmark</strong>：选用 Sock-Shop 和 Hotel-Reservation</li>
+<li><strong>对比方法</strong>：选用了 GBMScaler，Showar，Hyscale
+<ul>
+<li><code>GBMScaler</code>：选用 LightGBM
+进行负载预测，但原文并没有提到如何用预测的结果进行 resource scaling</li>
+<li><code>Showar</code>：经典的混合伸缩方法，基于 3-<span
+class="math inline">\(\sigma\)</span>
+准则进行垂直伸缩，每T秒预估当前CPU分配为过去一段窗口的<span
+class="math inline">\(\mu+3\sigma\)</span>；基于 PID
+控制器进行水平伸缩（target设置为CPU利用率，<span
+class="math inline">\(k_P\)</span>，<span
+class="math inline">\(k_I\)</span>，<span
+class="math inline">\(k_D\)</span>的更新与
+<code>StatusScale</code>一致）</li>
+<li><code>Hyscale</code>：与kubernetes
+默认弹性伸缩器很像，只需要指定CPU阈值，然后通过水平和垂直伸缩来达到目标</li>
+</ul></li>
+</ul>
+<center>
+<img src="/imgs/statuscale/CPU-qps.png"/>
+</center>
+<h3 id="评估指标">评估指标</h3>
+<p>文章主要考虑<strong>系统性能</strong>和<strong>资源消耗</strong>，使用的指标如下：</p>
+<ol type="1">
+<li>response time （相同资源配额下，<span
+class="math inline">\(\int{R_t}dt\)</span>，<span
+class="math inline">\(R_t\)</span>是t时刻分配的资源）</li>
+<li>SLO violation（相同资源配额下，<span
+class="math inline">\(\int{R_t}dt\)</span>）</li>
+<li>Accuracy of supply-demand relationships. 这个是看 resource supply
+是否准确。在一段时间 <span
+class="math inline">\(T\)</span>内，总共可分配资源为 <span
+class="math inline">\(R\)</span>，t 时刻的资源需求为 <span
+class="math inline">\(d_t\)</span> （<span
+class="math inline">\(d_t\)</span> 是通过 Fig.8
+拟合出来的），有点类似于误差
+<ol type="1">
+<li><span class="math inline">\(a_U=\frac{1}{T\cdot
+R}\sum_{t=1}^{T}{(d_t-s_t)^+\Delta t}\)</span></li>
+<li><span class="math inline">\(a_O=\frac{1}{T\cdot
+R}\sum_{t=1}^{T}{(s_t-d_t)^+\Delta t}\)</span></li>
+</ol></li>
+<li>Correlation factor of supply-demand relationships. 这个指标用于衡量
+supply curve 与 demand curve
+的相似度（与上一个指标差别不大），本来应该用 <strong>Locust 收集的 QPS
+转化为 demand 的 CPU 利用率</strong>，以及用 <strong>Prometheus 收集的
+supply 的 CPU 利用率</strong>，然后计算两个曲线的 <code>R-square</code>
+（评估回归模型的性能指标）。但文章认为 Locust 与 Prometheus
+是两套监控系统，收集周期和统计方式有所区别，所以改用
+<code>Dynamic Time Warping</code> 算法来衡量两个时间序列的相似度:
+<ul>
+<li>首先，将两个curve进行量纲对齐。比如将第一个 curve （<span
+class="math inline">\(X=\{x_1,x_2,\dots,x_m\}\)</span>）转到第二个 curve
+（<span
+class="math inline">\(Y=\{y_1,y_2,\dots,y_m\}\)</span>）的量纲下：<span
+class="math inline">\(x^\prime_i=(x_i-\mu_x)\times\frac{\sigma_Y}{\sigma_X}+\mu_Y\)</span>，<span
+class="math inline">\(x^\prime_i\)</span> 是转化后的值</li>
+<li>定义距离矩阵 <span class="math inline">\(D\)</span>，<span
+class="math inline">\(D_{i,j}\)</span>代表 <span
+class="math inline">\(X\)</span> 的时间点 <span
+class="math inline">\(i\)</span> 和 <span
+class="math inline">\(Y\)</span> 的时间点 <span
+class="math inline">\(j\)</span>的距离，<span
+class="math inline">\(d(x_i,y_j)\)</span> 代表 <span
+class="math inline">\(x_i\)</span> 和 <span
+class="math inline">\(y_j\)</span> 的欧氏距离（也可以用其他距离），<span
+class="math inline">\(D_{i,j}\)</span>计算方式如下：</li>
+<li><span class="math display">\[
+  D_{i,j}=min\begin{cases}
+  D_{i-1,j}+d(x_i,y_j)\\
+  D_{i,j-1}+d(x_i,y_j)\\
+  D_{i-1,j-1}+d(x_i,y_j)
+  \end{cases}
+  \]</span></li>
+<li><span class="math inline">\(D_{m-1,n-1}\)</span> 代表 curve <span
+class="math inline">\(X\)</span> 与 curve <span
+class="math inline">\(Y\)</span> 的最小距离，则
+<code>correlation factor</code>计算如下：<span
+class="math inline">\(CF=max(m,n)/D_{m-1,n-1}\)</span></li>
+</ul></li>
+</ol>
+<h3 id="总实验">总实验</h3>
+<p><code>StatuScale</code>
+的目标有三个：①降低响应延时、②降低SLO违背率、③维持CPU利用率在目标水平（<span
+class="math inline">\(\pm1\%\)</span>）。</p>
+<center>
+<img src="/imgs/statuscale/sockshop-performance.png"/>
+</center>
+<ul>
+<li>Fig. 9(a)
+展示了不同scaler的平均延时和P95延时的分布（Locust可以求得），可以看出<code>StatuScale</code>的延时分布是比较偏低的，均值维持在50~70ms，P99维持在300多ms左右</li>
+<li>Fig. 9(b) 想展示的与Fig.
+9(a)差不多，展示的是四个scaler的延时的累积分布直方图（CDF），P95基本维持在250ms左右，说明几个scaler都很有作用（<strong>私以为应该加上一个没有设置采样器的方法作为对比</strong>）</li>
+<li>Fig. 9(c) 计算了不同SLO阈值下的违背情况</li>
+<li>Fig. 9(d) 计算了
+<code>correlation factor</code>，说明<code>StatuScale</code>的资源分配的曲线与负载波动（资源需求曲线）很相似。Fig.10
+展示了CPU使用（这里难道不应该是分配的CPU吗？）和负载的相似度。表格是对图像结果的数据展示</li>
+</ul>
+<p><code>StatuScale</code>也在Hotel-Reservation上进行了实验，结果比较相似，就不贴上来了。</p>
+<center>
+<img src="/imgs/statuscale/sockshop-performance2.png"/>
+</center>
+<h3 id="消融实验">消融实验</h3>
+<h4 id="消融-status-detector-module">消融 Status Detector Module</h4>
+<p><code>Status Detector</code>判断当前负载是否
+<strong>“stable”</strong>，如果 <strong>“stable”</strong>，则选择用
+LightGBM预测负载，然后转换成CPU需求；如果
+<strong>“unstable”</strong>，则用 A-PID
+将CPU利用率控制在某个阈值。文章选择了3个变体，衡量它们的延时（为什么还要消融A-PID和LightGBM？为什么不衡量其他指标？）。实验在
+Sock-Shop 上做，每组实验做3次</p>
+<ul>
+<li><code>StatusScale</code><span
+class="math inline">\(^\Delta\)</span>：消融 horizontal scaler</li>
+<li><code>StatusScale</code><span
+class="math inline">\(^\circ\)</span>：消融 horizontal scaler，load
+status detector 和 A-PID 控制器</li>
+<li><code>StatusScale</code><span
+class="math inline">\(^*\)</span>：消融 horizontal scaler，load status
+detector 和 load prediction（LightGBM）</li>
+</ul>
+<center>
+<img src="/imgs/statuscale/ablate-sd.png" width='700'/>
+</center>
+<p>上述实验说明了 load status detector 对 load
+prediction的影响很大（<code>StatusScale</code><span
+class="math inline">\(^\circ\)</span>）</p>
+<h4 id="消融-scaling-modes">消融 Scaling Modes</h4>
+<p>vertical scaling
+虽然能细粒度调节资源，但依然受限于单个机器硬件；horizontal scaling
+又容易造成资源浪费。文章设计了2个变体，实验在 Sock-Shop
+上做，每组实验做3次，但是加入了CPU使用率的对比：</p>
+<ul>
+<li><code>StatuScale</code><span
+class="math inline">\(^\square\)</span>：只使用 vertical scaling</li>
+<li><code>StatuScale</code><span
+class="math inline">\(^*\)</span>：只使用 horizontal scaling</li>
+</ul>
+<center>
+<img src="/imgs/statuscale/ablate-sm.png" width='700'/>
+</center>
+<p>可以看出，horizontal scaling （<code>StatuScale</code><span
+class="math inline">\(^*\)</span>）确实能最大限度降低延时，但是CPU资源利用率偏低；vertical
+scaling（<code>StatuScale</code><span
+class="math inline">\(^\square\)</span>）很难保证延时，但是CPU利用率高；<code>StatusScale</code>相当于在两者间做了均衡。</p>
+<div>
+<p><a name="ATOM"></a> [1] Alim Ul Gias, et.al. 2019. ATOM: Model-Driven
+Autoscaling for Microservices. In 2019 IEEE 39th ICDCS. 1994–2004.
+https://doi.org/10.1109/ICDCS.2019.00197</p>
+</div>
+<div>
+<p><a name="statuscale-alibaba-trace"></a> [2]
+https://github.com/alibaba/clusterdata/blob/master/cluster-trace-v2018/trace_2018.md</p>
+</div>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/11/27/ElasticRec/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -231,7 +719,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2024-12-04 17:14:05" itemprop="dateModified" datetime="2024-12-04T17:14:05+08:00">2024-12-04</time>
+                <time title="修改时间：2024-12-13 20:42:22" itemprop="dateModified" datetime="2024-12-13T20:42:22+08:00">2024-12-13</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -571,7 +1059,7 @@ embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU�
 <p>这里我很好奇为什么不比较延时？<code>ElasticRec</code>延时应该比不过<code>Model-wise (cache)</code>，毕竟CPU和GPU交互需要时间。</p>
 </blockquote>
 <div>
-<p><a name="alibabaTrace"></a> [1]
+<p><a name="dlrm"></a> [1]
 <a>https://github.com/facebookresearch/dlrm</a></p>
 </div>
 
@@ -2327,7 +2815,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-count">9</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -2340,7 +2828,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">21</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -2380,13 +2868,13 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">34k</span>
+    <span title="站点总字数">42k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:02</span>
+    <span title="站点阅读时长">1:15</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
