@@ -105,6 +105,327 @@ class="math display">\[
       </tags>
   </entry>
   <entry>
+    <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
+    <url>/2024/11/27/ElasticRec/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：ElasticRec: A Microservice-based Model Serving Architecture
+Enabling Elastic Resource Scaling for Recommendation Models</p>
+<p>来源：ISCA 2024</p>
+<p>作者：韩国科学技术院</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：</p>
+<ul>
+<li><code>RecSys</code>中<code>MLP</code>模块 对于计算资源的需求高</li>
+<li><code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</li>
+</ul>
+<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少<strong>部署时的内存消耗</strong>，提升<code>RecSys</code>的吞吐量。</p>
+<h2 id="背景">背景</h2>
+<p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
+<h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
+<center>
+<img src="/imgs/ElasticRec/DLRM.jpg" width='500'/>
+</center>
+<p>如图所示，深度推荐模型（<code>DLRM</code>）包含3个主要组件：</p>
+<ul>
+<li><code>Bottom MLP</code>
+<ul>
+<li>输入：dense input（比如 用户年龄）</li>
+<li>输出：dense output（高维特征）</li>
+<li>类型：<strong>计算敏感型</strong></li>
+</ul></li>
+<li><code>Embedding Table</code>
+<ul>
+<li>输入：多个 sparse input（比如 商品ID）</li>
+<li>输出：dense output（高维特征）</li>
+<li>类型：<strong>内存敏感型</strong></li>
+<li>作用：根据稀疏输入得到<code>Embedding Table</code>中的高维特征。一般来说，一次查询中所有的sparse
+input得到的dense
+output会执行<code>pool</code>操作进行池化，得到单个dense output</li>
+</ul></li>
+<li><code>Top MLP</code>
+<ul>
+<li>输入：<code>Bottom MLP</code>的输出 拼接
+<code>Embedding Table</code>的输出</li>
+<li>输出：给商品打分</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>在生产环境中，由于商品（item）的种类非常多，比如Amazon有数亿的商品种类。<code>Embedding Table</code>为每个商品种类都维护了一个特征，导致<code>Embedding Table</code>的大小可以达到<strong>几十GB</strong>，相比于<code>Bottom MLP</code>，有几点需要关注：</p>
+<ol type="1">
+<li><code>Embedding Table</code>对于计算不敏感，即<code>pool</code>操作并不需要太多计算资源；相反，对于内存带宽限制极为敏感，特别是有非常多的dense
+output需要<code>pool</code>时</li>
+<li>在<code>DLRM</code>中，<code>Embedding Table</code>通常有<u>多个</u>，对内存的压力是极大的</li>
+</ol>
+</blockquote>
+<h3 id="模型服务架构model-serving-architectures">模型服务架构（Model
+Serving Architectures）</h3>
+<h4 id="模型容器化">模型容器化</h4>
+<p>这篇文章关注的是<code>DLRM</code>的推理。在线上应用中，<code>DLRM</code>被打包成镜像，镜像中包含了模型参数以及常用的机器学习库，以容器的方式运行在Kubernetes集群中，如Fig.
+2（a）所示。</p>
+<center>
+<img src="/imgs/ElasticRec/DLRM_inference.png" width='500'/>
+</center>
+<h4 id="模型的自动伸缩">模型的自动伸缩</h4>
+<p><strong>Kubernetes</strong>是一个容器编排工具，它能管理容器的生命周期，对容器进行自动化调度、资源分配。</p>
+<p><strong>吞吐量</strong>是一个衡量在线服务性能的指标，单位是QPS（query
+per second），吞吐量越高，代表在线服务单位时间内处理请求的数量</p>
+<p>对于<code>DLRM</code>而言，处理单个请求的时间基本可以看作变化很小的，那么为提高吞吐量，可以采用Kubernetes的水平pod伸缩（Horizontal
+Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2 (b)
+所示，增加<code>DLRM</code>的副本数可以提高系统的并行处理能力，从而增大吞吐量</p>
+<p>然而，HPA 是一种 model-wise
+的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<u>但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是（不是绝对）吞吐量的瓶颈所在。</u>无脑进行HPA势必会造成大量内存浪费。</p>
+<h4 id="模型的硬件约束">模型的硬件约束</h4>
+<p>因为 大型 <code>DLRM</code> 的 <code>Embedding Table</code>
+通常有几十GB，将 <code>Embedding Table</code>
+全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
+CPU-only ② CPU-GPU。</p>
+<ul>
+<li><strong>CPU-only</strong>：<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 均运行在CPU</li>
+<li><strong>CPU-GPU</strong>：<code>Bottom MLP</code> 运行在GPU，
+<code>Embedding Table</code> 均运行在CPU</li>
+</ul>
+<p>可以看到， <code>Embedding Table</code>
+都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
+<h2 id="动机">动机</h2>
+<p>文章的动机从两点出发，阐述为什么现有的资源分配方案会导致次优性能（sub-optimal
+performance）：</p>
+<ol type="1">
+<li><code>RecSys</code>的不同模块具有异构资源需求</li>
+<li><code>Embedding Table</code>不同部分的访问频率相差极大</li>
+</ol>
+<h3 id="异构资源需求">异构资源需求</h3>
+<p>Fig. 3 (a)
+展示了三个推荐模型（RM1，RM2，RM3）的不同模块<code>Bottom MLP</code> 和
+<code>Embedding Table</code> 在 ①计算复杂度（FLOPS）和 ②内存大小
+上的差别。可以看出：<u><code>Bottom MLP</code>在计算复杂度上远高于
+<code>Embedding Table</code>，但是内存占用远远小于
+<code>Embedding Table</code></u></p>
+<p>Fig.3 (b)
+展示了三个推荐模型的不同模块在两种硬件约束下的延时占比。原文虽然没有讨论，但可以推测，<u>在CPU-only架构下，推理的延时开销主要集中在<code>Bottom MLP</code>的计算；在CPU-GPU架构下，延时的开销在于将 <code>Embedding Table</code>
+的数据从CPU传输到GPU</u></p>
+<center>
+<img src='/imgs/ElasticRec/异构资源需求.png' width='500'/>
+</center>
+<p>此外，文章还讨论了吞吐量的瓶颈问题，Fig.
+4展示了作者的想法，实际上<code>Bottom MLP</code>
+计算开销大，内存占用小，适合扩充副本来提升吞吐量；而
+<code>Embedding Table</code>
+本身吞吐量就很大，但是内存占用大，所以对于副本扩充应该谨慎。</p>
+<center>
+<img src='/imgs/ElasticRec/吞吐量.png' width='500'/>
+</center>
+<p>当然，作者还通过实验，验证了不同硬件约束下不同模块的吞吐量存在差异，来支撑上述想法：</p>
+<center>
+<img src='/imgs/ElasticRec/图5.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>综上所述，文章说明<code>RecSys</code>中不同模块的<strong>异构资源需求</strong>，以及<strong>吞吐量的差异</strong>。为后续对不同模块分别进行切分提供了实验依据</font></p>
+</blockquote>
+<h3 id="embedding-table-的倾斜访问模式">Embedding Table
+的倾斜访问模式</h3>
+<p>这一个实证分析较为简单，主要验证<code>Embedding Table</code>不同索引的访问频率的差异，如Fig.
+6所示，在三个数据集中，大部分的访问集中在少数的索引（热点嵌入，hot
+embeddings）</p>
+<center>
+<img src='/imgs/ElasticRec/倾斜访问.png' width='500'/>
+</center>
+<blockquote>
+<p><font color='blue'>换句话说，将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</font></p>
+</blockquote>
+<h2 id="方法设计">方法设计</h2>
+<p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
+<ol type="1">
+<li>部署开销估计</li>
+<li>基于动态规划（DP）的<code>Embedding Table</code>划分</li>
+<li>推理时重索引</li>
+</ol>
+<center>
+<img src='/imgs/ElasticRec/架构.png' width='500'/>
+</center>
+<h3 id="部署开销估计">部署开销估计</h3>
+<p><strong>前置处理</strong>：将<code>Embedding Table</code>的index按照访问频率从大到小排序，hot
+embeddings集中在最左侧</p>
+<center>
+<img src='/imgs/ElasticRec/sort.png' width='500'/>
+</center>
+<p>根据动机中提到的“<strong>将资源选择性地分配给 hot
+embeddings，可以在提升吞吐量的同时，达到节省资源的目的</strong>”，文章将<code>Embedding Table</code>切分为shards，每个shard包含了<code>Embedding Table</code>的一部分index。<u>那么如何切分<code>Embedding Table</code>，以及如何评估切分策略的优劣呢？</u></p>
+<p>文章首先定义了如何评估切分策略的优劣，切分策略的优劣由<font color='red'>固定吞吐量的前提下，所有shard的内存开销决定</font>。用最少的内存达到目标吞吐量，评估算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/cost_estimate.png' width='500'/>
+</center>
+<p>算法入口为<code>COST(k, j)</code>，表示范围为[k,j]的shard的内存消耗，这个内存消耗由两部分组成：</p>
+<ul>
+<li><code>REPLICAS(k,j)</code>：
+计算特定吞吐量下，shard应该被分配的副本数量
+<ol type="1">
+<li>计算shard被访问的概率<code>probability</code>和被访问的向量数<code>ns</code>，<code>probability = CDF(j)- CDF(k)</code>，<code>ns = probability × nt</code></li>
+<li>估计单个shard的副本在给定的访问向量数<code>ns</code>下能达到的<code>QPS</code>，<code>estimated QPS = QPS(ns)</code>，这里的<code>QPS()</code>是一个回归模型，可以线下测试得到</li>
+<li>估计达到目标吞吐量<code>target_traffic</code>需要的副本数，<code>num_replicas = target_traffic/estimated_QPS</code></li>
+</ol></li>
+<li><code>CAPACITY(k,j)</code>：对于shard的每一个副本，计算存储embedding的内存开销
+<ul>
+<li>直接计算shard的副本大小：<code>(j − k +1)×(size_of_a_single_embedding_vector)</code></li>
+</ul></li>
+</ul>
+<blockquote>
+<p>这里需要特别注意回归模型<code>QPS()</code>，输入的参数除了需要访问的向量数<code>ns</code>外，还需要考虑向量本身的大小，如下图所示，QPS既与向量数有关，也与向量本身维度相关</p>
+</blockquote>
+<center>
+<img src='/imgs/ElasticRec/QPS_predict.png' width='500'/>
+</center>
+<h3
+id="基于dp的embedding-table分区算法">基于DP的<code>Embedding Table</code>分区算法</h3>
+<p>在上一节中，当给定一个shard划分策略，我们可以评估每个shard在目标QPS下的内存开销，进而可以尝试找到给定QPS下最小内存开销的分区策略</p>
+<p><u>这里文章有一个前提，即无论怎么划分，所有shard的目标QPS都是一样的，这样可以保证不存在多余的资源浪费</u></p>
+<p>这个分区问题有两个操作：① 分多少shard
+②每个shard的范围。假设我们用<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>表示<code>Embedding Table</code>在<span
+class="math inline">\([0:x]\)</span>范围下，分区数量为<span
+class="math inline">\(num_{shards}\)</span>的最小内存开销。那么这个问题具有两个明显的特性：<strong>最优子结构</strong>和<strong>重叠子问题</strong></p>
+<ul>
+<li><p><strong>最优子结构</strong>：<span
+class="math inline">\(Mem[num_{shards}][x]\)</span>可以由子问题的最优解构造而来，假设最后一个shard的大小为<span
+class="math inline">\(m\)</span>，那么可以简化表示为<span
+class="math inline">\(Mem[num_{shards}][x] =
+min(Mem[num_{shards}-1][x-m] + COST(m))\)</span>，比如下图中，<span
+class="math inline">\(Mem[3][5]=min(Mem[2][5-m]+COST(m))=Mem[2][3]+COST(4,5)=4\)</span></p>
+<center>
+<p><img src='/imgs/ElasticRec/DP.png' width='500'/></p>
+</center></li>
+<li><p><strong>重叠子问题</strong>：求解过程中会反复遇到相同的子问题，需要将结果存储到表中，避免重复计算</p></li>
+</ul>
+<p>因此，自然而然可以想到用动态规划（DP）求解，文章给出的算法如下：</p>
+<center>
+<img src='/imgs/ElasticRec/DP_algo.png' width='500'/>
+</center>
+<p>最后根据最小内存开销回溯DP表可以得到分区策略</p>
+<h3 id="推理时重索引">推理时重索引</h3>
+<p>这个部分的重点在于分区后，如何根据原始<code>Embedding Table</code>的index
+ID找到对应的shard中的某个embedding，以及确认index分别属于哪个input（为提高吞吐量，一个query包含了多个input）。</p>
+<center>
+<img src='/imgs/ElasticRec/remap.png' width='500'/>
+</center>
+<p>文章提出了两种索引：</p>
+<ul>
+<li><code>indices</code>：存储一次query要从<code>Embedding Table</code>中查找的具体ID。</li>
+<li><code>offset</code>：指示每个input对应的的<code>indices</code>中的起始位置。</li>
+</ul>
+<p><strong>对于Fig.
+11（a）未分区前</strong>，一个query（<code>indices</code>）包含了两个input，分别为红色的[1,
+7]，灰色的[3,4,8]，<code>offset</code>表示第一个input要从<code>indices</code>第0个元素算起，第二个input从<code>indices</code>第1个元素算起，即input1为[1,7]，input2为[3,4,8]</p>
+<p><strong>对于Fig.
+11（b）分区后</strong>，首先计算中间的<code>indices</code>，具体为根据<code>indices</code>中的index计算应该被分到哪个分区（减去之前分区的大小），可以很容易把<code>indices</code>划分为shard
+A 的[1,3,4]和shard B
+的[7,8]，同时把<code>offset</code>进行划分（基于indices）</p>
+<p><strong>对于Fig.
+11（b）分区后，由于各shard索引重置了</strong>，所以需要在中间的<code>indices</code>和<code>offset</code>的基础上，进行重索引，具体为减去之前分区的大小，比如Fig.
+11(b) 中 shard B的[7,8]减去shard
+A的大小后，变成[1,2]。这样便可以直接从各shard中查找embedding了</p>
+<h3 id="最终部署">最终部署</h3>
+<p>因为Kubernetes的 horizontal pod autoscaling
+提供了弹性伸缩时参考指标的接口，对于：</p>
+<ul>
+<li><code>Embedding Table</code>的shard，文章直接将每个shard可以承受的最大吞吐量作为参考指标，到达最大吞吐量则扩容</li>
+<li><code>Bottom MLP</code>，则采用SLA的65%作为扩容的阈值</li>
+</ul>
+<p>（这里不是很明白为什么要采用不同的阈值指标，为什么不都用吞吐量？）</p>
+<h2 id="实验部分">实验部分</h2>
+<p>文章分别验证了 <code>ElasticRec</code> 在 <strong>CPU-only</strong>
+以及 <strong>CPU-GPU</strong> 环境下的性能表现：</p>
+<ul>
+<li><strong>CPU-only</strong>：本地集群（1 master + 11 worknode）</li>
+<li><strong>CPU-GPU</strong>：云集群（20 CPU-GPU nodes，GPU为 NVIDIA
+Tesla T4，节点间有31Gbps的带宽）</li>
+</ul>
+<p><code>DLRM</code>模型的开发是基于facebook的dlrm<a
+href="#dlrm"><sup>1</sup></a>。Kubernetes自动伸缩器采用的custom
+metric来自prometheus。SLA设置为400ms。而对于验证的<code>DLRM</code>模型，作者选择了三个先进的推荐模型（RM1,
+RM2,
+RM3），并在RM1的基础上进行参数改造，设置了很多个microbenchmarks，参数变动和三个RM模型如下：</p>
+<center>
+<img src='/imgs/ElasticRec/config.png'/>
+</center>
+<p>其中 Locality 指标 <span class="math inline">\(P\)</span>
+代表多少请求分布在前10%的热点向量，<span
+class="math inline">\(P\)</span>越大，代表请求分布越集中在热点。</p>
+<h3 id="microbenchmarks实验">Microbenchmarks实验</h3>
+<p>文章一开始探讨了不同RM配置下的内存消耗：</p>
+<center>
+<img src='/imgs/ElasticRec/Microbenchmarks.png' width='500'/>
+</center>
+<ol type="1">
+<li><strong>MLP size</strong>：随着MLP
+size的扩大，计算复杂度提高，延时会逐渐违背SLA。<code>Model-wise</code>的方法会扩容整个模型，而<code>ElasticRec</code>只需要扩容内存开销极小的<code>Bottom MLP</code>，所以内存消耗差距很大</li>
+<li><strong>Locality</strong>：访问越集中在热点，<code>ELasticRec</code>效果越好，因为只需要扩容热点那一部分</li>
+<li><strong>Number of
+tables</strong>：系统中可能不止一个<code>Embedding Table</code>，比如用户ID表和商品ID表，随着表数量的增多，<code>ELasticRec</code>对每个表都进行分片，降低扩容时的内存开销</li>
+<li><strong>Number of
+shards</strong>：分片数量并不是越多越好，因为每个shard会有最小内存消耗（程序运行必须的消耗），即算法1中的min_mem_alloc，所以当分片数量大于4后，效果没有那么明显了</li>
+</ol>
+<h3 id="不同-rm-在-cpu-only-环境下的性能">不同 RM 在 CPU-only
+环境下的性能</h3>
+<p>文章接下来在<strong>CPU-only</strong>环境下，比较了<code>ElasticRec</code>和<code>Model-wise</code>方法在三个推荐模型（RM1，RM2，RM3）的性能表现。以下实验都是在吞吐量为100QPS的下进行的</p>
+<ol type="1">
+<li>Fig. 13 展示了<strong>内存消耗</strong>的对比</li>
+<li>Fig. 14
+展示了<strong>内存利用率</strong>的对比，这里的<strong>内存利用率</strong>是作者自己定义的，表示<u>当前shard在前1000个请求中被访问的embedding的比例</u>，可以看出<code>Model-wise</code>只有一个shard（S1），并且<strong>内存利用率</strong>很低，对整个shard扩容显得很不值；<code>ElasticRec</code>有4个shard，前3个<strong>内存利用率</strong>很高（高频shard），最后一个非常低。</li>
+<li>Fig. 15
+展示了两种方法在吞吐量为100QPS所需要消耗的CPU服务器数量。这里我不太清楚是如何算出需要消耗的CPU服务器数量的（一般算的是虚拟CPU使用量？）</li>
+</ol>
+<center>
+<img src='/imgs/ElasticRec/cpu-only-exp.png'/>
+</center>
+<h3 id="不同-rm-在-cpu-gpu-环境下的性能">不同 RM 在 CPU-GPU
+环境下的性能</h3>
+<p>在<strong>CPU-GPU</strong>环境下，<code>ElasticRec</code>将 MLP
+模块设计为 GPU-centric 容器，将 Embedding Table 模块设计为只用 CPU
+的容器；<code>Model-wise</code>
+则将CPU和GPU都分配给一个容器。以下实验都是在吞吐量为100QPS的下进行的，实验效果如下</p>
+<center>
+<img src='/imgs/ElasticRec/CPU-GPU-exp.png'/>
+</center>
+<h3 id="动态输入流量实验">动态输入流量实验</h3>
+<p>前几个实验都是在固定吞吐量（QPS=100）下进行的，这个实验动态调整流量大小，然后观察<code>ElasticRec</code>和<code>Model-wise</code>的吞吐量表现、资源消耗以及尾部延时。</p>
+<p>流量大小先逐步增大，然后降到一个固定值</p>
+<center>
+<img src='/imgs/ElasticRec/dynamic-workload.png' width="500"/>
+</center>
+<p>可以发现，<code>ElasticRec</code>的吞吐量、内存消耗以及SLA违背都低于对比方法</p>
+<h3 id="与-gpu-embedding-caches-的对比">与 GPU Embedding Caches
+的对比</h3>
+<p>GPU Embedding Caches
+方法是之前的一个工作，原理是把<code>Embedding Table</code>的hot
+embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU的交互）</p>
+<center>
+<img src='/imgs/ElasticRec/compare-GPU-cache.png'/>
+</center>
+<p>文章对比了 <code>Model-wise</code>、<code>Model-wise (cache)</code>
+和 <code>ElasticRec</code> 在200 QPS
+的内存消耗，<code>ElasticRec</code>的内存消耗仍然是最低的</p>
+<blockquote>
+<p>这里我很好奇为什么不比较延时？<code>ElasticRec</code>延时应该比不过<code>Model-wise (cache)</code>，毕竟CPU和GPU交互需要时间。</p>
+</blockquote>
+<div>
+<p><a name="dlrm"></a> [1]
+<a>https://github.com/facebookresearch/dlrm</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>推荐系统</tag>
+        <tag>资源管理</tag>
+        <tag>面向AI的微服务</tag>
+        <tag>ISCA</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>最长公共子序列（Longest Common Subsequence）</title>
     <url>/2024/11/20/LCS/</url>
     <content><![CDATA[<p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
@@ -238,6 +559,289 @@ class="math inline">\(dp[i][j-1]\)</span></li>
         <tag>算法</tag>
         <tag>leetcode</tag>
         <tag>动态规划</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[ICPP 2023] On Optimizing Traffic Scheduling for Multi-replica Containerized Microservices</title>
+    <url>/2024/12/21/OptTraffic/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：On Optimizing Traffic Scheduling for Multi-replica
+Containerized Microservices</p>
+<p>ICPP 2023</p>
+<p>作者：中国科学技术大学，华为</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>基于容器的微服务系统部署已经变得越来越重要，为了应对高并发（high
+concurrency）和提升错误容忍度（fault
+tolerance），微服务系统通常会引入多个副本（replicas）。目前有两种类别的服务部署方法：</p>
+<ul>
+<li><code>resource-friendly</code>：将 pod
+尽可能分散部署到不同机器上，目标是<u>平均各机器的资源使用率</u>。（e.g.,
+Kubernetes，Docker Swarm，OpenShift）</li>
+<li><code>traffic localization</code>：将流量（traffic）交互频繁的
+pod放到同一台主机上，目标是<u>减少跨主机流量导致的性能降级</u>。（e.g.,
+CA-WFD，Blender，NetMARKS）</li>
+</ul>
+<p>这两种方法各有利弊：①
+<code>resource-friendly</code>存在大量跨主机流量（cross-machine
+traffic），可能会引发性能降级；②
+<code>traffic localization</code>在多replicas情况下，由于机器资源不足，也会存在大量cross-machine
+traffic。</p>
+<p>文章提出了一种网络感知的流量调度（traffic scheduling）方法
+<code>OptTraffic</code>，首先通过轻量级监控方法估计容器之间的流量大小，然后通过算法分配容器之间的流量比例（默认应该是负载均衡），目标是减少
+cross-machine traffic，并尽可能平均各主机的资源利用率。</p>
+<h2 id="背景">背景</h2>
+<h3 id="基于容器的微服务">基于容器的微服务</h3>
+<p>文章首先介绍了微服务是什么，这里就不进行赘述了。然后介绍了基于容器的微服务部署方法：</p>
+<p>首先是传统的容器部署，代表为K8s，文章说是基于<code>resource-friendly</code>的，简而言之，就是只考虑容器的CPU和内存需求。这里我先查阅了K8s调度器
+kube-scheduler 的<a
+href="https://kuboard.cn/">说明</a>，以下是文档的内容：</p>
+<blockquote>
+调度器执行步骤如下：
+<center>
+<img src="/imgs/OptTraffic/k8s-schedule.png" width='700'/>
+</center>
+<ol type="1">
+<li>找出该 Pod 的所有
+<strong>可选节点</strong>，这个过程称为过滤（filtering）</li>
+<li>按照某种方式对每一个 <strong>可选节点</strong>
+评分，这个过程称为打分（scoring）</li>
+<li>选择评分最高的 <strong>可选节点</strong></li>
+<li>将最终选择结果通知 API Server，这个过程称为绑定（binding）</li>
+</ol>
+<p>文章的重点在打分，假设全部节点皆可部署，则有如下打分策略：</p>
+<ul>
+<li><code>SelectorSpreadPriority</code>：将 Pod
+分散到不同的节点，主要考虑同属于一个
+Service、StatefulSet、Deployment的情况</li>
+<li><code>InterPodAffinityPriority</code>：遍历 weightedPodAffinityTerm
+并求和，找出结果最高的节点</li>
+<li><code>LeastRequestedPriority</code>：已被消耗的资源最少的节点得分最高。如果节点上的
+Pod 越多，被消耗的资源越多，则评分约低</li>
+<li><code>MostRequestedPriority</code>：已被消耗的资源最多的节点得分最高。此策略会把
+Pod 尽量集中到集群中的少数节点上</li>
+<li><code>RequestedToCapacityRatioPriority</code>：按 requested /
+capacity 的百分比评分</li>
+<li><code>BalancedResourceAllocation</code>：资源使用均衡的节点评分高</li>
+<li><code>NodePreferAvoidPodsPriority</code>：根据节点的 annotation
+scheduler.alpha.kubernetes.io/preferAvoidPods 评分。可使用此 annotation
+（容忍度 Toleration 和 污点 Taint）标识哪些 Pod
+不能够运行在同一个节点上</li>
+<li><code>NodeAffinityPriority</code>：基于
+PreferredDuringSchedulingIgnoredDuringExecution 指定的 node affinity
+偏好评分。参考 将容器组调度到指定的节点</li>
+<li><code>TaintTolerationPriority</code>：
+根据节点上不可容忍的污点数评分</li>
+<li><code>ImageLocalityPriority</code>：有限选择已经有该 Pod
+所需容器镜像的节点</li>
+<li><code>ServiceSpreadingPriority</code>：确保 Service 的所有 Pod
+尽量分布在不同的节点上。</li>
+<li><code>CalculateAntiAffinityPriorityMap</code>：anti-affinty，参考将容器组调度到指定的节点</li>
+<li><code>EqualPriorityMap</code>：为每个节点指定相同的权重</li>
+</ul>
+<p>这些打分策略都有一定的权重，最终的分数计算如下： <figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">finalScoreNode &#x3D; (weight1 * priorityFunc1) + (weight2 * priorityFunc2) + ...</span><br></pre></td></tr></table></figure></p>
+<p>经过查阅<a
+href="https://www.qikqiak.com/k8strain2/scheduler/overview/">资料</a>，默认开启的调度代码如下，可以看出，<u>在所有节点都有对应镜像，没有亲和性和污点干扰的情况下，k8s其实偏向于<code>resource-friendly</code>，即分布更加均匀，相关策略有BalancedAllocationName、LeastAllocatedName</u>：</p>
+<p><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Score: &amp;schedulerapi.PluginSet&#123;</span><br><span class="line">           Enabled: []schedulerapi.Plugin&#123;</span><br><span class="line">               &#123;Name: noderesources.BalancedAllocationName, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: imagelocality.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: interpodaffinity.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: noderesources.LeastAllocatedName, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: nodeaffinity.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: nodepreferavoidpods.Name, Weight: 10000&#125;,</span><br><span class="line">               &#x2F;&#x2F; Weight is doubled because:</span><br><span class="line">               &#x2F;&#x2F; - This is a score coming from user preference.</span><br><span class="line">               &#x2F;&#x2F; - It makes its signal comparable to NodeResourcesLeastAllocated.</span><br><span class="line">              &#123;Name: podtopologyspread.Name, Weight: 2&#125;,</span><br><span class="line">               &#123;Name: tainttoleration.Name, Weight: 1&#125;,</span><br><span class="line">           &#125;,</span><br><span class="line">       &#125;,</span><br></pre></td></tr></table></figure>
+总的来说，K8s默认是<code>resource-friendly</code>的说法倒也没啥问题~~~</p>
+</blockquote>
+<p>然后文章介绍了集中式部署，即以减少cross-machine
+traffic为目标的<code>traffic localization</code>方法，这里进行了一个实证分析来论证cross-machine
+traffic的影响，具体实验方法为：</p>
+<blockquote>
+将经典应用 socialNetwork 部署到2台主机，并用 <a
+href="https://github.com/Mellanox/sockperf">sockperf</a>
+模拟两个主机之间的流量干扰，测量不同QPS下不同带宽的延时的P99分布
+<center>
+<img src="/imgs/OptTraffic/fig 2.png" width='500'/>
+</center>
+<p><font color='blue'>图中显示QPS增大时，同样带宽下的P99延时明显增大，所以cross-machine
+traffic受带宽限制，会影响延时。</font>但这有没有可能是 POD
+资源不够导致的（这里应该给 POD 设置足够充足的资源来消除影响）？</p>
+</blockquote>
+<h3 id="traffic-localization-及其局限"><code>Traffic localization</code>
+及其局限</h3>
+<p>为了解决cross-machine traffic带来的性能降级问题，许多工作提出了
+<code>traffic localization</code> 的部署方法，有两种实现方式：</p>
+<ul>
+<li>将属于同一个application的所有容器部署到相同或邻近的主机</li>
+<li>将流量交互密切的容器对（container pairs）调度到相同或邻近的主机</li>
+</ul>
+<p><code>traffic localization</code> 不仅可以减少 cross-machine traffic
+带来的<strong>网络延迟</strong>（由传输路径和带宽大小决定），也可以减少对网络数据包操作（包的封装和解析）带来的<strong>计算开销</strong>。</p>
+<blockquote>
+<p>为了验证 <code>traffic localization</code>
+对于节省网络流量和降低响应延时的作用，文章在两种部署方式上进行实验：</p>
+<ol type="1">
+<li>部署 socialNetwork 到 5 台主机上</li>
+<li>部署 socialNetwork 到 1
+台主机上（<code>traffic localization</code>）</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/fig 3.png" width='500'/>
+</center>
+<p><font color='blue'>图（a）显示 <code>traffic localization</code>
+可以减少大量的cross-machine traffic。图（b）显示
+<code>traffic localization</code> 可以大幅度减少响应延时</font></p>
+</blockquote>
+<p><strong>Limitation</strong>：<code>traffic localization</code>虽然能显著减少cross-machine
+traffic来提升性能，但是通常很难完全将一个 application
+的所有微服务都部署到一台主机上，原因在于微服务还会产生多个replicas，除此之外，监控容器之间的流量也会引入较大的CPU负载，<code>traffic localization</code>也会造成机器资源使用不均。具体如下：</p>
+<p>（1）<strong>当 POD
+分布在不同主机时</strong>。因为负载均衡，流量会均匀流向不同主机的POD，造成大量的cross-machine
+traffic</p>
+<p>（2）<strong>高CPU负载</strong>。对容器间流量的监控一般需要抓取数据包，对数据包的封装和解析过程会造成高昂的CPU开销。比如socialNetwork有27个容器，消耗13个CPU核，而加上监控装置（e.g.,
+iftop）会多消耗 1.4-2 个
+CPU核【istio也存在这样的问题，甚至sidecar消耗更多】</p>
+<p>（3）<strong>不均衡的资源使用</strong>。许多pod有着相同的资源需求，比如都是CPU密集型，将他们放置在一台主机上会造成资源使用不均衡，即CPU过载，但是内存利用率低。除此之外，将所有pod放在一台主机上会使得fault
+tolerance降低。</p>
+<h2 id="方法设计">方法设计</h2>
+<center>
+<img src="/imgs/OptTraffic/structure.png" width='500'/>
+</center>
+<p><u><code>OptTraffic</code> 的目标是最小化 cross-machine
+traffic</u>。整体架构如上图所示。包含三个组件：</p>
+<ol type="1">
+<li><code>Traffic Monitor</code>。这个组件用轻量级的方式估计每个
+container pair 之间的流量大小。做法为收集每个容器的 incoming 和 outgoing
+traffic，然后构建一个 traffic graph，最后通过简单的数学计算估计每个
+container pair 之间的流量大小</li>
+<li><code>Traffic Allocator</code>。流量调度模块，决定 upstream
+container 流向 每个 downstream container
+的流量比例。具体策略为本地优先（local-first），以减少跨主机流量</li>
+<li><code>Container Scheduler</code>。异步调整 container pairs
+的部署，以实现机器之间的负载均衡。</li>
+</ol>
+<h3 id="traffic-monitor">Traffic Monitor</h3>
+<p><code>Traffic Monitor</code> 有两个目的：①
+识别频繁交互（heavy-traffic）的链路 ② 为链路调度进行优先级排序</p>
+<p>现有两种方式进行容器间流量的监控：</p>
+<ol type="1">
+<li>在容器所在POD加一个sidecar，接管流量的转发和监控（e.g.,
+istio）。</li>
+<li>使用网络包嗅探工具在userspace进行解析（e.g., tcpdump and
+iftop）。</li>
+</ol>
+<p>这两种方式都会造成高昂的CPU负载。文章还特别提到了在kernel space
+工作的
+eBPF，可以减少监控负载，但仍需要分析网络包，并且实现复杂。所以作者想用数学方法来减少监控带来的负载。</p>
+<blockquote>
+<p>eBPF
+避免用户态与内核态切换：传统上，像tcpdump这样的工具是在用户空间工作的，它们需要将网络数据包从内核空间复制到用户空间进行分析。这个过程涉及上下文切换和内存拷贝，带来了额外的CPU开销。而eBPF程序则可以在内核空间内部处理数据包，无需这种昂贵的数据传输。</p>
+</blockquote>
+<p><strong>Step 1: 监控容器流量</strong>。</p>
+<center>
+<img src="/imgs/OptTraffic/fig 6.png" width='500'/>
+</center>
+<p>如 fig 6 所示，一个upstream container 可以与多个 downstream
+container进行交互，<code>OptTraffic</code>首先使用 Prometheus
+监控每个container接收和发送的traffic</p>
+<blockquote>
+<p>Prometheus 只是一个收集工具，数据源来自于
+操作系统记录的每个容器接收和发送的包的大小（这些数据已经保存在主机上，所以只需要周期性地获取就行，几乎没有监控成本），数据保存在
+proc 文件系统中，经过查资料，应该用的是这两个指标：</p>
+<ul>
+<li>container_network_receive_bytes_total</li>
+<li>container_network_transmit_bytes_total</li>
+</ul>
+</blockquote>
+<p><strong>Step 2: 计算链路流量</strong>。链路流量（Link
+Traffic）指的是特定的两个容器之间的流量大小，<code>OptTraffic</code>
+直接使用数学方法计算得到，减少监控的负载（注意：上一步只能监控到每个容器的接收和发送的traffic大小，不能知道与特定容器之间的traffic大小）。计算步骤如下，从入度为
+1 的节点 <span class="math inline">\(p\)</span> （根节点）开始，先将与
+<span class="math inline">\(p\)</span> 相关的两条边赋值（即&lt;<span
+class="math inline">\(p\)</span>,<span
+class="math inline">\(q\)</span>&gt;和&lt;<span
+class="math inline">\(q\)</span>,<span
+class="math inline">\(p\)</span>&gt;），这两条边的值完全等于 <span
+class="math inline">\(p\)</span> 的 send 和 receive 的 traffic 。然后将
+<span class="math inline">\(p\)</span> 相关的流量从 <span
+class="math inline">\(q\)</span> 中减去，从图中删去 <span
+class="math inline">\(p\)</span>，重复如上过程，直到所有节点计算完毕。</p>
+<blockquote>
+<ol type="1">
+<li>构造微服务系统的
+DAG。（可以通过通过配置文件、官方文档或者其他监控手段得到）</li>
+<li>基于 DAG 构造 traffic graph。traffic
+graph有着和DAG相同的构造，唯一的不同是，traffic graph是双向边，代表
+traffic 也可以从 downstream container 发往 upstream container
+（response）</li>
+<li>基于 traffic graph 计算每个 link 的traffic大小，算法如下：</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/algo 1.png" width='500'/>
+</center>
+<p><code>GraphMerge</code> 和
+<code>BreakCycle</code>两个函数用于解决图中存在环的情况。如下图所示，环有两种情况：</p>
+<ol type="1">
+<li>upstream containers 来自不同微服务 （Fig. 7(b)）</li>
+<li>upstream containers 来自同一个微服务的不同replicas （Fig.
+7(c)）</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/fig 7.png" width='500'/>
+</center>
+<p>对于 case1，<code>BreakCycle</code> 函数首先选择环中 incoming 和
+outgoing traffic 最少的 container
+进行讨论，然后通过网络包嗅探工具监控这个 container 每条边 send 和
+receive 的traffic。然后在相关 containers 中移除这个 container
+的traffic，最后删除这个container，这样就可以破坏环。</p>
+<p>对于case2，<code>GraphMerge</code> 函数将属于同一个微服务的 replicas
+进行合并，至于每个 replica 分得的
+traffic，可以通过流量分配策略进行估算</p>
+<p><strong>负载分析</strong>：从设计上看，<code>OptTrace</code>
+确实轻量级，因为不需要监控每条 link 的 traffic，而每个 vertex 的 traffic
+本身就被os记录下来了。即使有环，也只需要对一部分容器进行网络包嗅探分析，破环即可。算法复杂度为O(N)，N为节点数量。</p>
+</blockquote>
+<h3 id="traffic-allocation">Traffic Allocation</h3>
+<p>这个模块是核心，决定了 upstream 微服务向某个 downstream 微服务的不同
+replicas 发送 traffic 的比例。downstream
+微服务的replicas可能部署在不同主机上，所以策略不再是简单的负载均衡</p>
+<center>
+<img src="/imgs/OptTraffic/fig 8.png" width='500'/>
+</center>
+<p>如上图所示，有2个 upstream containers 和 3个downstream
+containers，并部署在2台主机上。如果是按照负载均衡的原则，假设每个upstream
+container发送 1 traffic，则发往每个downstream container <span
+class="math inline">\(\frac{1}{3}\)</span> traffic，每个downstream
+containers总共需要接收 <span class="math inline">\(\frac{2}{3}\)</span>
+的traffic。从Fig 8 (a)中看出，有 <span
+class="math inline">\(1=\frac{1}{3}+\frac{1}{3}+\frac{1}{3}\)</span>
+（一半）的traffic是cross-machine的。</p>
+<blockquote>
+<p>文章介绍了 <code>Two-step allocation</code> 方法来进行 traffic
+分配：</p>
+<ol type="1">
+<li>第一步，采用 <strong>local-first</strong>
+原则，即traffic尽可能分配到同台主机的containers。假设机器 <span
+class="math inline">\(i\)</span> 有 <span
+class="math inline">\(m_i\)</span> 个upstream containers 和 <span
+class="math inline">\(n_i\)</span> 个 downstream
+containers，则每个upstream container需要发送给每个downstream
+container比例为 <span class="math inline">\(min(\frac{m/n}{m_i},
+\frac{1}{n_i})\)</span>的traffic。<font color='blue'>这里的比例很简单也很有趣，每个downstream
+container接收到的traffic是 <span class="math inline">\(m_i\times
+min(\frac{m/n}{m_i}, \frac{1}{n_i})=min(m/n,
+m_i/n_i)\)</span>，第一个是全局负载均衡的traffic大小，第二个是单机上负载均衡的traffic大小。这里的原理是：使得低于负载均衡的traffic尽可能发往本机的container，但这个traffic尽量不高于全局负载均衡的值</font>。所以
+Fig 8 (b) 中 DC3 的 traffic 大小为 <span
+class="math inline">\(min(\frac{2}{3}, 1)=\frac{2}{3}\)</span></li>
+<li>第二步，这一步叫<code>padding</code>，即将第一步中剩余未分配的traffic导向其余downstream
+containers，这些traffic就是cross-machine traffic了。如 Fig 8
+(c)所示。</li>
+</ol>
+<p>看了一下<a
+href="https://github.com/sirius8050/OptTraffic">源代码</a>，流量调度用的是iptable实现的，具体指令类似如下这样
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">sudo iptables -t nat -I KUBE-SVC-KVWZRLJ3RRU55EYE 1 -s 0.0.0.0&#x2F;0 -j KUBE-SEP-5EMJYGBVFF6DIW4U -m statistic --mode random  --probability 0.17</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<p>以上是论文的核心，至于动态调度那一块，首先是没看懂，可能以后有时间再读读</p>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>流量调度</tag>
+        <tag>ICPP</tag>
       </tags>
   </entry>
   <entry>
@@ -415,6 +1019,680 @@ Propagation Modeling, (DATE), 2023.
         <tag>trace</tag>
         <tag>根因定位</tag>
         <tag>ICSE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</title>
+    <url>/2024/06/22/MicroDig/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：Diagnosing Performance Issues for Large-Scale Microservice
+Systems with Heterogeneous Graph</p>
+<p>来源：TSC 2024</p>
+<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
+<ul>
+<li>基于调用和微服务之间的因果关系构建异构传播图</li>
+<li>采样面向异构的随机游走算法进行根因服务定位</li>
+</ul>
+<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3
+accuracy。</p>
+<h2 id="背景">背景</h2>
+<p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
+<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150
+billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end
+aggregated calls）。</p>
+<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a
+href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
+注：aggregated call在GMTA中提到过，应该就是一段时间（比如1
+min）内trace的聚合：
+<center>
+<img src="/imgs/MicroDig/GMTA-path.png"/>
+</center>
+<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。
+【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
+<h2 id="动机">动机</h2>
+<h3 id="调用关系异常传播的因果关系">调用关系≠异常传播的因果关系</h3>
+文章举了一个例子来说明这个观点：
+<center>
+<img src="/imgs/MicroDig/call-casual.png"/>
+</center>
+<p><span class="math inline">\(A \to B \to C\)</span>
+的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是<span
+class="math inline">\(C\)</span>，然而，操作员却没有在<span
+class="math inline">\(C\)</span>中发现有意义的故障报告。因为 <span
+class="math inline">\(B\)</span> 已经用尽了文件描述符，无法建立与 <span
+class="math inline">\(C\)</span> 的新连接，所以<span
+class="math inline">\(B \to C\)</span>有大量的异常出现。所以根因是<span
+class="math inline">\(B\)</span>不是<span
+class="math inline">\(C\)</span>，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
+<blockquote>
+<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
+</blockquote>
+<h3 id="异构传播图">异构传播图</h3>
+<p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous
+propagation graph）来描述故障传播的因果关系：</p>
+<center>
+<img src="/imgs/MicroDig/hpg.png"/>
+</center>
+<ul>
+<li><p>如上图所示，<span class="math inline">\(R(A,B)\)</span> 代表<span
+class="math inline">\(A \to B\)</span>的异常率（anomaly rate），<span
+class="math inline">\(R(A)\)</span> 代表服务<span
+class="math inline">\(A\)</span>
+本身的异常率。注意，服务本身的异常率，如<span
+class="math inline">\(R(A)\)</span>，在这个工作中是不可观测的；边的异常率，如<span
+class="math inline">\(R(A,B)\)</span>，是可以被观测的。</p></li>
+<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如<span
+class="math inline">\(R(A) \to R(A,B)\)</span>）。</p></li>
+<li><p>文章添加了一些假设：①服务之间是独立的，比如<span
+class="math inline">\(R(A)\)</span>和<span
+class="math inline">\(R(B)\)</span>是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如<span
+class="math inline">\(R(A,B)\)</span>和<span
+class="math inline">\(R(C,D)\)</span></p></li>
+</ul>
+<p>根据作者的设计，这里应该就能看到<span
+class="math inline">\(R(B,C)\)</span>是受<span
+class="math inline">\(R(B)\)</span>和<span
+class="math inline">\(R(C)\)</span>影响的了，从某种意义上给3.1的问题提供了思路。</p>
+<h2 id="microdig-架构">MicroDig 架构</h2>
+<center>
+<img src="/imgs/MicroDig/structure.png"/>
+</center>
+<p>可以看到MicroDig分为几个部分： 1. 性能监控 (Monitoring) 2.
+相关调用的识别 (Association Call Identification) 3. 异构传播图的构建
+(Heterogeneous Propagation Graph Construction) 4. 根因定位 (Root Cause
+Localization)</p>
+<h3 id="association-call-identification">Association Call
+Identification</h3>
+<p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
+<h4 id="构造port-level-异常子图">构造<code>port-level</code>
+异常子图</h4>
+<p>文章首先构造 <code>port-level</code>
+异常子图，<code>port-level</code>即接口级别，图中的节点都是接口，
+具体步骤如下：</p>
+<ol type="1">
+<li>构造 <code>port-level</code>
+调用图（为什么选用<code>port-level</code>）</li>
+<li>在调用图上进行
+<em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em>
+对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
+</ol>
+<blockquote>
+<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
+</blockquote>
+<h4 id="构造service-level-异常子图">构造<code>service-level</code>
+异常子图</h4>
+<p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务<span
+class="math inline">\(S\)</span>和<span
+class="math inline">\(S&#39;\)</span>，定义<span
+class="math inline">\(F(p,p&#39;)\)</span>和<span
+class="math inline">\(N(p,p&#39;)\)</span>分别为其中<code>port-level</code>边<span
+class="math inline">\(p \to
+p&#39;\)</span>的异常调用数和总调用数，那么时间点<span
+class="math inline">\(t\)</span>的<span class="math inline">\(S \to
+S&#39;\)</span>的异常率<span class="math inline">\(R_t(S,
+S&#39;)\)</span>为：</p>
+<p><span class="math display">\[
+    R_t(S, S&#39;)=\frac{\sum_{p\in S, p&#39; \in
+S&#39;}F_t(p,p&#39;)}{\sum_{p\in S, p&#39; \in S&#39;}N_t(p,p&#39;)}
+\]</span></p>
+<p>整个过程如图(a) (b)所示 ：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-build.png"/>
+</center>
+<h4 id="构造-heterogeneous-propagation-graph">构造 Heterogeneous
+Propagation Graph</h4>
+<p>3.1
+中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous
+Propagation Graph （HPG）：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
+</center>
+<p>原理很简单： 1.
+<strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到
+HPG 2. <strong>设置call节点</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，将<span
+class="math inline">\(S\)</span>的出边和入边作为节点加入HPG 3.
+<strong>call节点和service节点的关系</strong>：对于每个call节点（<span
+class="math inline">\(S \to S&#39;\)</span>），设置 <span
+class="math inline">\(S \to (S \to S&#39;)\)</span>，<span
+class="math inline">\((S \to S&#39;) \to S&#39;\)</span> 4.
+<strong>call节点和call节点的关系</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，设置：出边 <span
+class="math inline">\(\to\)</span> 入边</p>
+<h3 id="根因服务定位">根因服务定位</h3>
+<p>异构传播图（HPG）有两种节点（service，call）和两种边（service <span
+class="math inline">\(\to\)</span> call, call <span
+class="math inline">\(\to\)</span>
+call）。本文采取针对异构图的随机游走算法来定位根因：</p>
+<center>
+<img src="/imgs/MicroDig/HPG-example.png" width="300"/>
+</center>
+<h4 id="转移权重">转移权重</h4>
+<p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
+<ol type="1">
+<li>对于call <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(C_{23} \to
+C_{12}\)</span>，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</li>
+<li>对于service <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(S_1 \to C_{12}\)</span>
+<ul>
+<li><p>首先计算service的异常程度，定义<span
+class="math inline">\(\mathbb{S}_U\)</span>和<span
+class="math inline">\(\mathbb{S}_D\)</span>分别表示服务<span
+class="math inline">\(S\)</span>的上游服务集合和下游服务集合，服务<span
+class="math inline">\(S\)</span>的异常程度<span
+class="math inline">\(\alpha_S\)</span>可以表示为： <span
+class="math display">\[
+\alpha_S = \frac{|\{S&#39;|S&#39;\in \mathbb{S}_U \cup \mathbb{S}_D,
+\theta(S&#39;)=1 \}|}{|\mathbb{S}_U \cup \mathbb{S}_D|}
+\]</span> 当<span
+class="math inline">\(S&#39;\)</span>有任意一条<code>port-level</code>的边是异常时，<span
+class="math inline">\(\theta(S&#39;)=1\)</span>。</p></li>
+<li><p>然后计算service <span class="math inline">\(\to\)</span>
+call的权重。对于任意一个call节点<span class="math inline">\(C=S_{caller}
+\to S_{callee}\)</span>，有两条service <span
+class="math inline">\(\to\)</span> call类型的边：<span
+class="math inline">\(S_{caller} \to C\)</span> 和 <span
+class="math inline">\(C \to
+S_{callee}\)</span>。这两条边的权重分别为：<span
+class="math inline">\(\omega_{caller}\)</span> 和 <span
+class="math inline">\(\omega_{callee}\)</span>，分别计算如下： <span
+class="math display">\[
+\omega_{caller}=max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]
+\]</span></p></li>
+</ul>
+<span class="math display">\[
+   \omega_{callee}=max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]
+\]</span> 其中，<span class="math inline">\(\Delta \alpha =
+\alpha(S_{caller})-\alpha(S_{callee})\)</span>，<span
+class="math inline">\(\Delta
+\eta\)</span>即当前服务的所有入边的权重-所有出边的权重。</li>
+</ol>
+<h4 id="异构随机游走">异构随机游走</h4>
+<p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
+<ul>
+<li><strong>backward
+edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward
+edge，权重是有向边的<span class="math inline">\(\rho\)</span>倍。</li>
+<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
+</ul>
+<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
+<center>
+<img src="/imgs/MicroDig/random-walk.png" width="500"/>
+</center>
+<h2 id="总结">总结</h2>
+<ul>
+<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
+<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
+<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
+</ul>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
+trace analysis for microservice architecture understanding and problem
+diagnosis, ESEC/FSE. 2020: 1387-1397.
+<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>根因定位</tag>
+        <tag>TSC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</title>
+    <url>/2024/06/23/TraStrainer/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
+System Runtime State</p>
+<p>来源：FSE 2024</p>
+<p>作者：中山大学DDS实验室</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
+sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
+<ul>
+<li><code>random sampling</code>：又称 head
+sampling，即以固定概率决定每条trace是否采样</li>
+<li><code>biased sampling</code>：又称 tail
+sampling，即根据trace的状态决定是否采样</li>
+</ul>
+<p>很明显，<code>random sampling</code>
+实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
+能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
+<p>先前的 <code>biased sampling</code>
+工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
+runtime
+state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
+<center>
+<img src="/imgs/TraStrainer/trace-metric.png"/>
+</center>
+<p>本文提出了TraStrainer，从以下角度进行在线采样： -
+考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
+考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
+密度采样+系统采样 <span class="math inline">\(\to\)</span>
+最终采样决策</p>
+<h2 id="动机">动机</h2>
+<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
+<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
+traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
+<ol type="1">
+<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
+common-case traces也有很大的用处:</p>
+<ul>
+<li><strong>common-case traces
+可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
+traces。而我们分析这些common-case
+traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
+<li><strong>common-case traces
+有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
+traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
+</ul></li>
+<li><p><strong>结合 system runtime state
+有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
+3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
+的CPU被打满，到达 Node A
+的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
+的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
+</ol>
+<center>
+<img src="/imgs/TraStrainer/metric-importance.png"/>
+</center>
+<p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
+<h2 id="问题定义">问题定义</h2>
+<p>给定一段时间收集的traces <span
+class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
+class="math inline">\(\mathcal{M}\)</span>、采样率 <span
+class="math inline">\(\beta\)</span>，需要对<span
+class="math inline">\(\mathcal{T}\)</span>中每个trace <span
+class="math inline">\(t\)</span> 计算采样概率 <span
+class="math inline">\(\rho\)</span>。整个过程定义为：</p>
+<p><span class="math display">\[
+S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
+\]</span></p>
+<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
+class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
+<h2 id="trastrainer-概要">TraStrainer 概要</h2>
+<center>
+<img src="/imgs/TraStrainer/TraStrainer.png"/>
+</center>
+<p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
+<ul>
+<li><p><strong>Runtime Data Preprocessing</strong>：</p>
+<ul>
+<li>Trace Encoder：对trace进行结构和状态编码</li>
+<li>System Bias Extractor：将当前系统状态指标进行编码</li>
+</ul></li>
+<li><p><strong>Comprehensive Sampling</strong>：</p>
+<ul>
+<li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
+<li>Diversity-Biased Sampler：优先采样edge cases traces</li>
+<li>Composite Sampler：结合上述两种采样器进行最终决策</li>
+</ul></li>
+</ul>
+<h3 id="trace-encoder">Trace Encoder</h3>
+<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
+<center>
+<img src="/imgs/TraStrainer/encoder-example.png"/>
+</center>
+<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
+Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
+class="math inline">\(m_1\)</span>就是（<span
+class="math inline">\(C\)</span>, <span
+class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
+class="math inline">\(m_1\)</span>的值<span
+class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
+class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
+<p><span class="math display">\[
+   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
+\]</span></p>
+<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
+class="math inline">\(m_1\)</span>相关的span，而<span
+class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
+&gt;
+注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
+<p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
+<h3 id="system-bias-extractor">System Bias Extractor</h3>
+<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
+<center>
+<img src="/imgs/TraStrainer/metric-anomaly.png"/>
+</center>
+<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
+href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
+class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
+<span class="math display">\[
+   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
+\]</span></p>
+<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
+class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>。</p>
+<h3 id="system-biased-sampler">System-Biased Sampler</h3>
+<p>System-Biased
+Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
+<p>本文定义了一个固定长度look-back window，由<span
+class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
+class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
+Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
+class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
+class="math inline">\(\mu_i\)</span>和标准差<span
+class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
+class="math inline">\(t_{k+1}\)</span> 的第<span
+class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
+class="math display">\[
+   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
+\]</span></p>
+<p><span
+class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
+class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
+class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
+<span class="math inline">\(\mathcal{P}\)</span>
+进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
+<span class="math display">\[
+   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
+\]</span></p>
+<p>以上操作是将点积<span
+class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
+<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
+<p>Diversity-Biased Sampler的目标是考虑edge-case
+traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
+traces。</p>
+<p>论文将look-back
+window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
+<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
+class="math inline">\(c_{k+1}&#39;\)</span>。<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
+class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
+class="math inline">\(t_{k+1}\)</span> 和 所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
+class="math inline">\(si(t_{k+1})\)</span>。</p>
+<p><strong>一般来说，所属类<span
+class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
+class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
+class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
+class="math display">\[
+   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
+\]</span></p>
+<h3 id="composite-sampler">Composite Sampler</h3>
+<p>对于新到trace <span
+class="math inline">\(t\)</span>，综合两个采样概率 <span
+class="math inline">\(p_s(t)\)</span> 和 <span
+class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
+class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
+mechanism）最终决策。</p>
+<center>
+<img src="/imgs/TraStrainer/vote.png"/>
+</center>
+<p>首先统计过去look-back window里采样概率 <span
+class="math inline">\(\theta\)</span>，如果： - <span
+class="math inline">\(\theta \geq
+\beta\)</span>，必须两个采样决策都为True，才采样 - <span
+class="math inline">\(\theta \leq
+\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
+<div>
+<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
+Qiang Xu. 2023. Are transformers effective for time series forecasting?.
+In Proceedings of the AAAI conference on artificial intelligence, Vol.
+37. 11121–11128.</p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>trace采样</tag>
+        <tag>FSE</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</title>
+    <url>/2024/05/08/alibaba-traces-socc-2021/</url>
+    <content><![CDATA[<blockquote>
+<p>题目：Characterizing Microservice Dependency and Performance: Alibaba
+Trace Analysis</p>
+<p>来源：SoCC 2021</p>
+<p>作者：中国科学院深圳先进技术研究院, 阿里巴巴</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace数据集<a
+href="#alibabaTrace"><sup>1</sup></a>进行了详细的实证分析，从以下角度揭示了<strong>生产环境</strong>下微服务系统的特点：</p>
+<ul>
+<li>微服务调用图的特点，与传统作业DAG的不同</li>
+<li>无状态微服务之间的依赖关系</li>
+<li>微服务系统的运行时性能受哪些因素的影响</li>
+</ul>
+<p>此外，现有的微服务benchmark也存在一些问题，如：</p>
+<ul>
+<li><b>规模太小</b>。经典的benchmark（如DeathStarBench<a
+href="#DeathStarBench"><sup>2</sup></a>），只包含数个微服务（不超过40）。在这些小规模的微服务benchmark上得到的结论不一定能推广到生产环境中；</li>
+<li><b>静态依赖</b>。这些benchmark的依赖关系都是静态的，无法模拟生产环境中常见的动态性。</li>
+</ul>
+<p>所以这篇文章还基于阿里巴巴的trace数据构建了一个仿真的数学模型，模拟大规模动态微服务系统。</p>
+<h2 id="背景">背景</h2>
+<h3 id="微服务架构">微服务架构</h3>
+<p>这里首先介绍了微服务架构的调用图，以及图中常见的组件：</p>
+<center>
+<img src="/imgs/alibaba-traces-socc-2021/microservice.jpg"/>
+</center>
+<p>这里引入了几个关键术语：</p>
+<ul>
+<li><strong><em>Entering
+Microservice</em></strong>：入口微服务，即请求进入微服务系统的入口。通常是前端微服务。</li>
+<li><strong><em>UM,
+DM</em></strong>：分别指代一条调用链路的上游微服务（upstream
+microservice）和下游微服务（downstream microservice）。</li>
+</ul>
+<p>对于微服务种类，文章基于服务提供的功能将微服务划分为有状态微服务（stateful）和无状态微服务（stateless）。</p>
+<ul>
+<li><strong><em>stateful微服务</em></strong>：通常存储有一些状态数据，常见的有数据库（database）和缓存（memCached），它们大多的接口大多分为两类：reading
+和 writing。</li>
+<li><strong><em>stateless微服务</em></strong>：不存储状态数据，所以可以轻松的伸缩，它们通常提供成百上千个不同接口，用于完成不同的业务功能。</li>
+</ul>
+<p>对于微服务交互种类，文章基于交互协议划分了三种类别：</p>
+<ul>
+<li><strong><em>IP</em></strong>：进程间通信（Inter Process
+communication），常发生在stateless微服务和stateful微服务之间。</li>
+<li><strong><em>RPC</em></strong>：远程过程调用（Remote Procedure
+Call），一种双向通信，DM必须返回给UM结果。</li>
+<li><strong><em>MQ</em></strong>：消息队列（Message
+Queue），一种单向通信，UM发送消息到第三方中间件（消息队列），消息队列储存这个消息，直到DM主动取出这个消息。</li>
+</ul>
+<p>一般来说，RPC效率高，MQ更加灵活。</p>
+<p>此外，还介绍了两个概念：调用深度（call depth）和响应延迟（RT）。</p>
+<ul>
+<li><strong><em>call
+depth</em></strong>：调用深度指调用图中最长的路径长度，比如Figure
+1中的调用图长度为5。</li>
+<li><strong><em>RT</em></strong>：从UM发出请求到UM收到回复的时长。即使同一种接口的请求也会因为参数、状态的不同产生差距较大的延时。</li>
+</ul>
+<h3 id="alibaba-trace">Alibaba Trace</h3>
+<p>alibaba的trace与常见的trace数据模型不同<a
+href="#OpenTracing"><sup>3</sup></a>，因为它更像一种多模态监控数据，包含了<strong>节点信息</strong>、<strong>指标</strong>以及<strong>调用链</strong>等。具体信息如下：</p>
+<center>
+<img src="/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg" width = "500"/>
+</center>
+<ol type="1">
+<li><p><strong><em>物理运行环境</em></strong>：阿里巴巴的集群采用K8s进行管理，整个集群运行在裸机云（bare-metal
+cloud）上，服务与作业通常混合部署在一起以提高资源利用率。Figure 2 (a)
+介绍了云上两种常见的运行方式：</p>
+<ol type="1">
+<li>Online
+Services：比如微服务，运行在容器中，直接由K8s管理，有持续向外界提供服务的能力。（<u>stateful微服务一般部署在特定集群中，不参与混合部署</u>）</li>
+<li>Offline
+Jobs：这些作业一般都需要执行特定的任务，需要K8s事先为它们分配资源，然后调度到特定的机器上执行。</li>
+</ol></li>
+<li><p><strong><em>微服务系统指标</em></strong>：这个大概分为三个部分：硬件层（缓存命中率）、操作系统层（CPU利用率）、应用层（JVM垃圾回收），具体内容如Figure
+2 （b）。</p></li>
+<li><p><strong><em>微服务调用链</em></strong>：如Figure 2
+(c)所示，大体上与OpenTracing的数据模型类似，但是摒弃了<code>spanID</code>和<code>parentSpanId</code>，只留下UM和DM的信息，并用<code>rpcId</code>来唯一标识一个trace内的不同调用，<code>Communication Paradigm</code>代表调用类型（又名<code>rpctype</code>，如rpc）。</p>
+<center>
+<p><img src="/imgs/alibaba-traces-socc-2021/trace-demo.jpg" width = "300"/></p>
+</center></li>
+<li><p><strong><em>聚合调用</em></strong>：如Figure 2
+(d)所示，本质上是对单个微服务的调用信息进行聚合和统计。</p></li>
+</ol>
+<h2 id="调用图的剖析">调用图的剖析</h2>
+<p>这一块内容很多，我只提炼出较为有意义的部分。<font color=red>这里的调用图（call
+graph）并不是指整个微服务依赖图，应该指的是单个trace的拓扑图</font>。</p>
+<h3 id="微服务调用图特征">微服务调用图特征</h3>
+<p>作者在这里总结了三个特征，对下游任务非常有启发：</p>
+<ol type="1">
+<li><p><em>调用图的微服务数量呈现长尾分布</em></p>
+<center>
+<p><img src='/imgs/alibaba-traces-socc-2021/service-num-heavy-distribution.png'/></p>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>现有的benchmark太小了</strong>：10%的调用图的微服务数量&gt;40，存在微服务数量&gt;100的调用图。
+<strong>大量的Memcacheds</strong>：大规模的调用图中有一半的微服务都是Memcacheds，可能是为了减少RT。</p>
+</blockquote>
+<ol start="2" type="1">
+<li><p><em>调用图是一棵树，并且很多图是一条长链路</em></p>
+<center>
+<p><img src='/imgs/alibaba-traces-socc-2021/depth-svcnum.png'/></p>
+</center>
+<center>
+<p><img src='/imgs/alibaba-traces-socc-2021/heat.png'/></p>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>较短的深度</strong>：一半的调用图深度在2~4 （a）
+<strong>树有点胖</strong>：，深度随着微服务数量增加没有明显变化
+（b），说明调用图是宽且浅的？很多下游微服务只是简单的查询数据（stateful微服务一般是叶子节点）
+<strong>较深的图一般都是长链路</strong>：深度增加，但是后面的的微服务数量大多为1个，说明这棵树的宽度基本集中在第2层，后面的都是一条长链路</p>
+<p>有些下游任务（弹性伸缩）会对调用图进行编码，作者特别提到有些图有很长的深度，会让这些任务产生很大的模型以及过拟合。我觉得这没有直接关系，这些数量远远达不到图网络的极限。而且这个实验也可以反过来说，大部分图深度都是很短的。</p>
+</blockquote>
+<ol start="3" type="1">
+<li><p><em>许多stateless微服务是热点</em></p>
+<center>
+<p><img src='/imgs/alibaba-traces-socc-2021/degree.png' width='500'/></p>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>存在高入度微服务</strong>：有5%的stateless微服务入度&gt;16，这些微服务在90%的调用图存在，处理了95%的请求。这些服务很大概率是瓶颈，可以用来指导弹性伸缩。</p>
+</blockquote>
+<ol start="4" type="1">
+<li><em>微服务调用图大多是动态的</em></li>
+</ol>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/clusters.png' width='500'/>
+</center>
+<blockquote>
+<p>这个动态和其他文章提到的动态不一样，文中的动态性指的是请求同一个服务的接口，如果参数不一样，会产生不同的拓扑链路（Figure
+6）；其他文章提到的是微服务系统始终在动态变化。</p>
+</blockquote>
+<h3 id="微服务调用关系特征">微服务调用关系特征</h3>
+<ol type="1">
+<li><p><em>不同层之间调用类型差别大</em></p>
+<center>
+<p><img src='/imgs/alibaba-traces-socc-2021/dist-invo-type.png' width='500'/></p>
+</center></li>
+</ol>
+<p>首先考虑微服务是否DM，大致分为以下几类：①
+<code>black holes</code>（没有DM），②<code>relay</code>（必须有DM），③<code>normal</code>（一定概率有DM）</p>
+<p>IP(S2D)，IP(S2M)，IP(S2) 表示IP通信的双方分别为：stateless
+微服务与database，stateless
+微服务与Memcacheds，stateless微服务与stateless微服务</p>
+<blockquote>
+<p>深度增加，black
+holes比例增加，relay比例减少，normal中对应部分也是如此。</p>
+<p>深度增加，IP(S2M)
+比例先增后减，IP(S2D)在升高，表明缓存命中率在下降，转而去查询数据库。MQ比例增加，说明业务链路较深时（业务复杂），倾向于使用MQ来减少RT</p>
+</blockquote>
+<h2 id="微服务之间的依赖">微服务之间的依赖</h2>
+<p>这一章节对如何设计和优化微服务架构有启发，不是我研究的范畴，暂时略过</p>
+<h3 id="并行依赖">并行依赖</h3>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/parallel.png' width='500'/>
+</center>
+<blockquote>
+<p><strong>并行依赖很少</strong>：数据集中大部分的微服务都很少被并行调用，这个并行给我的感觉就是异步调用</p>
+</blockquote>
+<h2 id="微服务的运行时性能">微服务的运行时性能</h2>
+<p>这个章节很重要，对资源管理有很大的指导作用。首先介绍一个定义：MCR代表微服务调用速率，我的理解是服务承受的负载</p>
+<h3 id="mcr对资源的影响">MCR对资源的影响</h3>
+<ol type="1">
+<li><em>MCR与CPU利用率和Young GC强相关，但与Memory利用率相关性弱</em>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/resource-mcr.png' width='500'/>
+</center></li>
+</ol>
+<blockquote>
+<p><strong>与CPU利用率，Young GC强相关</strong>：Young
+GC指的是对JVM堆内存中的新生代区域进行垃圾回收<a
+href="#YoungGC"><sup>4</sup></a>，Young
+GC频繁会造成性能下降或者应用stop，可能是因为内存泄漏等原因。
+<strong>与内存，Old GC相关性弱</strong>：alibaba
+trace中容器的内存一般都很稳定，Old
+GC频率可能也是如此（老年代本身垃圾回收就不频繁），所以在实验中不是很明显（受限于数据集特征）。</p>
+</blockquote>
+<ol start="2" type="1">
+<li><em>资源对响应时间的影响</em>
+<div>
+<p><img src='/imgs/alibaba-traces-socc-2021/resource-RT.png' width='300'/>
+<img src='/imgs/alibaba-traces-socc-2021/RT-mcr.png' width='300'/></p>
+</div></li>
+</ol>
+<p>图中的延时选的是P75延时 &gt;
+<strong>与CPU利用率强相关</strong>：随着CPU利用率升高，RT明显升高，但RT对内存反应不是很明显（可能是因为缺乏高内存数据）
+&gt; <strong>与容器的MCR不太相关</strong>：Alibaba
+trace中即使MCR很高了，CPU利用率可能还低于10%，所以RT变化不大，<em>说明资源浪费很严重</em></p>
+<h2 id="随机图模型">随机图模型</h2>
+<center>
+<img src='/imgs/alibaba-traces-socc-2021/graph-generator.png' width='300'/>
+</center>
+<p>这里简单讲一下，代码实现应该不难： 1.
+准备一个存储stateless服务的队列<span
+class="math inline">\(Q\)</span>，并放入Entering Microservice 2.
+执行循环，直到<span class="math inline">\(Q\)</span>为空 1. <span
+class="math inline">\(Q\)</span>弹出一个服务作为UM 2.
+如果UM的类型是<code>Relay</code>或者<code>normal (Relay)</code>，则根据数据集中DM服务类型的分布，生成对应类型的服务数量
+3. 为生成的DMs中不同服务类型确定<code>communication paradigm</code> 4.
+将生成的DMs中stateless的微服务放入<span class="math inline">\(Q\)</span>
+3. 图优化 1. 遍历生成的图的每一层 1.
+随机选择两个父项，如果他们共享相同的标签，则合并他们的两个孩子。 2.
+合并的节点将连接到两个父节点</p>
+<blockquote>
+<p>暂时还没有看到随机模型被其他论文使用，可能是因为大家都可以自己搭建环境生产数据吧，也可能是因为alibaba
+trace够用了</p>
+</blockquote>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="alibabaTrace"></a> [1]
+<a>https://github.com/alibaba/clusterdata</a></p>
+</div>
+<div>
+<p><a name="DeathStarBench"></a> [2] Yu Gan. An Open-Source Benchmark
+Suite for Microservices and Their Hardware-Software Implications for
+Cloud &amp; Edge Systems. ASPLOS, 2019.
+<a>https://github.com/delimitrou/DeathStarBench</a></p>
+</div>
+<div>
+<p><a name="OpenTracing"></a> [3] OpenTracing, “Opentracing,”
+<a>https://opentracing.io/specification</a></p>
+</div>
+<div>
+<p><a name="YoungGC"></a> [4] java 六 Young GC 和 Full GC
+<a>https://www.cnblogs.com/klvchen/articles/11758324.html</a></p>
+</div>
+]]></content>
+      <categories>
+        <category>文献精读</category>
+      </categories>
+      <tags>
+        <tag>微服务</tag>
+        <tag>trace</tag>
+        <tag>实证分析</tag>
+        <tag>SoCC</tag>
       </tags>
   </entry>
   <entry>
@@ -830,1001 +2108,6 @@ https://github.com/alibaba/clusterdata/blob/master/cluster-trace-v2018/trace_201
         <tag>资源管理</tag>
         <tag>弹性伸缩</tag>
         <tag>arxiv</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[ISCA 2024]  ElasticRec: A Microservice-based Model Serving Architecture Enabling Elastic Resource Scaling for Recommendation Models</title>
-    <url>/2024/11/27/ElasticRec/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：ElasticRec: A Microservice-based Model Serving Architecture
-Enabling Elastic Resource Scaling for Recommendation Models</p>
-<p>来源：ISCA 2024</p>
-<p>作者：韩国科学技术院</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>推荐系统（<code>RecSys</code>）广泛应用在许多线上服务中，为增加<code>RecSys</code>的推理时的吞吐量，数据中心通常对<code>RecSys</code>进行模型级别（model-wise）的资源管理。然而，<code>RecSys</code>中不同模块有着异构的资源需求，比如：</p>
-<ul>
-<li><code>RecSys</code>中<code>MLP</code>模块 对于计算资源的需求高</li>
-<li><code>RecSys</code>中<code>Embedding Table</code>模块对于内存资源的需求高</li>
-</ul>
-<p>如果将<code>RecSys</code>模型看作一个整体进行服务部署、资源分配等操作，势必会造成大量的资源浪费；但对<code>RecSys</code>模型中的每一层进行资源管理又是非常具有挑战性的（这里类似于单体应用和微服务应用的关系）。因此，作者提出了<code>ElasticRec</code>，一种基于微服务架构的推荐系统细粒度资源分配方法，目标是减少<strong>部署时的内存消耗</strong>，提升<code>RecSys</code>的吞吐量。</p>
-<h2 id="背景">背景</h2>
-<p>文章背景主要介绍了深度推荐模型的结构，以及深度推荐模型如何集成到Kubernetes集群中，为用户提供线上推理服务。</p>
-<h3 id="深度推荐模型dlrm">深度推荐模型（DLRM）</h3>
-<center>
-<img src="/imgs/ElasticRec/DLRM.jpg" width='500'/>
-</center>
-<p>如图所示，深度推荐模型（<code>DLRM</code>）包含3个主要组件：</p>
-<ul>
-<li><code>Bottom MLP</code>
-<ul>
-<li>输入：dense input（比如 用户年龄）</li>
-<li>输出：dense output（高维特征）</li>
-<li>类型：<strong>计算敏感型</strong></li>
-</ul></li>
-<li><code>Embedding Table</code>
-<ul>
-<li>输入：多个 sparse input（比如 商品ID）</li>
-<li>输出：dense output（高维特征）</li>
-<li>类型：<strong>内存敏感型</strong></li>
-<li>作用：根据稀疏输入得到<code>Embedding Table</code>中的高维特征。一般来说，一次查询中所有的sparse
-input得到的dense
-output会执行<code>pool</code>操作进行池化，得到单个dense output</li>
-</ul></li>
-<li><code>Top MLP</code>
-<ul>
-<li>输入：<code>Bottom MLP</code>的输出 拼接
-<code>Embedding Table</code>的输出</li>
-<li>输出：给商品打分</li>
-</ul></li>
-</ul>
-<blockquote>
-<p>在生产环境中，由于商品（item）的种类非常多，比如Amazon有数亿的商品种类。<code>Embedding Table</code>为每个商品种类都维护了一个特征，导致<code>Embedding Table</code>的大小可以达到<strong>几十GB</strong>，相比于<code>Bottom MLP</code>，有几点需要关注：</p>
-<ol type="1">
-<li><code>Embedding Table</code>对于计算不敏感，即<code>pool</code>操作并不需要太多计算资源；相反，对于内存带宽限制极为敏感，特别是有非常多的dense
-output需要<code>pool</code>时</li>
-<li>在<code>DLRM</code>中，<code>Embedding Table</code>通常有<u>多个</u>，对内存的压力是极大的</li>
-</ol>
-</blockquote>
-<h3 id="模型服务架构model-serving-architectures">模型服务架构（Model
-Serving Architectures）</h3>
-<h4 id="模型容器化">模型容器化</h4>
-<p>这篇文章关注的是<code>DLRM</code>的推理。在线上应用中，<code>DLRM</code>被打包成镜像，镜像中包含了模型参数以及常用的机器学习库，以容器的方式运行在Kubernetes集群中，如Fig.
-2（a）所示。</p>
-<center>
-<img src="/imgs/ElasticRec/DLRM_inference.png" width='500'/>
-</center>
-<h4 id="模型的自动伸缩">模型的自动伸缩</h4>
-<p><strong>Kubernetes</strong>是一个容器编排工具，它能管理容器的生命周期，对容器进行自动化调度、资源分配。</p>
-<p><strong>吞吐量</strong>是一个衡量在线服务性能的指标，单位是QPS（query
-per second），吞吐量越高，代表在线服务单位时间内处理请求的数量</p>
-<p>对于<code>DLRM</code>而言，处理单个请求的时间基本可以看作变化很小的，那么为提高吞吐量，可以采用Kubernetes的水平pod伸缩（Horizontal
-Pod Autoscaling，HPA）机制对<code>DLRM</code>进行副本复制，如Fig. 2 (b)
-所示，增加<code>DLRM</code>的副本数可以提高系统的并行处理能力，从而增大吞吐量</p>
-<p>然而，HPA 是一种 model-wise
-的分配方案，它将整个<code>DLRM</code>模型进行复制，包括内存占用非常大的<code>Embedding Table</code>模块，<u>但实际上<code>Embedding Table</code>并不涉及复杂的计算，所以一般不是（不是绝对）吞吐量的瓶颈所在。</u>无脑进行HPA势必会造成大量内存浪费。</p>
-<h4 id="模型的硬件约束">模型的硬件约束</h4>
-<p>因为 大型 <code>DLRM</code> 的 <code>Embedding Table</code>
-通常有几十GB，将 <code>Embedding Table</code>
-全部放在高内存带宽的GPU中通常不太可行，所以会退而求其次的使用如下两种方式：①
-CPU-only ② CPU-GPU。</p>
-<ul>
-<li><strong>CPU-only</strong>：<code>Bottom MLP</code> 和
-<code>Embedding Table</code> 均运行在CPU</li>
-<li><strong>CPU-GPU</strong>：<code>Bottom MLP</code> 运行在GPU，
-<code>Embedding Table</code> 均运行在CPU</li>
-</ul>
-<p>可以看到， <code>Embedding Table</code>
-都运行在CPU关联的内存上，如果能优化这一部分的内存使用，就可以提升<code>DLRM</code>的最大副本数量，从而提高系统的吞吐量。</p>
-<h2 id="动机">动机</h2>
-<p>文章的动机从两点出发，阐述为什么现有的资源分配方案会导致次优性能（sub-optimal
-performance）：</p>
-<ol type="1">
-<li><code>RecSys</code>的不同模块具有异构资源需求</li>
-<li><code>Embedding Table</code>不同部分的访问频率相差极大</li>
-</ol>
-<h3 id="异构资源需求">异构资源需求</h3>
-<p>Fig. 3 (a)
-展示了三个推荐模型（RM1，RM2，RM3）的不同模块<code>Bottom MLP</code> 和
-<code>Embedding Table</code> 在 ①计算复杂度（FLOPS）和 ②内存大小
-上的差别。可以看出：<u><code>Bottom MLP</code>在计算复杂度上远高于
-<code>Embedding Table</code>，但是内存占用远远小于
-<code>Embedding Table</code></u></p>
-<p>Fig.3 (b)
-展示了三个推荐模型的不同模块在两种硬件约束下的延时占比。原文虽然没有讨论，但可以推测，<u>在CPU-only架构下，推理的延时开销主要集中在<code>Bottom MLP</code>的计算；在CPU-GPU架构下，延时的开销在于将 <code>Embedding Table</code>
-的数据从CPU传输到GPU</u></p>
-<center>
-<img src='/imgs/ElasticRec/异构资源需求.png' width='500'/>
-</center>
-<p>此外，文章还讨论了吞吐量的瓶颈问题，Fig.
-4展示了作者的想法，实际上<code>Bottom MLP</code>
-计算开销大，内存占用小，适合扩充副本来提升吞吐量；而
-<code>Embedding Table</code>
-本身吞吐量就很大，但是内存占用大，所以对于副本扩充应该谨慎。</p>
-<center>
-<img src='/imgs/ElasticRec/吞吐量.png' width='500'/>
-</center>
-<p>当然，作者还通过实验，验证了不同硬件约束下不同模块的吞吐量存在差异，来支撑上述想法：</p>
-<center>
-<img src='/imgs/ElasticRec/图5.png' width='500'/>
-</center>
-<blockquote>
-<p><font color='blue'>综上所述，文章说明<code>RecSys</code>中不同模块的<strong>异构资源需求</strong>，以及<strong>吞吐量的差异</strong>。为后续对不同模块分别进行切分提供了实验依据</font></p>
-</blockquote>
-<h3 id="embedding-table-的倾斜访问模式">Embedding Table
-的倾斜访问模式</h3>
-<p>这一个实证分析较为简单，主要验证<code>Embedding Table</code>不同索引的访问频率的差异，如Fig.
-6所示，在三个数据集中，大部分的访问集中在少数的索引（热点嵌入，hot
-embeddings）</p>
-<center>
-<img src='/imgs/ElasticRec/倾斜访问.png' width='500'/>
-</center>
-<blockquote>
-<p><font color='blue'>换句话说，将资源选择性地分配给 hot
-embeddings，可以在提升吞吐量的同时，达到节省资源的目的</font></p>
-</blockquote>
-<h2 id="方法设计">方法设计</h2>
-<p>Fig. 7展示了ElasticRec的系统架构，整体思路分为三个模块：</p>
-<ol type="1">
-<li>部署开销估计</li>
-<li>基于动态规划（DP）的<code>Embedding Table</code>划分</li>
-<li>推理时重索引</li>
-</ol>
-<center>
-<img src='/imgs/ElasticRec/架构.png' width='500'/>
-</center>
-<h3 id="部署开销估计">部署开销估计</h3>
-<p><strong>前置处理</strong>：将<code>Embedding Table</code>的index按照访问频率从大到小排序，hot
-embeddings集中在最左侧</p>
-<center>
-<img src='/imgs/ElasticRec/sort.png' width='500'/>
-</center>
-<p>根据动机中提到的“<strong>将资源选择性地分配给 hot
-embeddings，可以在提升吞吐量的同时，达到节省资源的目的</strong>”，文章将<code>Embedding Table</code>切分为shards，每个shard包含了<code>Embedding Table</code>的一部分index。<u>那么如何切分<code>Embedding Table</code>，以及如何评估切分策略的优劣呢？</u></p>
-<p>文章首先定义了如何评估切分策略的优劣，切分策略的优劣由<font color='red'>固定吞吐量的前提下，所有shard的内存开销决定</font>。用最少的内存达到目标吞吐量，评估算法如下：</p>
-<center>
-<img src='/imgs/ElasticRec/cost_estimate.png' width='500'/>
-</center>
-<p>算法入口为<code>COST(k, j)</code>，表示范围为[k,j]的shard的内存消耗，这个内存消耗由两部分组成：</p>
-<ul>
-<li><code>REPLICAS(k,j)</code>：
-计算特定吞吐量下，shard应该被分配的副本数量
-<ol type="1">
-<li>计算shard被访问的概率<code>probability</code>和被访问的向量数<code>ns</code>，<code>probability = CDF(j)- CDF(k)</code>，<code>ns = probability × nt</code></li>
-<li>估计单个shard的副本在给定的访问向量数<code>ns</code>下能达到的<code>QPS</code>，<code>estimated QPS = QPS(ns)</code>，这里的<code>QPS()</code>是一个回归模型，可以线下测试得到</li>
-<li>估计达到目标吞吐量<code>target_traffic</code>需要的副本数，<code>num_replicas = target_traffic/estimated_QPS</code></li>
-</ol></li>
-<li><code>CAPACITY(k,j)</code>：对于shard的每一个副本，计算存储embedding的内存开销
-<ul>
-<li>直接计算shard的副本大小：<code>(j − k +1)×(size_of_a_single_embedding_vector)</code></li>
-</ul></li>
-</ul>
-<blockquote>
-<p>这里需要特别注意回归模型<code>QPS()</code>，输入的参数除了需要访问的向量数<code>ns</code>外，还需要考虑向量本身的大小，如下图所示，QPS既与向量数有关，也与向量本身维度相关</p>
-</blockquote>
-<center>
-<img src='/imgs/ElasticRec/QPS_predict.png' width='500'/>
-</center>
-<h3
-id="基于dp的embedding-table分区算法">基于DP的<code>Embedding Table</code>分区算法</h3>
-<p>在上一节中，当给定一个shard划分策略，我们可以评估每个shard在目标QPS下的内存开销，进而可以尝试找到给定QPS下最小内存开销的分区策略</p>
-<p><u>这里文章有一个前提，即无论怎么划分，所有shard的目标QPS都是一样的，这样可以保证不存在多余的资源浪费</u></p>
-<p>这个分区问题有两个操作：① 分多少shard
-②每个shard的范围。假设我们用<span
-class="math inline">\(Mem[num_{shards}][x]\)</span>表示<code>Embedding Table</code>在<span
-class="math inline">\([0:x]\)</span>范围下，分区数量为<span
-class="math inline">\(num_{shards}\)</span>的最小内存开销。那么这个问题具有两个明显的特性：<strong>最优子结构</strong>和<strong>重叠子问题</strong></p>
-<ul>
-<li><p><strong>最优子结构</strong>：<span
-class="math inline">\(Mem[num_{shards}][x]\)</span>可以由子问题的最优解构造而来，假设最后一个shard的大小为<span
-class="math inline">\(m\)</span>，那么可以简化表示为<span
-class="math inline">\(Mem[num_{shards}][x] =
-min(Mem[num_{shards}-1][x-m] + COST(m))\)</span>，比如下图中，<span
-class="math inline">\(Mem[3][5]=min(Mem[2][5-m]+COST(m))=Mem[2][3]+COST(4,5)=4\)</span></p>
-<center>
-<p><img src='/imgs/ElasticRec/DP.png' width='500'/></p>
-</center></li>
-<li><p><strong>重叠子问题</strong>：求解过程中会反复遇到相同的子问题，需要将结果存储到表中，避免重复计算</p></li>
-</ul>
-<p>因此，自然而然可以想到用动态规划（DP）求解，文章给出的算法如下：</p>
-<center>
-<img src='/imgs/ElasticRec/DP_algo.png' width='500'/>
-</center>
-<p>最后根据最小内存开销回溯DP表可以得到分区策略</p>
-<h3 id="推理时重索引">推理时重索引</h3>
-<p>这个部分的重点在于分区后，如何根据原始<code>Embedding Table</code>的index
-ID找到对应的shard中的某个embedding，以及确认index分别属于哪个input（为提高吞吐量，一个query包含了多个input）。</p>
-<center>
-<img src='/imgs/ElasticRec/remap.png' width='500'/>
-</center>
-<p>文章提出了两种索引：</p>
-<ul>
-<li><code>indices</code>：存储一次query要从<code>Embedding Table</code>中查找的具体ID。</li>
-<li><code>offset</code>：指示每个input对应的的<code>indices</code>中的起始位置。</li>
-</ul>
-<p><strong>对于Fig.
-11（a）未分区前</strong>，一个query（<code>indices</code>）包含了两个input，分别为红色的[1,
-7]，灰色的[3,4,8]，<code>offset</code>表示第一个input要从<code>indices</code>第0个元素算起，第二个input从<code>indices</code>第1个元素算起，即input1为[1,7]，input2为[3,4,8]</p>
-<p><strong>对于Fig.
-11（b）分区后</strong>，首先计算中间的<code>indices</code>，具体为根据<code>indices</code>中的index计算应该被分到哪个分区（减去之前分区的大小），可以很容易把<code>indices</code>划分为shard
-A 的[1,3,4]和shard B
-的[7,8]，同时把<code>offset</code>进行划分（基于indices）</p>
-<p><strong>对于Fig.
-11（b）分区后，由于各shard索引重置了</strong>，所以需要在中间的<code>indices</code>和<code>offset</code>的基础上，进行重索引，具体为减去之前分区的大小，比如Fig.
-11(b) 中 shard B的[7,8]减去shard
-A的大小后，变成[1,2]。这样便可以直接从各shard中查找embedding了</p>
-<h3 id="最终部署">最终部署</h3>
-<p>因为Kubernetes的 horizontal pod autoscaling
-提供了弹性伸缩时参考指标的接口，对于：</p>
-<ul>
-<li><code>Embedding Table</code>的shard，文章直接将每个shard可以承受的最大吞吐量作为参考指标，到达最大吞吐量则扩容</li>
-<li><code>Bottom MLP</code>，则采用SLA的65%作为扩容的阈值</li>
-</ul>
-<p>（这里不是很明白为什么要采用不同的阈值指标，为什么不都用吞吐量？）</p>
-<h2 id="实验部分">实验部分</h2>
-<p>文章分别验证了 <code>ElasticRec</code> 在 <strong>CPU-only</strong>
-以及 <strong>CPU-GPU</strong> 环境下的性能表现：</p>
-<ul>
-<li><strong>CPU-only</strong>：本地集群（1 master + 11 worknode）</li>
-<li><strong>CPU-GPU</strong>：云集群（20 CPU-GPU nodes，GPU为 NVIDIA
-Tesla T4，节点间有31Gbps的带宽）</li>
-</ul>
-<p><code>DLRM</code>模型的开发是基于facebook的dlrm<a
-href="#dlrm"><sup>1</sup></a>。Kubernetes自动伸缩器采用的custom
-metric来自prometheus。SLA设置为400ms。而对于验证的<code>DLRM</code>模型，作者选择了三个先进的推荐模型（RM1,
-RM2,
-RM3），并在RM1的基础上进行参数改造，设置了很多个microbenchmarks，参数变动和三个RM模型如下：</p>
-<center>
-<img src='/imgs/ElasticRec/config.png'/>
-</center>
-<p>其中 Locality 指标 <span class="math inline">\(P\)</span>
-代表多少请求分布在前10%的热点向量，<span
-class="math inline">\(P\)</span>越大，代表请求分布越集中在热点。</p>
-<h3 id="microbenchmarks实验">Microbenchmarks实验</h3>
-<p>文章一开始探讨了不同RM配置下的内存消耗：</p>
-<center>
-<img src='/imgs/ElasticRec/Microbenchmarks.png' width='500'/>
-</center>
-<ol type="1">
-<li><strong>MLP size</strong>：随着MLP
-size的扩大，计算复杂度提高，延时会逐渐违背SLA。<code>Model-wise</code>的方法会扩容整个模型，而<code>ElasticRec</code>只需要扩容内存开销极小的<code>Bottom MLP</code>，所以内存消耗差距很大</li>
-<li><strong>Locality</strong>：访问越集中在热点，<code>ELasticRec</code>效果越好，因为只需要扩容热点那一部分</li>
-<li><strong>Number of
-tables</strong>：系统中可能不止一个<code>Embedding Table</code>，比如用户ID表和商品ID表，随着表数量的增多，<code>ELasticRec</code>对每个表都进行分片，降低扩容时的内存开销</li>
-<li><strong>Number of
-shards</strong>：分片数量并不是越多越好，因为每个shard会有最小内存消耗（程序运行必须的消耗），即算法1中的min_mem_alloc，所以当分片数量大于4后，效果没有那么明显了</li>
-</ol>
-<h3 id="不同-rm-在-cpu-only-环境下的性能">不同 RM 在 CPU-only
-环境下的性能</h3>
-<p>文章接下来在<strong>CPU-only</strong>环境下，比较了<code>ElasticRec</code>和<code>Model-wise</code>方法在三个推荐模型（RM1，RM2，RM3）的性能表现。以下实验都是在吞吐量为100QPS的下进行的</p>
-<ol type="1">
-<li>Fig. 13 展示了<strong>内存消耗</strong>的对比</li>
-<li>Fig. 14
-展示了<strong>内存利用率</strong>的对比，这里的<strong>内存利用率</strong>是作者自己定义的，表示<u>当前shard在前1000个请求中被访问的embedding的比例</u>，可以看出<code>Model-wise</code>只有一个shard（S1），并且<strong>内存利用率</strong>很低，对整个shard扩容显得很不值；<code>ElasticRec</code>有4个shard，前3个<strong>内存利用率</strong>很高（高频shard），最后一个非常低。</li>
-<li>Fig. 15
-展示了两种方法在吞吐量为100QPS所需要消耗的CPU服务器数量。这里我不太清楚是如何算出需要消耗的CPU服务器数量的（一般算的是虚拟CPU使用量？）</li>
-</ol>
-<center>
-<img src='/imgs/ElasticRec/cpu-only-exp.png'/>
-</center>
-<h3 id="不同-rm-在-cpu-gpu-环境下的性能">不同 RM 在 CPU-GPU
-环境下的性能</h3>
-<p>在<strong>CPU-GPU</strong>环境下，<code>ElasticRec</code>将 MLP
-模块设计为 GPU-centric 容器，将 Embedding Table 模块设计为只用 CPU
-的容器；<code>Model-wise</code>
-则将CPU和GPU都分配给一个容器。以下实验都是在吞吐量为100QPS的下进行的，实验效果如下</p>
-<center>
-<img src='/imgs/ElasticRec/CPU-GPU-exp.png'/>
-</center>
-<h3 id="动态输入流量实验">动态输入流量实验</h3>
-<p>前几个实验都是在固定吞吐量（QPS=100）下进行的，这个实验动态调整流量大小，然后观察<code>ElasticRec</code>和<code>Model-wise</code>的吞吐量表现、资源消耗以及尾部延时。</p>
-<p>流量大小先逐步增大，然后降到一个固定值</p>
-<center>
-<img src='/imgs/ElasticRec/dynamic-workload.png' width="500"/>
-</center>
-<p>可以发现，<code>ElasticRec</code>的吞吐量、内存消耗以及SLA违背都低于对比方法</p>
-<h3 id="与-gpu-embedding-caches-的对比">与 GPU Embedding Caches
-的对比</h3>
-<p>GPU Embedding Caches
-方法是之前的一个工作，原理是把<code>Embedding Table</code>的hot
-embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU的交互）</p>
-<center>
-<img src='/imgs/ElasticRec/compare-GPU-cache.png'/>
-</center>
-<p>文章对比了 <code>Model-wise</code>、<code>Model-wise (cache)</code>
-和 <code>ElasticRec</code> 在200 QPS
-的内存消耗，<code>ElasticRec</code>的内存消耗仍然是最低的</p>
-<blockquote>
-<p>这里我很好奇为什么不比较延时？<code>ElasticRec</code>延时应该比不过<code>Model-wise (cache)</code>，毕竟CPU和GPU交互需要时间。</p>
-</blockquote>
-<div>
-<p><a name="dlrm"></a> [1]
-<a>https://github.com/facebookresearch/dlrm</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>资源管理</tag>
-        <tag>推荐系统</tag>
-        <tag>面向AI的微服务</tag>
-        <tag>ISCA</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[SoCC 2021] Characterizing Microservice Dependency and Performance: Alibaba Trace Analysis</title>
-    <url>/2024/05/08/alibaba-traces-socc-2021/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：Characterizing Microservice Dependency and Performance: Alibaba
-Trace Analysis</p>
-<p>来源：SoCC 2021</p>
-<p>作者：中国科学院深圳先进技术研究院, 阿里巴巴</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>现在有大量针对微服务架构的研究，比如资源管理、弹性伸缩以及故障诊断等。但是目前仍缺乏针对生产环境中微服务特性的实证研究。这篇文章对阿里巴巴公布的trace数据集<a
-href="#alibabaTrace"><sup>1</sup></a>进行了详细的实证分析，从以下角度揭示了<strong>生产环境</strong>下微服务系统的特点：</p>
-<ul>
-<li>微服务调用图的特点，与传统作业DAG的不同</li>
-<li>无状态微服务之间的依赖关系</li>
-<li>微服务系统的运行时性能受哪些因素的影响</li>
-</ul>
-<p>此外，现有的微服务benchmark也存在一些问题，如：</p>
-<ul>
-<li><b>规模太小</b>。经典的benchmark（如DeathStarBench<a
-href="#DeathStarBench"><sup>2</sup></a>），只包含数个微服务（不超过40）。在这些小规模的微服务benchmark上得到的结论不一定能推广到生产环境中；</li>
-<li><b>静态依赖</b>。这些benchmark的依赖关系都是静态的，无法模拟生产环境中常见的动态性。</li>
-</ul>
-<p>所以这篇文章还基于阿里巴巴的trace数据构建了一个仿真的数学模型，模拟大规模动态微服务系统。</p>
-<h2 id="背景">背景</h2>
-<h3 id="微服务架构">微服务架构</h3>
-<p>这里首先介绍了微服务架构的调用图，以及图中常见的组件：</p>
-<center>
-<img src="/imgs/alibaba-traces-socc-2021/microservice.jpg"/>
-</center>
-<p>这里引入了几个关键术语：</p>
-<ul>
-<li><strong><em>Entering
-Microservice</em></strong>：入口微服务，即请求进入微服务系统的入口。通常是前端微服务。</li>
-<li><strong><em>UM,
-DM</em></strong>：分别指代一条调用链路的上游微服务（upstream
-microservice）和下游微服务（downstream microservice）。</li>
-</ul>
-<p>对于微服务种类，文章基于服务提供的功能将微服务划分为有状态微服务（stateful）和无状态微服务（stateless）。</p>
-<ul>
-<li><strong><em>stateful微服务</em></strong>：通常存储有一些状态数据，常见的有数据库（database）和缓存（memCached），它们大多的接口大多分为两类：reading
-和 writing。</li>
-<li><strong><em>stateless微服务</em></strong>：不存储状态数据，所以可以轻松的伸缩，它们通常提供成百上千个不同接口，用于完成不同的业务功能。</li>
-</ul>
-<p>对于微服务交互种类，文章基于交互协议划分了三种类别：</p>
-<ul>
-<li><strong><em>IP</em></strong>：进程间通信（Inter Process
-communication），常发生在stateless微服务和stateful微服务之间。</li>
-<li><strong><em>RPC</em></strong>：远程过程调用（Remote Procedure
-Call），一种双向通信，DM必须返回给UM结果。</li>
-<li><strong><em>MQ</em></strong>：消息队列（Message
-Queue），一种单向通信，UM发送消息到第三方中间件（消息队列），消息队列储存这个消息，直到DM主动取出这个消息。</li>
-</ul>
-<p>一般来说，RPC效率高，MQ更加灵活。</p>
-<p>此外，还介绍了两个概念：调用深度（call depth）和响应延迟（RT）。</p>
-<ul>
-<li><strong><em>call
-depth</em></strong>：调用深度指调用图中最长的路径长度，比如Figure
-1中的调用图长度为5。</li>
-<li><strong><em>RT</em></strong>：从UM发出请求到UM收到回复的时长。即使同一种接口的请求也会因为参数、状态的不同产生差距较大的延时。</li>
-</ul>
-<h3 id="alibaba-trace">Alibaba Trace</h3>
-<p>alibaba的trace与常见的trace数据模型不同<a
-href="#OpenTracing"><sup>3</sup></a>，因为它更像一种多模态监控数据，包含了<strong>节点信息</strong>、<strong>指标</strong>以及<strong>调用链</strong>等。具体信息如下：</p>
-<center>
-<img src="/imgs/alibaba-traces-socc-2021/alibaba-trace.jpg" width = "500"/>
-</center>
-<ol type="1">
-<li><p><strong><em>物理运行环境</em></strong>：阿里巴巴的集群采用K8s进行管理，整个集群运行在裸机云（bare-metal
-cloud）上，服务与作业通常混合部署在一起以提高资源利用率。Figure 2 (a)
-介绍了云上两种常见的运行方式：</p>
-<ol type="1">
-<li>Online
-Services：比如微服务，运行在容器中，直接由K8s管理，有持续向外界提供服务的能力。（<u>stateful微服务一般部署在特定集群中，不参与混合部署</u>）</li>
-<li>Offline
-Jobs：这些作业一般都需要执行特定的任务，需要K8s事先为它们分配资源，然后调度到特定的机器上执行。</li>
-</ol></li>
-<li><p><strong><em>微服务系统指标</em></strong>：这个大概分为三个部分：硬件层（缓存命中率）、操作系统层（CPU利用率）、应用层（JVM垃圾回收），具体内容如Figure
-2 （b）。</p></li>
-<li><p><strong><em>微服务调用链</em></strong>：如Figure 2
-(c)所示，大体上与OpenTracing的数据模型类似，但是摒弃了<code>spanID</code>和<code>parentSpanId</code>，只留下UM和DM的信息，并用<code>rpcId</code>来唯一标识一个trace内的不同调用，<code>Communication Paradigm</code>代表调用类型（又名<code>rpctype</code>，如rpc）。</p>
-<center>
-<p><img src="/imgs/alibaba-traces-socc-2021/trace-demo.jpg" width = "300"/></p>
-</center></li>
-<li><p><strong><em>聚合调用</em></strong>：如Figure 2
-(d)所示，本质上是对单个微服务的调用信息进行聚合和统计。</p></li>
-</ol>
-<h2 id="调用图的剖析">调用图的剖析</h2>
-<p>这一块内容很多，我只提炼出较为有意义的部分。<font color=red>这里的调用图（call
-graph）并不是指整个微服务依赖图，应该指的是单个trace的拓扑图</font>。</p>
-<h3 id="微服务调用图特征">微服务调用图特征</h3>
-<p>作者在这里总结了三个特征，对下游任务非常有启发：</p>
-<ol type="1">
-<li><p><em>调用图的微服务数量呈现长尾分布</em></p>
-<center>
-<p><img src='/imgs/alibaba-traces-socc-2021/service-num-heavy-distribution.png'/></p>
-</center></li>
-</ol>
-<blockquote>
-<p><strong>现有的benchmark太小了</strong>：10%的调用图的微服务数量&gt;40，存在微服务数量&gt;100的调用图。
-<strong>大量的Memcacheds</strong>：大规模的调用图中有一半的微服务都是Memcacheds，可能是为了减少RT。</p>
-</blockquote>
-<ol start="2" type="1">
-<li><p><em>调用图是一棵树，并且很多图是一条长链路</em></p>
-<center>
-<p><img src='/imgs/alibaba-traces-socc-2021/depth-svcnum.png'/></p>
-</center>
-<center>
-<p><img src='/imgs/alibaba-traces-socc-2021/heat.png'/></p>
-</center></li>
-</ol>
-<blockquote>
-<p><strong>较短的深度</strong>：一半的调用图深度在2~4 （a）
-<strong>树有点胖</strong>：，深度随着微服务数量增加没有明显变化
-（b），说明调用图是宽且浅的？很多下游微服务只是简单的查询数据（stateful微服务一般是叶子节点）
-<strong>较深的图一般都是长链路</strong>：深度增加，但是后面的的微服务数量大多为1个，说明这棵树的宽度基本集中在第2层，后面的都是一条长链路</p>
-<p>有些下游任务（弹性伸缩）会对调用图进行编码，作者特别提到有些图有很长的深度，会让这些任务产生很大的模型以及过拟合。我觉得这没有直接关系，这些数量远远达不到图网络的极限。而且这个实验也可以反过来说，大部分图深度都是很短的。</p>
-</blockquote>
-<ol start="3" type="1">
-<li><p><em>许多stateless微服务是热点</em></p>
-<center>
-<p><img src='/imgs/alibaba-traces-socc-2021/degree.png' width='500'/></p>
-</center></li>
-</ol>
-<blockquote>
-<p><strong>存在高入度微服务</strong>：有5%的stateless微服务入度&gt;16，这些微服务在90%的调用图存在，处理了95%的请求。这些服务很大概率是瓶颈，可以用来指导弹性伸缩。</p>
-</blockquote>
-<ol start="4" type="1">
-<li><em>微服务调用图大多是动态的</em></li>
-</ol>
-<center>
-<img src='/imgs/alibaba-traces-socc-2021/clusters.png' width='500'/>
-</center>
-<blockquote>
-<p>这个动态和其他文章提到的动态不一样，文中的动态性指的是请求同一个服务的接口，如果参数不一样，会产生不同的拓扑链路（Figure
-6）；其他文章提到的是微服务系统始终在动态变化。</p>
-</blockquote>
-<h3 id="微服务调用关系特征">微服务调用关系特征</h3>
-<ol type="1">
-<li><p><em>不同层之间调用类型差别大</em></p>
-<center>
-<p><img src='/imgs/alibaba-traces-socc-2021/dist-invo-type.png' width='500'/></p>
-</center></li>
-</ol>
-<p>首先考虑微服务是否DM，大致分为以下几类：①
-<code>black holes</code>（没有DM），②<code>relay</code>（必须有DM），③<code>normal</code>（一定概率有DM）</p>
-<p>IP(S2D)，IP(S2M)，IP(S2) 表示IP通信的双方分别为：stateless
-微服务与database，stateless
-微服务与Memcacheds，stateless微服务与stateless微服务</p>
-<blockquote>
-<p>深度增加，black
-holes比例增加，relay比例减少，normal中对应部分也是如此。</p>
-<p>深度增加，IP(S2M)
-比例先增后减，IP(S2D)在升高，表明缓存命中率在下降，转而去查询数据库。MQ比例增加，说明业务链路较深时（业务复杂），倾向于使用MQ来减少RT</p>
-</blockquote>
-<h2 id="微服务之间的依赖">微服务之间的依赖</h2>
-<p>这一章节对如何设计和优化微服务架构有启发，不是我研究的范畴，暂时略过</p>
-<h3 id="并行依赖">并行依赖</h3>
-<center>
-<img src='/imgs/alibaba-traces-socc-2021/parallel.png' width='500'/>
-</center>
-<blockquote>
-<p><strong>并行依赖很少</strong>：数据集中大部分的微服务都很少被并行调用，这个并行给我的感觉就是异步调用</p>
-</blockquote>
-<h2 id="微服务的运行时性能">微服务的运行时性能</h2>
-<p>这个章节很重要，对资源管理有很大的指导作用。首先介绍一个定义：MCR代表微服务调用速率，我的理解是服务承受的负载</p>
-<h3 id="mcr对资源的影响">MCR对资源的影响</h3>
-<ol type="1">
-<li><em>MCR与CPU利用率和Young GC强相关，但与Memory利用率相关性弱</em>
-<center>
-<img src='/imgs/alibaba-traces-socc-2021/resource-mcr.png' width='500'/>
-</center></li>
-</ol>
-<blockquote>
-<p><strong>与CPU利用率，Young GC强相关</strong>：Young
-GC指的是对JVM堆内存中的新生代区域进行垃圾回收<a
-href="#YoungGC"><sup>4</sup></a>，Young
-GC频繁会造成性能下降或者应用stop，可能是因为内存泄漏等原因。
-<strong>与内存，Old GC相关性弱</strong>：alibaba
-trace中容器的内存一般都很稳定，Old
-GC频率可能也是如此（老年代本身垃圾回收就不频繁），所以在实验中不是很明显（受限于数据集特征）。</p>
-</blockquote>
-<ol start="2" type="1">
-<li><em>资源对响应时间的影响</em>
-<div>
-<p><img src='/imgs/alibaba-traces-socc-2021/resource-RT.png' width='300'/>
-<img src='/imgs/alibaba-traces-socc-2021/RT-mcr.png' width='300'/></p>
-</div></li>
-</ol>
-<p>图中的延时选的是P75延时 &gt;
-<strong>与CPU利用率强相关</strong>：随着CPU利用率升高，RT明显升高，但RT对内存反应不是很明显（可能是因为缺乏高内存数据）
-&gt; <strong>与容器的MCR不太相关</strong>：Alibaba
-trace中即使MCR很高了，CPU利用率可能还低于10%，所以RT变化不大，<em>说明资源浪费很严重</em></p>
-<h2 id="随机图模型">随机图模型</h2>
-<center>
-<img src='/imgs/alibaba-traces-socc-2021/graph-generator.png' width='300'/>
-</center>
-<p>这里简单讲一下，代码实现应该不难： 1.
-准备一个存储stateless服务的队列<span
-class="math inline">\(Q\)</span>，并放入Entering Microservice 2.
-执行循环，直到<span class="math inline">\(Q\)</span>为空 1. <span
-class="math inline">\(Q\)</span>弹出一个服务作为UM 2.
-如果UM的类型是<code>Relay</code>或者<code>normal (Relay)</code>，则根据数据集中DM服务类型的分布，生成对应类型的服务数量
-3. 为生成的DMs中不同服务类型确定<code>communication paradigm</code> 4.
-将生成的DMs中stateless的微服务放入<span class="math inline">\(Q\)</span>
-3. 图优化 1. 遍历生成的图的每一层 1.
-随机选择两个父项，如果他们共享相同的标签，则合并他们的两个孩子。 2.
-合并的节点将连接到两个父节点</p>
-<blockquote>
-<p>暂时还没有看到随机模型被其他论文使用，可能是因为大家都可以自己搭建环境生产数据吧，也可能是因为alibaba
-trace够用了</p>
-</blockquote>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="alibabaTrace"></a> [1]
-<a>https://github.com/alibaba/clusterdata</a></p>
-</div>
-<div>
-<p><a name="DeathStarBench"></a> [2] Yu Gan. An Open-Source Benchmark
-Suite for Microservices and Their Hardware-Software Implications for
-Cloud &amp; Edge Systems. ASPLOS, 2019.
-<a>https://github.com/delimitrou/DeathStarBench</a></p>
-</div>
-<div>
-<p><a name="OpenTracing"></a> [3] OpenTracing, “Opentracing,”
-<a>https://opentracing.io/specification</a></p>
-</div>
-<div>
-<p><a name="YoungGC"></a> [4] java 六 Young GC 和 Full GC
-<a>https://www.cnblogs.com/klvchen/articles/11758324.html</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>实证分析</tag>
-        <tag>SoCC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</title>
-    <url>/2024/06/23/TraStrainer/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
-System Runtime State</p>
-<p>来源：FSE 2024</p>
-<p>作者：中山大学DDS实验室</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
-sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
-<ul>
-<li><code>random sampling</code>：又称 head
-sampling，即以固定概率决定每条trace是否采样</li>
-<li><code>biased sampling</code>：又称 tail
-sampling，即根据trace的状态决定是否采样</li>
-</ul>
-<p>很明显，<code>random sampling</code>
-实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
-能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
-<p>先前的 <code>biased sampling</code>
-工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
-runtime
-state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
-<center>
-<img src="/imgs/TraStrainer/trace-metric.png"/>
-</center>
-<p>本文提出了TraStrainer，从以下角度进行在线采样： -
-考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
-考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
-密度采样+系统采样 <span class="math inline">\(\to\)</span>
-最终采样决策</p>
-<h2 id="动机">动机</h2>
-<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
-<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
-traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
-<ol type="1">
-<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
-common-case traces也有很大的用处:</p>
-<ul>
-<li><strong>common-case traces
-可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
-traces。而我们分析这些common-case
-traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
-<li><strong>common-case traces
-有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
-traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
-</ul></li>
-<li><p><strong>结合 system runtime state
-有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
-3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
-的CPU被打满，到达 Node A
-的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
-的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
-</ol>
-<center>
-<img src="/imgs/TraStrainer/metric-importance.png"/>
-</center>
-<p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
-<h2 id="问题定义">问题定义</h2>
-<p>给定一段时间收集的traces <span
-class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
-class="math inline">\(\mathcal{M}\)</span>、采样率 <span
-class="math inline">\(\beta\)</span>，需要对<span
-class="math inline">\(\mathcal{T}\)</span>中每个trace <span
-class="math inline">\(t\)</span> 计算采样概率 <span
-class="math inline">\(\rho\)</span>。整个过程定义为：</p>
-<p><span class="math display">\[
-S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
-\]</span></p>
-<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
-class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
-<h2 id="trastrainer-概要">TraStrainer 概要</h2>
-<center>
-<img src="/imgs/TraStrainer/TraStrainer.png"/>
-</center>
-<p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
-<ul>
-<li><p><strong>Runtime Data Preprocessing</strong>：</p>
-<ul>
-<li>Trace Encoder：对trace进行结构和状态编码</li>
-<li>System Bias Extractor：将当前系统状态指标进行编码</li>
-</ul></li>
-<li><p><strong>Comprehensive Sampling</strong>：</p>
-<ul>
-<li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
-<li>Diversity-Biased Sampler：优先采样edge cases traces</li>
-<li>Composite Sampler：结合上述两种采样器进行最终决策</li>
-</ul></li>
-</ul>
-<h3 id="trace-encoder">Trace Encoder</h3>
-<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
-<center>
-<img src="/imgs/TraStrainer/encoder-example.png"/>
-</center>
-<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
-Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
-class="math inline">\(m_1\)</span>就是（<span
-class="math inline">\(C\)</span>, <span
-class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
-class="math inline">\(m_1\)</span>的值<span
-class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
-class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
-<p><span class="math display">\[
-   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
-\]</span></p>
-<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
-class="math inline">\(m_1\)</span>相关的span，而<span
-class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
-&gt;
-注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
-<p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
-<h3 id="system-bias-extractor">System Bias Extractor</h3>
-<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
-<center>
-<img src="/imgs/TraStrainer/metric-anomaly.png"/>
-</center>
-<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
-href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
-class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
-<span class="math display">\[
-   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
-\]</span></p>
-<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
-class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>。</p>
-<h3 id="system-biased-sampler">System-Biased Sampler</h3>
-<p>System-Biased
-Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
-<p>本文定义了一个固定长度look-back window，由<span
-class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
-class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
-Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
-class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
-class="math inline">\(\mu_i\)</span>和标准差<span
-class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
-class="math inline">\(t_{k+1}\)</span> 的第<span
-class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
-class="math display">\[
-   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
-\]</span></p>
-<p><span
-class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
-class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
-class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>
-进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
-<span class="math display">\[
-   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
-\]</span></p>
-<p>以上操作是将点积<span
-class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
-<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
-<p>Diversity-Biased Sampler的目标是考虑edge-case
-traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
-traces。</p>
-<p>论文将look-back
-window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
-<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
-class="math inline">\(c_{k+1}&#39;\)</span>。<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
-class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
-class="math inline">\(t_{k+1}\)</span> 和 所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
-class="math inline">\(si(t_{k+1})\)</span>。</p>
-<p><strong>一般来说，所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
-class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
-class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
-class="math display">\[
-   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
-\]</span></p>
-<h3 id="composite-sampler">Composite Sampler</h3>
-<p>对于新到trace <span
-class="math inline">\(t\)</span>，综合两个采样概率 <span
-class="math inline">\(p_s(t)\)</span> 和 <span
-class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
-class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
-mechanism）最终决策。</p>
-<center>
-<img src="/imgs/TraStrainer/vote.png"/>
-</center>
-<p>首先统计过去look-back window里采样概率 <span
-class="math inline">\(\theta\)</span>，如果： - <span
-class="math inline">\(\theta \geq
-\beta\)</span>，必须两个采样决策都为True，才采样 - <span
-class="math inline">\(\theta \leq
-\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
-<div>
-<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
-Qiang Xu. 2023. Are transformers effective for time series forecasting?.
-In Proceedings of the AAAI conference on artificial intelligence, Vol.
-37. 11121–11128.</p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>trace采样</tag>
-        <tag>FSE</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</title>
-    <url>/2024/06/22/MicroDig/</url>
-    <content><![CDATA[<blockquote>
-<p>题目：Diagnosing Performance Issues for Large-Scale Microservice
-Systems with Heterogeneous Graph</p>
-<p>来源：TSC 2024</p>
-<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
-<ul>
-<li>基于调用和微服务之间的因果关系构建异构传播图</li>
-<li>采样面向异构的随机游走算法进行根因服务定位</li>
-</ul>
-<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3
-accuracy。</p>
-<h2 id="背景">背景</h2>
-<p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
-<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150
-billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end
-aggregated calls）。</p>
-<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a
-href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
-注：aggregated call在GMTA中提到过，应该就是一段时间（比如1
-min）内trace的聚合：
-<center>
-<img src="/imgs/MicroDig/GMTA-path.png"/>
-</center>
-<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。
-【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
-<h2 id="动机">动机</h2>
-<h3 id="调用关系异常传播的因果关系">调用关系≠异常传播的因果关系</h3>
-文章举了一个例子来说明这个观点：
-<center>
-<img src="/imgs/MicroDig/call-casual.png"/>
-</center>
-<p><span class="math inline">\(A \to B \to C\)</span>
-的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是<span
-class="math inline">\(C\)</span>，然而，操作员却没有在<span
-class="math inline">\(C\)</span>中发现有意义的故障报告。因为 <span
-class="math inline">\(B\)</span> 已经用尽了文件描述符，无法建立与 <span
-class="math inline">\(C\)</span> 的新连接，所以<span
-class="math inline">\(B \to C\)</span>有大量的异常出现。所以根因是<span
-class="math inline">\(B\)</span>不是<span
-class="math inline">\(C\)</span>，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
-<blockquote>
-<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
-</blockquote>
-<h3 id="异构传播图">异构传播图</h3>
-<p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous
-propagation graph）来描述故障传播的因果关系：</p>
-<center>
-<img src="/imgs/MicroDig/hpg.png"/>
-</center>
-<ul>
-<li><p>如上图所示，<span class="math inline">\(R(A,B)\)</span> 代表<span
-class="math inline">\(A \to B\)</span>的异常率（anomaly rate），<span
-class="math inline">\(R(A)\)</span> 代表服务<span
-class="math inline">\(A\)</span>
-本身的异常率。注意，服务本身的异常率，如<span
-class="math inline">\(R(A)\)</span>，在这个工作中是不可观测的；边的异常率，如<span
-class="math inline">\(R(A,B)\)</span>，是可以被观测的。</p></li>
-<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如<span
-class="math inline">\(R(A) \to R(A,B)\)</span>）。</p></li>
-<li><p>文章添加了一些假设：①服务之间是独立的，比如<span
-class="math inline">\(R(A)\)</span>和<span
-class="math inline">\(R(B)\)</span>是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如<span
-class="math inline">\(R(A,B)\)</span>和<span
-class="math inline">\(R(C,D)\)</span></p></li>
-</ul>
-<p>根据作者的设计，这里应该就能看到<span
-class="math inline">\(R(B,C)\)</span>是受<span
-class="math inline">\(R(B)\)</span>和<span
-class="math inline">\(R(C)\)</span>影响的了，从某种意义上给3.1的问题提供了思路。</p>
-<h2 id="microdig-架构">MicroDig 架构</h2>
-<center>
-<img src="/imgs/MicroDig/structure.png"/>
-</center>
-<p>可以看到MicroDig分为几个部分： 1. 性能监控 (Monitoring) 2.
-相关调用的识别 (Association Call Identification) 3. 异构传播图的构建
-(Heterogeneous Propagation Graph Construction) 4. 根因定位 (Root Cause
-Localization)</p>
-<h3 id="association-call-identification">Association Call
-Identification</h3>
-<p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
-<h4 id="构造port-level-异常子图">构造<code>port-level</code>
-异常子图</h4>
-<p>文章首先构造 <code>port-level</code>
-异常子图，<code>port-level</code>即接口级别，图中的节点都是接口，
-具体步骤如下：</p>
-<ol type="1">
-<li>构造 <code>port-level</code>
-调用图（为什么选用<code>port-level</code>）</li>
-<li>在调用图上进行
-<em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em>
-对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
-</ol>
-<blockquote>
-<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
-</blockquote>
-<h4 id="构造service-level-异常子图">构造<code>service-level</code>
-异常子图</h4>
-<p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务<span
-class="math inline">\(S\)</span>和<span
-class="math inline">\(S&#39;\)</span>，定义<span
-class="math inline">\(F(p,p&#39;)\)</span>和<span
-class="math inline">\(N(p,p&#39;)\)</span>分别为其中<code>port-level</code>边<span
-class="math inline">\(p \to
-p&#39;\)</span>的异常调用数和总调用数，那么时间点<span
-class="math inline">\(t\)</span>的<span class="math inline">\(S \to
-S&#39;\)</span>的异常率<span class="math inline">\(R_t(S,
-S&#39;)\)</span>为：</p>
-<p><span class="math display">\[
-    R_t(S, S&#39;)=\frac{\sum_{p\in S, p&#39; \in
-S&#39;}F_t(p,p&#39;)}{\sum_{p\in S, p&#39; \in S&#39;}N_t(p,p&#39;)}
-\]</span></p>
-<p>整个过程如图(a) (b)所示 ：</p>
-<center>
-<img src="/imgs/MicroDig/hpg-build.png"/>
-</center>
-<h4 id="构造-heterogeneous-propagation-graph">构造 Heterogeneous
-Propagation Graph</h4>
-<p>3.1
-中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous
-Propagation Graph （HPG）：</p>
-<center>
-<img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
-</center>
-<p>原理很简单： 1.
-<strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到
-HPG 2. <strong>设置call节点</strong>：对于每个服务<span
-class="math inline">\(S\)</span>，将<span
-class="math inline">\(S\)</span>的出边和入边作为节点加入HPG 3.
-<strong>call节点和service节点的关系</strong>：对于每个call节点（<span
-class="math inline">\(S \to S&#39;\)</span>），设置 <span
-class="math inline">\(S \to (S \to S&#39;)\)</span>，<span
-class="math inline">\((S \to S&#39;) \to S&#39;\)</span> 4.
-<strong>call节点和call节点的关系</strong>：对于每个服务<span
-class="math inline">\(S\)</span>，设置：出边 <span
-class="math inline">\(\to\)</span> 入边</p>
-<h3 id="根因服务定位">根因服务定位</h3>
-<p>异构传播图（HPG）有两种节点（service，call）和两种边（service <span
-class="math inline">\(\to\)</span> call, call <span
-class="math inline">\(\to\)</span>
-call）。本文采取针对异构图的随机游走算法来定位根因：</p>
-<center>
-<img src="/imgs/MicroDig/HPG-example.png" width="300"/>
-</center>
-<h4 id="转移权重">转移权重</h4>
-<p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
-<ol type="1">
-<li>对于call <span class="math inline">\(\to\)</span> call：比如<span
-class="math inline">\(C_{23} \to
-C_{12}\)</span>，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</li>
-<li>对于service <span class="math inline">\(\to\)</span> call：比如<span
-class="math inline">\(S_1 \to C_{12}\)</span>
-<ul>
-<li><p>首先计算service的异常程度，定义<span
-class="math inline">\(\mathbb{S}_U\)</span>和<span
-class="math inline">\(\mathbb{S}_D\)</span>分别表示服务<span
-class="math inline">\(S\)</span>的上游服务集合和下游服务集合，服务<span
-class="math inline">\(S\)</span>的异常程度<span
-class="math inline">\(\alpha_S\)</span>可以表示为： <span
-class="math display">\[
-\alpha_S = \frac{|\{S&#39;|S&#39;\in \mathbb{S}_U \cup \mathbb{S}_D,
-\theta(S&#39;)=1 \}|}{|\mathbb{S}_U \cup \mathbb{S}_D|}
-\]</span> 当<span
-class="math inline">\(S&#39;\)</span>有任意一条<code>port-level</code>的边是异常时，<span
-class="math inline">\(\theta(S&#39;)=1\)</span>。</p></li>
-<li><p>然后计算service <span class="math inline">\(\to\)</span>
-call的权重。对于任意一个call节点<span class="math inline">\(C=S_{caller}
-\to S_{callee}\)</span>，有两条service <span
-class="math inline">\(\to\)</span> call类型的边：<span
-class="math inline">\(S_{caller} \to C\)</span> 和 <span
-class="math inline">\(C \to
-S_{callee}\)</span>。这两条边的权重分别为：<span
-class="math inline">\(\omega_{caller}\)</span> 和 <span
-class="math inline">\(\omega_{callee}\)</span>，分别计算如下： <span
-class="math display">\[
-\omega_{caller}=max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]
-\]</span></p></li>
-</ul>
-<span class="math display">\[
-   \omega_{callee}=max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]
-\]</span> 其中，<span class="math inline">\(\Delta \alpha =
-\alpha(S_{caller})-\alpha(S_{callee})\)</span>，<span
-class="math inline">\(\Delta
-\eta\)</span>即当前服务的所有入边的权重-所有出边的权重。</li>
-</ol>
-<h4 id="异构随机游走">异构随机游走</h4>
-<p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
-<ul>
-<li><strong>backward
-edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward
-edge，权重是有向边的<span class="math inline">\(\rho\)</span>倍。</li>
-<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
-</ul>
-<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
-<center>
-<img src="/imgs/MicroDig/random-walk.png" width="500"/>
-</center>
-<h2 id="总结">总结</h2>
-<ul>
-<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
-<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
-<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
-</ul>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
-trace analysis for microservice architecture understanding and problem
-diagnosis, ESEC/FSE. 2020: 1387-1397.
-<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
-</div>
-]]></content>
-      <categories>
-        <category>文献精读</category>
-      </categories>
-      <tags>
-        <tag>微服务</tag>
-        <tag>trace</tag>
-        <tag>根因定位</tag>
-        <tag>TSC</tag>
       </tags>
   </entry>
   <entry>

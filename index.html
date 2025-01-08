@@ -200,6 +200,363 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/12/21/OptTraffic/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/12/21/OptTraffic/" class="post-title-link" itemprop="url">[ICPP 2023] On Optimizing Traffic Scheduling for Multi-replica Containerized Microservices</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-12-21 10:29:27" itemprop="dateCreated datePublished" datetime="2024-12-21T10:29:27+08:00">2024-12-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-01-08 11:54:50" itemprop="dateModified" datetime="2025-01-08T11:54:50+08:00">2025-01-08</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>7.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>13 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：On Optimizing Traffic Scheduling for Multi-replica
+Containerized Microservices</p>
+<p>ICPP 2023</p>
+<p>作者：中国科学技术大学，华为</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>基于容器的微服务系统部署已经变得越来越重要，为了应对高并发（high
+concurrency）和提升错误容忍度（fault
+tolerance），微服务系统通常会引入多个副本（replicas）。目前有两种类别的服务部署方法：</p>
+<ul>
+<li><code>resource-friendly</code>：将 pod
+尽可能分散部署到不同机器上，目标是<u>平均各机器的资源使用率</u>。（e.g.,
+Kubernetes，Docker Swarm，OpenShift）</li>
+<li><code>traffic localization</code>：将流量（traffic）交互频繁的
+pod放到同一台主机上，目标是<u>减少跨主机流量导致的性能降级</u>。（e.g.,
+CA-WFD，Blender，NetMARKS）</li>
+</ul>
+<p>这两种方法各有利弊：①
+<code>resource-friendly</code>存在大量跨主机流量（cross-machine
+traffic），可能会引发性能降级；②
+<code>traffic localization</code>在多replicas情况下，由于机器资源不足，也会存在大量cross-machine
+traffic。</p>
+<p>文章提出了一种网络感知的流量调度（traffic scheduling）方法
+<code>OptTraffic</code>，首先通过轻量级监控方法估计容器之间的流量大小，然后通过算法分配容器之间的流量比例（默认应该是负载均衡），目标是减少
+cross-machine traffic，并尽可能平均各主机的资源利用率。</p>
+<h2 id="背景">背景</h2>
+<h3 id="基于容器的微服务">基于容器的微服务</h3>
+<p>文章首先介绍了微服务是什么，这里就不进行赘述了。然后介绍了基于容器的微服务部署方法：</p>
+<p>首先是传统的容器部署，代表为K8s，文章说是基于<code>resource-friendly</code>的，简而言之，就是只考虑容器的CPU和内存需求。这里我先查阅了K8s调度器
+kube-scheduler 的<a
+href="https://kuboard.cn/">说明</a>，以下是文档的内容：</p>
+<blockquote>
+调度器执行步骤如下：
+<center>
+<img src="/imgs/OptTraffic/k8s-schedule.png" width='700'/>
+</center>
+<ol type="1">
+<li>找出该 Pod 的所有
+<strong>可选节点</strong>，这个过程称为过滤（filtering）</li>
+<li>按照某种方式对每一个 <strong>可选节点</strong>
+评分，这个过程称为打分（scoring）</li>
+<li>选择评分最高的 <strong>可选节点</strong></li>
+<li>将最终选择结果通知 API Server，这个过程称为绑定（binding）</li>
+</ol>
+<p>文章的重点在打分，假设全部节点皆可部署，则有如下打分策略：</p>
+<ul>
+<li><code>SelectorSpreadPriority</code>：将 Pod
+分散到不同的节点，主要考虑同属于一个
+Service、StatefulSet、Deployment的情况</li>
+<li><code>InterPodAffinityPriority</code>：遍历 weightedPodAffinityTerm
+并求和，找出结果最高的节点</li>
+<li><code>LeastRequestedPriority</code>：已被消耗的资源最少的节点得分最高。如果节点上的
+Pod 越多，被消耗的资源越多，则评分约低</li>
+<li><code>MostRequestedPriority</code>：已被消耗的资源最多的节点得分最高。此策略会把
+Pod 尽量集中到集群中的少数节点上</li>
+<li><code>RequestedToCapacityRatioPriority</code>：按 requested /
+capacity 的百分比评分</li>
+<li><code>BalancedResourceAllocation</code>：资源使用均衡的节点评分高</li>
+<li><code>NodePreferAvoidPodsPriority</code>：根据节点的 annotation
+scheduler.alpha.kubernetes.io/preferAvoidPods 评分。可使用此 annotation
+（容忍度 Toleration 和 污点 Taint）标识哪些 Pod
+不能够运行在同一个节点上</li>
+<li><code>NodeAffinityPriority</code>：基于
+PreferredDuringSchedulingIgnoredDuringExecution 指定的 node affinity
+偏好评分。参考 将容器组调度到指定的节点</li>
+<li><code>TaintTolerationPriority</code>：
+根据节点上不可容忍的污点数评分</li>
+<li><code>ImageLocalityPriority</code>：有限选择已经有该 Pod
+所需容器镜像的节点</li>
+<li><code>ServiceSpreadingPriority</code>：确保 Service 的所有 Pod
+尽量分布在不同的节点上。</li>
+<li><code>CalculateAntiAffinityPriorityMap</code>：anti-affinty，参考将容器组调度到指定的节点</li>
+<li><code>EqualPriorityMap</code>：为每个节点指定相同的权重</li>
+</ul>
+<p>这些打分策略都有一定的权重，最终的分数计算如下： <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">finalScoreNode &#x3D; (weight1 * priorityFunc1) + (weight2 * priorityFunc2) + ...</span><br></pre></td></tr></table></figure></p>
+<p>经过查阅<a
+href="https://www.qikqiak.com/k8strain2/scheduler/overview/">资料</a>，默认开启的调度代码如下，可以看出，<u>在所有节点都有对应镜像，没有亲和性和污点干扰的情况下，k8s其实偏向于<code>resource-friendly</code>，即分布更加均匀，相关策略有BalancedAllocationName、LeastAllocatedName</u>：</p>
+<p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">Score: &amp;schedulerapi.PluginSet&#123;</span><br><span class="line">           Enabled: []schedulerapi.Plugin&#123;</span><br><span class="line">               &#123;Name: noderesources.BalancedAllocationName, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: imagelocality.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: interpodaffinity.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: noderesources.LeastAllocatedName, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: nodeaffinity.Name, Weight: 1&#125;,</span><br><span class="line">               &#123;Name: nodepreferavoidpods.Name, Weight: 10000&#125;,</span><br><span class="line">               &#x2F;&#x2F; Weight is doubled because:</span><br><span class="line">               &#x2F;&#x2F; - This is a score coming from user preference.</span><br><span class="line">               &#x2F;&#x2F; - It makes its signal comparable to NodeResourcesLeastAllocated.</span><br><span class="line">              &#123;Name: podtopologyspread.Name, Weight: 2&#125;,</span><br><span class="line">               &#123;Name: tainttoleration.Name, Weight: 1&#125;,</span><br><span class="line">           &#125;,</span><br><span class="line">       &#125;,</span><br></pre></td></tr></table></figure>
+总的来说，K8s默认是<code>resource-friendly</code>的说法倒也没啥问题~~~</p>
+</blockquote>
+<p>然后文章介绍了集中式部署，即以减少cross-machine
+traffic为目标的<code>traffic localization</code>方法，这里进行了一个实证分析来论证cross-machine
+traffic的影响，具体实验方法为：</p>
+<blockquote>
+将经典应用 socialNetwork 部署到2台主机，并用 <a
+href="https://github.com/Mellanox/sockperf">sockperf</a>
+模拟两个主机之间的流量干扰，测量不同QPS下不同带宽的延时的P99分布
+<center>
+<img src="/imgs/OptTraffic/fig 2.png" width='500'/>
+</center>
+<p><font color='blue'>图中显示QPS增大时，同样带宽下的P99延时明显增大，所以cross-machine
+traffic受带宽限制，会影响延时。</font>但这有没有可能是 POD
+资源不够导致的（这里应该给 POD 设置足够充足的资源来消除影响）？</p>
+</blockquote>
+<h3 id="traffic-localization-及其局限"><code>Traffic localization</code>
+及其局限</h3>
+<p>为了解决cross-machine traffic带来的性能降级问题，许多工作提出了
+<code>traffic localization</code> 的部署方法，有两种实现方式：</p>
+<ul>
+<li>将属于同一个application的所有容器部署到相同或邻近的主机</li>
+<li>将流量交互密切的容器对（container pairs）调度到相同或邻近的主机</li>
+</ul>
+<p><code>traffic localization</code> 不仅可以减少 cross-machine traffic
+带来的<strong>网络延迟</strong>（由传输路径和带宽大小决定），也可以减少对网络数据包操作（包的封装和解析）带来的<strong>计算开销</strong>。</p>
+<blockquote>
+<p>为了验证 <code>traffic localization</code>
+对于节省网络流量和降低响应延时的作用，文章在两种部署方式上进行实验：</p>
+<ol type="1">
+<li>部署 socialNetwork 到 5 台主机上</li>
+<li>部署 socialNetwork 到 1
+台主机上（<code>traffic localization</code>）</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/fig 3.png" width='500'/>
+</center>
+<p><font color='blue'>图（a）显示 <code>traffic localization</code>
+可以减少大量的cross-machine traffic。图（b）显示
+<code>traffic localization</code> 可以大幅度减少响应延时</font></p>
+</blockquote>
+<p><strong>Limitation</strong>：<code>traffic localization</code>虽然能显著减少cross-machine
+traffic来提升性能，但是通常很难完全将一个 application
+的所有微服务都部署到一台主机上，原因在于微服务还会产生多个replicas，除此之外，监控容器之间的流量也会引入较大的CPU负载，<code>traffic localization</code>也会造成机器资源使用不均。具体如下：</p>
+<p>（1）<strong>当 POD
+分布在不同主机时</strong>。因为负载均衡，流量会均匀流向不同主机的POD，造成大量的cross-machine
+traffic</p>
+<p>（2）<strong>高CPU负载</strong>。对容器间流量的监控一般需要抓取数据包，对数据包的封装和解析过程会造成高昂的CPU开销。比如socialNetwork有27个容器，消耗13个CPU核，而加上监控装置（e.g.,
+iftop）会多消耗 1.4-2 个
+CPU核【istio也存在这样的问题，甚至sidecar消耗更多】</p>
+<p>（3）<strong>不均衡的资源使用</strong>。许多pod有着相同的资源需求，比如都是CPU密集型，将他们放置在一台主机上会造成资源使用不均衡，即CPU过载，但是内存利用率低。除此之外，将所有pod放在一台主机上会使得fault
+tolerance降低。</p>
+<h2 id="方法设计">方法设计</h2>
+<center>
+<img src="/imgs/OptTraffic/structure.png" width='500'/>
+</center>
+<p><u><code>OptTraffic</code> 的目标是最小化 cross-machine
+traffic</u>。整体架构如上图所示。包含三个组件：</p>
+<ol type="1">
+<li><code>Traffic Monitor</code>。这个组件用轻量级的方式估计每个
+container pair 之间的流量大小。做法为收集每个容器的 incoming 和 outgoing
+traffic，然后构建一个 traffic graph，最后通过简单的数学计算估计每个
+container pair 之间的流量大小</li>
+<li><code>Traffic Allocator</code>。流量调度模块，决定 upstream
+container 流向 每个 downstream container
+的流量比例。具体策略为本地优先（local-first），以减少跨主机流量</li>
+<li><code>Container Scheduler</code>。异步调整 container pairs
+的部署，以实现机器之间的负载均衡。</li>
+</ol>
+<h3 id="traffic-monitor">Traffic Monitor</h3>
+<p><code>Traffic Monitor</code> 有两个目的：①
+识别频繁交互（heavy-traffic）的链路 ② 为链路调度进行优先级排序</p>
+<p>现有两种方式进行容器间流量的监控：</p>
+<ol type="1">
+<li>在容器所在POD加一个sidecar，接管流量的转发和监控（e.g.,
+istio）。</li>
+<li>使用网络包嗅探工具在userspace进行解析（e.g., tcpdump and
+iftop）。</li>
+</ol>
+<p>这两种方式都会造成高昂的CPU负载。文章还特别提到了在kernel space
+工作的
+eBPF，可以减少监控负载，但仍需要分析网络包，并且实现复杂。所以作者想用数学方法来减少监控带来的负载。</p>
+<blockquote>
+<p>eBPF
+避免用户态与内核态切换：传统上，像tcpdump这样的工具是在用户空间工作的，它们需要将网络数据包从内核空间复制到用户空间进行分析。这个过程涉及上下文切换和内存拷贝，带来了额外的CPU开销。而eBPF程序则可以在内核空间内部处理数据包，无需这种昂贵的数据传输。</p>
+</blockquote>
+<p><strong>Step 1: 监控容器流量</strong>。</p>
+<center>
+<img src="/imgs/OptTraffic/fig 6.png" width='500'/>
+</center>
+<p>如 fig 6 所示，一个upstream container 可以与多个 downstream
+container进行交互，<code>OptTraffic</code>首先使用 Prometheus
+监控每个container接收和发送的traffic</p>
+<blockquote>
+<p>Prometheus 只是一个收集工具，数据源来自于
+操作系统记录的每个容器接收和发送的包的大小（这些数据已经保存在主机上，所以只需要周期性地获取就行，几乎没有监控成本），数据保存在
+proc 文件系统中，经过查资料，应该用的是这两个指标：</p>
+<ul>
+<li>container_network_receive_bytes_total</li>
+<li>container_network_transmit_bytes_total</li>
+</ul>
+</blockquote>
+<p><strong>Step 2: 计算链路流量</strong>。链路流量（Link
+Traffic）指的是特定的两个容器之间的流量大小，<code>OptTraffic</code>
+直接使用数学方法计算得到，减少监控的负载（注意：上一步只能监控到每个容器的接收和发送的traffic大小，不能知道与特定容器之间的traffic大小）。计算步骤如下，从入度为
+1 的节点 <span class="math inline">\(p\)</span> （根节点）开始，先将与
+<span class="math inline">\(p\)</span> 相关的两条边赋值（即&lt;<span
+class="math inline">\(p\)</span>,<span
+class="math inline">\(q\)</span>&gt;和&lt;<span
+class="math inline">\(q\)</span>,<span
+class="math inline">\(p\)</span>&gt;），这两条边的值完全等于 <span
+class="math inline">\(p\)</span> 的 send 和 receive 的 traffic 。然后将
+<span class="math inline">\(p\)</span> 相关的流量从 <span
+class="math inline">\(q\)</span> 中减去，从图中删去 <span
+class="math inline">\(p\)</span>，重复如上过程，直到所有节点计算完毕。</p>
+<blockquote>
+<ol type="1">
+<li>构造微服务系统的
+DAG。（可以通过通过配置文件、官方文档或者其他监控手段得到）</li>
+<li>基于 DAG 构造 traffic graph。traffic
+graph有着和DAG相同的构造，唯一的不同是，traffic graph是双向边，代表
+traffic 也可以从 downstream container 发往 upstream container
+（response）</li>
+<li>基于 traffic graph 计算每个 link 的traffic大小，算法如下：</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/algo 1.png" width='500'/>
+</center>
+<p><code>GraphMerge</code> 和
+<code>BreakCycle</code>两个函数用于解决图中存在环的情况。如下图所示，环有两种情况：</p>
+<ol type="1">
+<li>upstream containers 来自不同微服务 （Fig. 7(b)）</li>
+<li>upstream containers 来自同一个微服务的不同replicas （Fig.
+7(c)）</li>
+</ol>
+<center>
+<img src="/imgs/OptTraffic/fig 7.png" width='500'/>
+</center>
+<p>对于 case1，<code>BreakCycle</code> 函数首先选择环中 incoming 和
+outgoing traffic 最少的 container
+进行讨论，然后通过网络包嗅探工具监控这个 container 每条边 send 和
+receive 的traffic。然后在相关 containers 中移除这个 container
+的traffic，最后删除这个container，这样就可以破坏环。</p>
+<p>对于case2，<code>GraphMerge</code> 函数将属于同一个微服务的 replicas
+进行合并，至于每个 replica 分得的
+traffic，可以通过流量分配策略进行估算</p>
+<p><strong>负载分析</strong>：从设计上看，<code>OptTrace</code>
+确实轻量级，因为不需要监控每条 link 的 traffic，而每个 vertex 的 traffic
+本身就被os记录下来了。即使有环，也只需要对一部分容器进行网络包嗅探分析，破环即可。算法复杂度为O(N)，N为节点数量。</p>
+</blockquote>
+<h3 id="traffic-allocation">Traffic Allocation</h3>
+<p>这个模块是核心，决定了 upstream 微服务向某个 downstream 微服务的不同
+replicas 发送 traffic 的比例。downstream
+微服务的replicas可能部署在不同主机上，所以策略不再是简单的负载均衡</p>
+<center>
+<img src="/imgs/OptTraffic/fig 8.png" width='500'/>
+</center>
+<p>如上图所示，有2个 upstream containers 和 3个downstream
+containers，并部署在2台主机上。如果是按照负载均衡的原则，假设每个upstream
+container发送 1 traffic，则发往每个downstream container <span
+class="math inline">\(\frac{1}{3}\)</span> traffic，每个downstream
+containers总共需要接收 <span class="math inline">\(\frac{2}{3}\)</span>
+的traffic。从Fig 8 (a)中看出，有 <span
+class="math inline">\(1=\frac{1}{3}+\frac{1}{3}+\frac{1}{3}\)</span>
+（一半）的traffic是cross-machine的。</p>
+<blockquote>
+<p>文章介绍了 <code>Two-step allocation</code> 方法来进行 traffic
+分配：</p>
+<ol type="1">
+<li>第一步，采用 <strong>local-first</strong>
+原则，即traffic尽可能分配到同台主机的containers。假设机器 <span
+class="math inline">\(i\)</span> 有 <span
+class="math inline">\(m_i\)</span> 个upstream containers 和 <span
+class="math inline">\(n_i\)</span> 个 downstream
+containers，则每个upstream container需要发送给每个downstream
+container比例为 <span class="math inline">\(min(\frac{m/n}{m_i},
+\frac{1}{n_i})\)</span>的traffic。<font color='blue'>这里的比例很简单也很有趣，每个downstream
+container接收到的traffic是 <span class="math inline">\(m_i\times
+min(\frac{m/n}{m_i}, \frac{1}{n_i})=min(m/n,
+m_i/n_i)\)</span>，第一个是全局负载均衡的traffic大小，第二个是单机上负载均衡的traffic大小。这里的原理是：使得低于负载均衡的traffic尽可能发往本机的container，但这个traffic尽量不高于全局负载均衡的值</font>。所以
+Fig 8 (b) 中 DC3 的 traffic 大小为 <span
+class="math inline">\(min(\frac{2}{3}, 1)=\frac{2}{3}\)</span></li>
+<li>第二步，这一步叫<code>padding</code>，即将第一步中剩余未分配的traffic导向其余downstream
+containers，这些traffic就是cross-machine traffic了。如 Fig 8
+(c)所示。</li>
+</ol>
+<p>看了一下<a
+href="https://github.com/sirius8050/OptTraffic">源代码</a>，流量调度用的是iptable实现的，具体指令类似如下这样
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo iptables -t nat -I KUBE-SVC-KVWZRLJ3RRU55EYE 1 -s 0.0.0.0&#x2F;0 -j KUBE-SEP-5EMJYGBVFF6DIW4U -m statistic --mode random  --probability 0.17</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<p>以上是论文的核心，至于动态调度那一块，首先是没看懂，可能以后有时间再读读</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/12/12/StatusScaler/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2815,7 +3172,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-count">10</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -2828,7 +3185,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">21</span>
+        <span class="site-state-item-count">23</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -2858,7 +3215,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2024</span>
+  <span itemprop="copyrightYear">2025</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
@@ -2868,13 +3225,13 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">42k</span>
+    <span title="站点总字数">49k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:15</span>
+    <span title="站点阅读时长">1:29</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
