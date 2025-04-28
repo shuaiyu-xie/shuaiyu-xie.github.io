@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.loli.net/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"shuaiyuxie.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="题目：L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis FSE 2025 作者：香港中文大学  摘要 训练个性化的大语言模型（LLM）需要大量的计算资源和训练时间。这个过程中，故障（failure）是不可避免的，而故障的出现使得LLM的训练浪费了大量的资源和时间。此外，在 LLM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="[FSE 2025] L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis">
+<meta property="og:url" content="https://shuaiyuxie.github.io/2025/04/28/l4/index.html">
+<meta property="og:site_name" content="衍射的博客">
+<meta property="og:description" content="题目：L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis FSE 2025 作者：香港中文大学  摘要 训练个性化的大语言模型（LLM）需要大量的计算资源和训练时间。这个过程中，故障（failure）是不可避免的，而故障的出现使得LLM的训练浪费了大量的资源和时间。此外，在 LLM">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/l4/background.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/l4/symptom.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/l4/log-failure.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/l4/failure-log-dist.png">
+<meta property="og:image" content="https://shuaiyuxie.github.io/imgs/l4/structure.png">
+<meta property="article:published_time" content="2025-04-28T05:37:00.000Z">
+<meta property="article:modified_time" content="2025-04-28T09:42:36.529Z">
+<meta property="article:author" content="谢帅宇">
+<meta property="article:tag" content="FSE">
+<meta property="article:tag" content="大模型">
+<meta property="article:tag" content="日志">
+<meta property="article:tag" content="故障诊断">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shuaiyuxie.github.io/imgs/l4/background.png">
+
+<link rel="canonical" href="https://shuaiyuxie.github.io/2025/04/28/l4/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>[FSE 2025] L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis | 衍射的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="衍射的博客" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">衍射的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">记录学习中的点点滴滴</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-github">
+
+    <a href="https://github.com/theoryXie" rel="noopener" target="_blank"><i class="fa fa-folder fa-fw"></i>github</a>
+
+  </li>
+        <li class="menu-item menu-item-homepage">
+
+    <a href="https://theoryxie.github.io/" rel="noopener" target="_blank"><i class="fa fa-user fa-fw"></i>homepage</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/theoryXie" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/04/28/l4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          [FSE 2025] L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-04-28 13:37:00 / 修改时间：17:42:36" itemprop="dateCreated datePublished" datetime="2025-04-28T13:37:00+08:00">2025-04-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>题目：L4: Diagnosing Large-scale LLM Training Failures via Automated
+Log Analysis</p>
+<p>FSE 2025</p>
+<p>作者：香港中文大学</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>训练个性化的大语言模型（LLM）需要大量的计算资源和训练时间。这个过程中，故障（failure）是不可避免的，而故障的出现使得LLM的训练浪费了大量的资源和时间。此外，在
+LLM 训练中诊断故障也是一个费时费力的任务，因为 LLM
+的训练通常设计多个计算节点：</p>
+<ul>
+<li><strong>Node-level Complexity</strong>: 在单个节点上训练的 AI
+模型，通常包含 AI accelerator（GPUs 或 NPUs）、AI toolkit（CUDA）、AI
+framework（Pytorch）以及AI
+algorithm。故障可能存在于上述任意一个地方。</li>
+<li><strong>CLuster-level Complexity</strong>: LLM 的训练通常涉及上千个
+AI
+节点，这些节点之间有复杂的通信范式，这使得发生故障时很难通过自动化的方式定位到对应的故障
+AI 节点</li>
+</ul>
+<p>这篇文章首先进行了大量的实证分析，得出以下结论：</p>
+<ol type="1">
+<li><strong>故障时间</strong>：大多数（74.1%）的故障发生在模型迭代训练时，这个阶段发生故障会导致大量的训练时间和资源的浪费</li>
+<li><strong>故障根因</strong>：随然故障原因多样化，但主要集中在
+<strong>hardware</strong> 和 <strong>user-side faults</strong>。</li>
+<li><strong>诊断方法</strong>：日志在故障诊断中发挥重要作用，但是89.9%的案例仍然需要人工日志分析来进行故障诊断。并且日志量太大（每天产生
+TBs），只有非常小一部分的日志是有用的</li>
+</ol>
+<p>因此，文章提出了一种诊断 LLM
+训练的故障诊断方法：L4，目的在于自动化识别故障相关的日志（failure-indicating
+logs），此外，L4 还会提供 failure-indicating nodes、failure-indicating
+stages、failure-indicating events 以及 failure-indicating iterations
+等重要信息来辅助 SREs 进行故障诊断。</p>
+<center>
+<img src="/imgs/l4/background.png" width='500'/>
+</center>
+<h2 id="实证分析">实证分析</h2>
+<p>文章分析了某平台上一年的428份故障报告，从以下三个方面进行分析：</p>
+<ol type="1">
+<li>RQ1：LLM 训练中的故障现象</li>
+<li>RQ2：LLM 训练中的故障根因</li>
+<li>RQ3：LLM 训练故障诊断中常用的数据源</li>
+</ol>
+<h3 id="rq1故障现象">RQ1：故障现象</h3>
+<p>LLM 训练中的故障现象分为四大类：① <code>launching failure</code>，②
+<code>training crash</code>，③ <code>abnormal behavior</code>，④
+<code>others</code></p>
+以下是四种故障现象的分布：
+<center>
+<img src="/imgs/l4/symptom.png" width='500'/>
+</center>
+<blockquote>
+<ol type="1">
+<li>对于
+<code>launching failure</code>（21.3%），这类现象通常发生在迭代训练开始前，原因一般是配置与版本问题，比如
+GPU 驱动与 CUDA 版本不匹配，模型并行化配置错误等。</li>
+<li>对于
+<code>training crash</code>（57.5%），这类现象发生在迭代训练时，起因一般是硬件故障（GPU、network），这种故障影响很大，会浪费大量训练时间和计算资源，即使有
+checkpoint 这样的状态保存机制，时间的浪费也是不可忽视的</li>
+<li>对于
+<code>abnormal behaviors</code>（16.6%），这种现象有点类似于性能降级，比如某个epoch花费了两倍的时间，训练突然停滞</li>
+<li>对于
+<code>others</code>（4.7%），这类故障一般是基础设施类的，比如平台和存储，比例比较少</li>
+</ol>
+</blockquote>
+<p><font color='blue'><strong>Finding
+1：大部分故障（74.1%）发生在迭代训练时，会导致大量计算资源和训练时间的浪费。</strong></font></p>
+<h3 id="rq2故障根因">RQ2：故障根因</h3>
+<p>LLM 训练中的故障根因分为四大类：① <code>hardware fault</code>，②
+<code>user fault</code>，③ <code>platform fault</code>，④
+<code>framework fault</code></p>
+<h4 id="rq2-1-hardware-fault">RQ2-1 hardware fault</h4>
+<p><code>Hardware Fault</code> 又可细分为</p>
+<ul>
+<li><strong>Network Fault</strong>：最常见，本质上是因为有太多 AI node
+在交互协同，网络问题极容易导致训练的失败</li>
+<li><strong>Accelerator Fault</strong>：Accelerator
+就是GPU、TPU那些计算资源，与普通深度学习任务类似，单个 Accelerator
+也会有内存故障等</li>
+<li><strong>Node Fault</strong>：Node
+是资源分配的单元，比如虚拟机。也会遭遇断电、磁盘问题等故障</li>
+<li><strong>Storage
+Fault</strong>：训练涉及的数据集、模型、checkpoints等有几百GB，用户一般会存储到远程存储库中，在训练时下载，因此可能会出现访问问题</li>
+</ul>
+<p><font color='blue'><strong>Finding 2：LLM训练需要大量计算资源，极易受
+Hardware Fault 影响。其中，Network Fault 和 Accelerator Fault
+是最常见的</strong></font></p>
+<h4 id="rq2-2-user-fault">RQ2-2 user fault</h4>
+<p><code>user fault</code> 又可细分为</p>
+<ul>
+<li><strong>Configuration Error</strong></li>
+<li><strong>Program/Script Bug</strong></li>
+<li><strong>Software Incompatibility</strong></li>
+<li><strong>Misoperation</strong></li>
+</ul>
+<p><font color='blue'><strong>Finding 3：User faults
+是第二大故障根因，源于用户的误操作、脚本bug等 </strong></font></p>
+<h4 id="rq2-3-framework-fault-and-platform-fault">RQ2-3 Framework Fault
+and Platform Fault</h4>
+<p>这两类故障发生的极少，<code>Framework Fault</code> 一般是 PyTorch
+那些深度学习框架中的故障。<code>Paltform Fault</code>
+是训练平台的问题，包括资源管理不恰当等。这两类故障极难诊断故障，需要较深的领域经验</p>
+<p><font color='blue'><strong>Finding 4：Framework Fault 和 Paltform
+Fault 虽然发生极少，但诊断起来相当困难</strong></font></p>
+<h3 id="rq3故障诊断数据源">RQ3：故障诊断数据源</h3>
+<p>现在诊断 LLM 训练故障还是人工分析居多，文章中提到：</p>
+<blockquote>
+<p>诊断 LLM 训练故障平均需要 34.7 小时，而 41.9% 的故障需要 24
+小时以上的诊断时间</p>
+</blockquote>
+<p>这就迫切需要自动化的故障诊断方法来减少人工分析成本。文章首先对428份故障案例进行分类，分为以下三种：</p>
+<ul>
+<li>Log-only diagnosable</li>
+<li>Non-log diagnosable</li>
+<li>Hybrid diagnosable</li>
+</ul>
+<p>然后分别分析每个案例的 training log
+来进行故障诊断，以下是分类结果</p>
+<center>
+<img src="/imgs/l4/log-failure.png" width='500'/>
+</center>
+<p>同时发现每个故障案例在故障时间段平均有 16.92GB 的 training log</p>
+<p><font color='blue'><strong>Finding 5：training log 能解决 89.9%
+的故障，但是日志量太大，需要自动化分析手段来减少人力成本</strong></font></p>
+<h2 id="现有方法">现有方法</h2>
+<p>现有方法大致通过
+<code>logging level</code>，<code>event frequency</code>，<code>error semantic</code>
+来提取异常log，即
+<code>failure-indicating logs</code>。文章通过统计发现这些方式都有一定的局限性：</p>
+<center>
+<img src="/imgs/l4/failure-log-dist.png" width='500'/>
+</center>
+<blockquote>
+<ul>
+<li><code>logging level</code>：现有方法有许多是根据日志级别来进行筛选的。文章首先统计了
+<code>failure-indicating logs</code> 中不同级别的日志分布，如 Fig.4 (a)
+所示，虽然大部分是 Error-level，但是仍有大量其他级别的 logs
+是故障相关的。此外，并不是所有 Error-level 的 logs
+是与当前故障相关的，比如有些 Error logs 是无法写入
+checkpoints，但一些故障容忍策略可能会采用重写措施，只要重写成功，那么对当前训练是没有影响的</li>
+<li><code>Event Frequency</code>：有些方法是根据日志的频率来筛选故障相关日志，比如低频日志更有可能是异常的。如
+Fig.4 (b) 所示，仍然有大量 <code>failure-indicating logs</code>
+的频率并不低。<strong>此外，基于频率的筛选可能更适合微服务，不适用于 LLM
+训练</strong>，因为微服务是无状态的，日志的频率分布可能并不会随时间分布发生较大改变，而
+LLM
+训练是顺序的、分阶段的，有些日志只会出现在特定阶段，这些日志的频率很低，但与故障无关。</li>
+<li><code>Error Semantic</code>：也有些方法通过深度学习来提取日志的错误语义信息来识别<code>failure-indicating logs</code>，但是这种方法是不稳定的，因为即使是成功训练的job也包含有error
+semantic</li>
+</ul>
+</blockquote>
+<p><font color='blue'><strong>Finding 6：现有的 failure-indicating logs
+提取方法基于level, frequency 和 semantic，但都不适用于 LLM
+训练的故障诊断</strong></font></p>
+<h2 id="l4-方法">L4 方法</h2>
+<p>文章提出了自动化的面向 LLM 训练的故障诊断框架：L4</p>
+<center>
+<img src="/imgs/l4/structure.png" width='900'/>
+</center>
+<h3 id="log-preprocessing">1. Log Preprocessing</h3>
+<p>这一块与之前的方法相同，都是用 Drain 提取日志的模板，将 log sequence
+变成 event sequence</p>
+<h3 id="cross-job-filtering">2. Cross-job Filtering</h3>
+<p>这一块动机很直观，因为用户在提交作业到平台进行大规模训练（large-scale
+nodes）时，通常在小规模的节点上已经测试通过了。所以这一块会将成功执行的日志（Normal
+logs）与在大规模节点上的失败日志（failed logs）进行比对，删除 failed
+logs 中噪声 events。</p>
+<blockquote>
+<p>具体做法为：将 Normal logs 进行解析得到一个 normal event pool：<span
+class="math inline">\(N=\{e_{n1}, e_{n2}, ...\}\)</span>，然后将这些
+events 按照时间顺序排列，并逐个移除 failed logs
+中对应的events，这些events都是正常的，failed logs 剩下的 events
+都是极大概率是故障相关的。<strong>这里有个问题，不同规模的训练节点会不会导致日志模式发生变化？</strong></p>
+</blockquote>
+<p>这个模块的前提是有小规模训练成功的日志，当这个前提不满足时，则无法删减
+failed logs的噪声events，就直接将 failed logs 解析后进行后续步骤</p>
+<h3 id="spatial-pattern-comparison">3. Spatial Pattern Comparison</h3>
+<p>这个步骤主要是为了定位 <code>failure-indicating nodes</code> 和
+<code>failure-indicating logs</code>。核心思想是：<strong>由于负载均衡，正常情况下所有的
+AI nodes 的日志几乎是一样的</strong>。所以可以很轻松找到
+<code>failure-indicating nodes</code></p>
+<p>首先将每个 node 的 event sequence
+按照<strong>发生次数</strong>进行特征构建，得到 event vector：<span
+class="math inline">\(V=[c_1,c_2,...c_n]\)</span>，<span
+class="math inline">\(c_i\)</span> 代表 <span
+class="math inline">\(i\)</span>-th event 的次数。然后对所有 node 的
+event vector 采用 <code>Isolation Forest</code> 进行异常检测。</p>
+<p>由于 <code>Isolation Forest</code>
+可以记录特征参与分割的次数，从而能够判断特征（event）的重要性，所以进一步找到
+<code>failure-indicating logs</code></p>
+<h3 id="temporal-pattern-comparison">4. Temporal Pattern Comparison</h3>
+<p>这个步骤主要是为了定位 <code>failure-indicating stage</code> 和
+<code>failure-indicating iteration</code>，即故障发生的时间。</p>
+<p>stage 的确定很简单，L4 好像直接使用的是日志中自带的规则，能直观知道
+event 在哪个 stage</p>
+<p>文章还要定位到故障的 iteration。首先文章有个前提假设，即 event
+sequence 在迭代时基本遵循一定的模式，如果某个 iteration
+发生了明显偏移，则视为异常</p>
+<p>具体做法为：首先将 iterations 按照 10 个一组进行滑动窗口划分。采用
+Dynamic time warping（DTW）计算不同窗口间的距离，然后通过 3-sigma
+方法对距离进行异常检测，就能找到异常的 iteration 了</p>
+<p>最后，就能将故障相关的 logs、events、nodes、stages、iterations 交给
+SREs 了。</p>
+<h2 id="实验设计">实验设计</h2>
+<p>实验主要是对 <code>failure-indicating logs</code> 和
+<code>failure-indicating nodes</code>
+的定位进行了准确率评估，然后给了几个成功案例</p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>谢帅宇
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://shuaiyuxie.github.io/2025/04/28/l4/" title="[FSE 2025] L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis">https://shuaiyuxie.github.io/2025/04/28/l4/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/FSE/" rel="tag"># FSE</a>
+              <a href="/tags/%E5%A4%A7%E6%A8%A1%E5%9E%8B/" rel="tag"># 大模型</a>
+              <a href="/tags/%E6%97%A5%E5%BF%97/" rel="tag"># 日志</a>
+              <a href="/tags/%E6%95%85%E9%9A%9C%E8%AF%8A%E6%96%AD/" rel="tag"># 故障诊断</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/12/21/OptTraffic/" rel="prev" title="[ICPP 2023] On Optimizing Traffic Scheduling for Multi-replica Containerized Microservices">
+      <i class="fa fa-chevron-left"></i> [ICPP 2023] On Optimizing Traffic Scheduling for Multi-replica Containerized Microservices
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实证分析"><span class="nav-number">2.</span> <span class="nav-text">实证分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#rq1故障现象"><span class="nav-number">2.1.</span> <span class="nav-text">RQ1：故障现象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#rq2故障根因"><span class="nav-number">2.2.</span> <span class="nav-text">RQ2：故障根因</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#rq2-1-hardware-fault"><span class="nav-number">2.2.1.</span> <span class="nav-text">RQ2-1 hardware fault</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#rq2-2-user-fault"><span class="nav-number">2.2.2.</span> <span class="nav-text">RQ2-2 user fault</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#rq2-3-framework-fault-and-platform-fault"><span class="nav-number">2.2.3.</span> <span class="nav-text">RQ2-3 Framework Fault
+and Platform Fault</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#rq3故障诊断数据源"><span class="nav-number">2.3.</span> <span class="nav-text">RQ3：故障诊断数据源</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#现有方法"><span class="nav-number">3.</span> <span class="nav-text">现有方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#l4-方法"><span class="nav-number">4.</span> <span class="nav-text">L4 方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#log-preprocessing"><span class="nav-number">4.1.</span> <span class="nav-text">1. Log Preprocessing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cross-job-filtering"><span class="nav-number">4.2.</span> <span class="nav-text">2. Cross-job Filtering</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#spatial-pattern-comparison"><span class="nav-number">4.3.</span> <span class="nav-text">3. Spatial Pattern Comparison</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#temporal-pattern-comparison"><span class="nav-number">4.4.</span> <span class="nav-text">4. Temporal Pattern Comparison</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实验设计"><span class="nav-number">5.</span> <span class="nav-text">实验设计</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="谢帅宇"
+      src="/images/head.png">
+  <p class="site-author-name" itemprop="name">谢帅宇</p>
+  <div class="site-description" itemprop="description">我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">26</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/zh-CN" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">谢帅宇</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">53k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">1:37</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+          load: ['[tex]/mhchem'],
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+          packages: {'[+]': ['mhchem']},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

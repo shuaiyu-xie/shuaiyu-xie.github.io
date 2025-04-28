@@ -6,7 +6,7 @@
   <link href="https://shuaiyuxie.github.io/atom.xml" rel="self"/>
   
   <link href="https://shuaiyuxie.github.io/"/>
-  <updated>2025-01-08T03:54:50.610Z</updated>
+  <updated>2025-04-28T09:42:36.529Z</updated>
   <id>https://shuaiyuxie.github.io/</id>
   
   <author>
@@ -15,6 +15,41 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>[FSE 2025] L4: Diagnosing Large-scale LLM Training Failures via Automated Log Analysis</title>
+    <link href="https://shuaiyuxie.github.io/2025/04/28/l4/"/>
+    <id>https://shuaiyuxie.github.io/2025/04/28/l4/</id>
+    <published>2025-04-28T05:37:00.000Z</published>
+    <updated>2025-04-28T09:42:36.529Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote><p>题目：L4: Diagnosing Large-scale LLM Training Failures via AutomatedLog Analysis</p><p>FSE 2025</p><p>作者：香港中文大学</p></blockquote><h2 id="摘要">摘要</h2><p>训练个性化的大语言模型（LLM）需要大量的计算资源和训练时间。这个过程中，故障（failure）是不可避免的，而故障的出现使得LLM的训练浪费了大量的资源和时间。此外，在LLM 训练中诊断故障也是一个费时费力的任务，因为 LLM的训练通常设计多个计算节点：</p><ul><li><strong>Node-level Complexity</strong>: 在单个节点上训练的 AI模型，通常包含 AI accelerator（GPUs 或 NPUs）、AI toolkit（CUDA）、AIframework（Pytorch）以及AIalgorithm。故障可能存在于上述任意一个地方。</li><li><strong>CLuster-level Complexity</strong>: LLM 的训练通常涉及上千个AI节点，这些节点之间有复杂的通信范式，这使得发生故障时很难通过自动化的方式定位到对应的故障AI 节点</li></ul><p>这篇文章首先进行了大量的实证分析，得出以下结论：</p><ol type="1"><li><strong>故障时间</strong>：大多数（74.1%）的故障发生在模型迭代训练时，这个阶段发生故障会导致大量的训练时间和资源的浪费</li><li><strong>故障根因</strong>：随然故障原因多样化，但主要集中在<strong>hardware</strong> 和 <strong>user-side faults</strong>。</li><li><strong>诊断方法</strong>：日志在故障诊断中发挥重要作用，但是89.9%的案例仍然需要人工日志分析来进行故障诊断。并且日志量太大（每天产生TBs），只有非常小一部分的日志是有用的</li></ol><p>因此，文章提出了一种诊断 LLM训练的故障诊断方法：L4，目的在于自动化识别故障相关的日志（failure-indicatinglogs），此外，L4 还会提供 failure-indicating nodes、failure-indicatingstages、failure-indicating events 以及 failure-indicating iterations等重要信息来辅助 SREs 进行故障诊断。</p><center><img src="/imgs/l4/background.png" width='500'/></center><h2 id="实证分析">实证分析</h2><p>文章分析了某平台上一年的428份故障报告，从以下三个方面进行分析：</p><ol type="1"><li>RQ1：LLM 训练中的故障现象</li><li>RQ2：LLM 训练中的故障根因</li><li>RQ3：LLM 训练故障诊断中常用的数据源</li></ol><h3 id="rq1故障现象">RQ1：故障现象</h3><p>LLM 训练中的故障现象分为四大类：① <code>launching failure</code>，②<code>training crash</code>，③ <code>abnormal behavior</code>，④<code>others</code></p>以下是四种故障现象的分布：<center><img src="/imgs/l4/symptom.png" width='500'/></center><blockquote><ol type="1"><li>对于<code>launching failure</code>（21.3%），这类现象通常发生在迭代训练开始前，原因一般是配置与版本问题，比如GPU 驱动与 CUDA 版本不匹配，模型并行化配置错误等。</li><li>对于<code>training crash</code>（57.5%），这类现象发生在迭代训练时，起因一般是硬件故障（GPU、network），这种故障影响很大，会浪费大量训练时间和计算资源，即使有checkpoint 这样的状态保存机制，时间的浪费也是不可忽视的</li><li>对于<code>abnormal behaviors</code>（16.6%），这种现象有点类似于性能降级，比如某个epoch花费了两倍的时间，训练突然停滞</li><li>对于<code>others</code>（4.7%），这类故障一般是基础设施类的，比如平台和存储，比例比较少</li></ol></blockquote><p><font color='blue'><strong>Finding1：大部分故障（74.1%）发生在迭代训练时，会导致大量计算资源和训练时间的浪费。</strong></font></p><h3 id="rq2故障根因">RQ2：故障根因</h3><p>LLM 训练中的故障根因分为四大类：① <code>hardware fault</code>，②<code>user fault</code>，③ <code>platform fault</code>，④<code>framework fault</code></p><h4 id="rq2-1-hardware-fault">RQ2-1 hardware fault</h4><p><code>Hardware Fault</code> 又可细分为</p><ul><li><strong>Network Fault</strong>：最常见，本质上是因为有太多 AI node在交互协同，网络问题极容易导致训练的失败</li><li><strong>Accelerator Fault</strong>：Accelerator就是GPU、TPU那些计算资源，与普通深度学习任务类似，单个 Accelerator也会有内存故障等</li><li><strong>Node Fault</strong>：Node是资源分配的单元，比如虚拟机。也会遭遇断电、磁盘问题等故障</li><li><strong>StorageFault</strong>：训练涉及的数据集、模型、checkpoints等有几百GB，用户一般会存储到远程存储库中，在训练时下载，因此可能会出现访问问题</li></ul><p><font color='blue'><strong>Finding 2：LLM训练需要大量计算资源，极易受Hardware Fault 影响。其中，Network Fault 和 Accelerator Fault是最常见的</strong></font></p><h4 id="rq2-2-user-fault">RQ2-2 user fault</h4><p><code>user fault</code> 又可细分为</p><ul><li><strong>Configuration Error</strong></li><li><strong>Program/Script Bug</strong></li><li><strong>Software Incompatibility</strong></li><li><strong>Misoperation</strong></li></ul><p><font color='blue'><strong>Finding 3：User faults是第二大故障根因，源于用户的误操作、脚本bug等 </strong></font></p><h4 id="rq2-3-framework-fault-and-platform-fault">RQ2-3 Framework Faultand Platform Fault</h4><p>这两类故障发生的极少，<code>Framework Fault</code> 一般是 PyTorch那些深度学习框架中的故障。<code>Paltform Fault</code>是训练平台的问题，包括资源管理不恰当等。这两类故障极难诊断故障，需要较深的领域经验</p><p><font color='blue'><strong>Finding 4：Framework Fault 和 PaltformFault 虽然发生极少，但诊断起来相当困难</strong></font></p><h3 id="rq3故障诊断数据源">RQ3：故障诊断数据源</h3><p>现在诊断 LLM 训练故障还是人工分析居多，文章中提到：</p><blockquote><p>诊断 LLM 训练故障平均需要 34.7 小时，而 41.9% 的故障需要 24小时以上的诊断时间</p></blockquote><p>这就迫切需要自动化的故障诊断方法来减少人工分析成本。文章首先对428份故障案例进行分类，分为以下三种：</p><ul><li>Log-only diagnosable</li><li>Non-log diagnosable</li><li>Hybrid diagnosable</li></ul><p>然后分别分析每个案例的 training log来进行故障诊断，以下是分类结果</p><center><img src="/imgs/l4/log-failure.png" width='500'/></center><p>同时发现每个故障案例在故障时间段平均有 16.92GB 的 training log</p><p><font color='blue'><strong>Finding 5：training log 能解决 89.9%的故障，但是日志量太大，需要自动化分析手段来减少人力成本</strong></font></p><h2 id="现有方法">现有方法</h2><p>现有方法大致通过<code>logging level</code>，<code>event frequency</code>，<code>error semantic</code>来提取异常log，即<code>failure-indicating logs</code>。文章通过统计发现这些方式都有一定的局限性：</p><center><img src="/imgs/l4/failure-log-dist.png" width='500'/></center><blockquote><ul><li><code>logging level</code>：现有方法有许多是根据日志级别来进行筛选的。文章首先统计了<code>failure-indicating logs</code> 中不同级别的日志分布，如 Fig.4 (a)所示，虽然大部分是 Error-level，但是仍有大量其他级别的 logs是故障相关的。此外，并不是所有 Error-level 的 logs是与当前故障相关的，比如有些 Error logs 是无法写入checkpoints，但一些故障容忍策略可能会采用重写措施，只要重写成功，那么对当前训练是没有影响的</li><li><code>Event Frequency</code>：有些方法是根据日志的频率来筛选故障相关日志，比如低频日志更有可能是异常的。如Fig.4 (b) 所示，仍然有大量 <code>failure-indicating logs</code>的频率并不低。<strong>此外，基于频率的筛选可能更适合微服务，不适用于 LLM训练</strong>，因为微服务是无状态的，日志的频率分布可能并不会随时间分布发生较大改变，而LLM训练是顺序的、分阶段的，有些日志只会出现在特定阶段，这些日志的频率很低，但与故障无关。</li><li><code>Error Semantic</code>：也有些方法通过深度学习来提取日志的错误语义信息来识别<code>failure-indicating logs</code>，但是这种方法是不稳定的，因为即使是成功训练的job也包含有errorsemantic</li></ul></blockquote><p><font color='blue'><strong>Finding 6：现有的 failure-indicating logs提取方法基于level, frequency 和 semantic，但都不适用于 LLM训练的故障诊断</strong></font></p><h2 id="l4-方法">L4 方法</h2><p>文章提出了自动化的面向 LLM 训练的故障诊断框架：L4</p><center><img src="/imgs/l4/structure.png" width='900'/></center><h3 id="log-preprocessing">1. Log Preprocessing</h3><p>这一块与之前的方法相同，都是用 Drain 提取日志的模板，将 log sequence变成 event sequence</p><h3 id="cross-job-filtering">2. Cross-job Filtering</h3><p>这一块动机很直观，因为用户在提交作业到平台进行大规模训练（large-scalenodes）时，通常在小规模的节点上已经测试通过了。所以这一块会将成功执行的日志（Normallogs）与在大规模节点上的失败日志（failed logs）进行比对，删除 failedlogs 中噪声 events。</p><blockquote><p>具体做法为：将 Normal logs 进行解析得到一个 normal event pool：<spanclass="math inline">\(N=\{e_{n1}, e_{n2}, ...\}\)</span>，然后将这些events 按照时间顺序排列，并逐个移除 failed logs中对应的events，这些events都是正常的，failed logs 剩下的 events都是极大概率是故障相关的。<strong>这里有个问题，不同规模的训练节点会不会导致日志模式发生变化？</strong></p></blockquote><p>这个模块的前提是有小规模训练成功的日志，当这个前提不满足时，则无法删减failed logs的噪声events，就直接将 failed logs 解析后进行后续步骤</p><h3 id="spatial-pattern-comparison">3. Spatial Pattern Comparison</h3><p>这个步骤主要是为了定位 <code>failure-indicating nodes</code> 和<code>failure-indicating logs</code>。核心思想是：<strong>由于负载均衡，正常情况下所有的AI nodes 的日志几乎是一样的</strong>。所以可以很轻松找到<code>failure-indicating nodes</code></p><p>首先将每个 node 的 event sequence按照<strong>发生次数</strong>进行特征构建，得到 event vector：<spanclass="math inline">\(V=[c_1,c_2,...c_n]\)</span>，<spanclass="math inline">\(c_i\)</span> 代表 <spanclass="math inline">\(i\)</span>-th event 的次数。然后对所有 node 的event vector 采用 <code>Isolation Forest</code> 进行异常检测。</p><p>由于 <code>Isolation Forest</code>可以记录特征参与分割的次数，从而能够判断特征（event）的重要性，所以进一步找到<code>failure-indicating logs</code></p><h3 id="temporal-pattern-comparison">4. Temporal Pattern Comparison</h3><p>这个步骤主要是为了定位 <code>failure-indicating stage</code> 和<code>failure-indicating iteration</code>，即故障发生的时间。</p><p>stage 的确定很简单，L4 好像直接使用的是日志中自带的规则，能直观知道event 在哪个 stage</p><p>文章还要定位到故障的 iteration。首先文章有个前提假设，即 eventsequence 在迭代时基本遵循一定的模式，如果某个 iteration发生了明显偏移，则视为异常</p><p>具体做法为：首先将 iterations 按照 10 个一组进行滑动窗口划分。采用Dynamic time warping（DTW）计算不同窗口间的距离，然后通过 3-sigma方法对距离进行异常检测，就能找到异常的 iteration 了</p><p>最后，就能将故障相关的 logs、events、nodes、stages、iterations 交给SREs 了。</p><h2 id="实验设计">实验设计</h2><p>实验主要是对 <code>failure-indicating logs</code> 和<code>failure-indicating nodes</code>的定位进行了准确率评估，然后给了几个成功案例</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;题目：L4: Diagnosing Large-scale LLM Training Failures via Automated
+Log Analysis&lt;/p&gt;
+&lt;p&gt;FSE 2025&lt;/p&gt;
+&lt;p&gt;作者：香港中文大学&lt;/p&gt;
+&lt;/b</summary>
+      
+    
+    
+    
+    <category term="文献精读" scheme="https://shuaiyuxie.github.io/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/"/>
+    
+    
+    <category term="FSE" scheme="https://shuaiyuxie.github.io/tags/FSE/"/>
+    
+    <category term="大模型" scheme="https://shuaiyuxie.github.io/tags/%E5%A4%A7%E6%A8%A1%E5%9E%8B/"/>
+    
+    <category term="日志" scheme="https://shuaiyuxie.github.io/tags/%E6%97%A5%E5%BF%97/"/>
+    
+    <category term="故障诊断" scheme="https://shuaiyuxie.github.io/tags/%E6%95%85%E9%9A%9C%E8%AF%8A%E6%96%AD/"/>
+    
+  </entry>
   
   <entry>
     <title>[ICPP 2023] On Optimizing Traffic Scheduling for Multi-replica Containerized Microservices</title>
