@@ -200,6 +200,211 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/04/29/selfLog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/04/29/selfLog/" class="post-title-link" itemprop="url">[ISSRE 2025] Self-Evolutionary Group-wise Log Parsing Based on Large Language Model</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-04-29 15:09:00 / 修改时间：21:18:59" itemprop="dateCreated datePublished" datetime="2025-04-29T15:09:00+08:00">2025-04-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：Self-Evolutionary Group-wise Log Parsing Based on Large
+Language Model</p>
+<p>ISSRE 2025</p>
+<p>作者：中科大杭州高等研究院，清华大学</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>日志解析是一种将半结构化日志转化为结构化模板的技术，它是各种日志分析任务（比如异常检测、日志理解）的前提。</p>
+<p>现有的日志解析方法大多基于领域专家制定的启发式规则，这些规则在系统发生变更时就无法适用了。因此，不少研究采用大模型来进行系统无关的日志解析，但仍然存在两个显著问题：</p>
+<ol type="1">
+<li>大模型需要在 Prompt 中加入人工标注的日志模板</li>
+<li>大模型的日志解析效率太低</li>
+</ol>
+<p>因此，文章提出一种自演化的日志解析方法 <a
+href="https://github.com/CSTCloudOps/SelfLog">SelfLog</a>，将相似的历史解析的模板作为
+Prompt
+中的提示词，以实现自我演化和零标注。此外，还引入一种基于N-Gram的日志分组器与日志匹配器，按组处理和解析日志，通过减少大模型调用次数来提升效率。</p>
+<h2 id="背景">背景</h2>
+<h3 id="日志解析">日志解析</h3>
+<p>日志解析会将每条日志分割为<strong>常量部分</strong>和<strong>变量部分</strong>。常量部分也称为<strong>模板</strong>。如图4所示，在有源码的前提下，我们能够很轻松区分这两个部分。然而大多数时候大量第三方依赖库的源码是不可见的，</p>
+<center>
+<img src="/imgs/selfLog/parse.png" width='500'/>
+</center>
+<p>所以开发了许多数据驱动的日志解析技术，这些技术分为有监督和无监督两类：</p>
+<ul>
+<li><strong>无监督</strong>：通过启发式规则和频率统计来提取模板。缺陷是制定规则需要领域经验，且对于新log数据集要重新制定规则</li>
+<li><strong>有监督</strong>：通过人工标注的 &lt;log, template&gt;
+键值对来训练，缺陷是对训练数据的分布敏感且在新log上表现较差</li>
+</ul>
+<p>由于日志本质上是程序员写的语句，包含了大量语义信息。大模型技术擅长于理解语句，并且有很强的
+zero-shot
+推理能力，所以现有研究开始尝试用大模型进行日志解析，但仍然存在两个显著问题：</p>
+<ol type="1">
+<li><strong>大模型需要在 Prompt
+中加入人工标注的日志模板案例</strong>。这个案例的质量非常重要，随着系统更新，需要人工重新标注案例</li>
+<li><strong>大模型的日志解析效率太低</strong>。现有的 LLM
+日志解析方法每秒只能处理不到 15000
+条日志，如果低于日志产生速度，则非常危险。</li>
+</ol>
+<p>所以现在迫切需要一种高效率、高准确率的日志解析方法</p>
+<h2 id="selflog-方法">SelfLog 方法</h2>
+<center>
+<img src="/imgs/selfLog/structure.png" width='900'/>
+</center>
+<p>文章提出了一个基于大语言模型自演化日志解析工具
+SelfLog，架构图如上所示，整体分为四个部分：</p>
+<ol type="1">
+<li><strong>N-Gram-based
+Grouper</strong>：这个部分先对日志进行聚类和分组，并提取常量部分，以组为单位让大模型进行解析，减少大模型的调用次数</li>
+<li><strong>Log Hitter</strong>：这个部分会检查 Grouper
+的常量部分是否有现有模板与之匹配，如果是已知的，则无需调用后续步骤</li>
+<li><strong>LLM-based Log
+Parser</strong>：以组为单位进行日志解析，输出组的模板</li>
+<li><strong>Tree-basd Merger</strong>：修正错误的日志和模板</li>
+</ol>
+<h3 id="预处理">预处理</h3>
+<p>预处理部分主要关注几个部分： -
+将日志中的时间、级别去掉，重点关注日志的内容 -
+设置分隔符——满足“[A-Za-z0-9*]+”正则表达式的视为token，其他都被视为分隔符（比如_,
+|） - 移除日志中的纯数字 -
+移除日志中的超低频token（可能是前缀或者后缀）——3个或者少于3个</p>
+<p>预处理后，每个日志将会转变为一个 token 列表</p>
+<h3 id="n-gram-based-grouper">N-Gram-based Grouper</h3>
+<p>这一个模块的目标是：识别并移除 token 列表中的 variable，将剩余的
+token 用作分组</p>
+<center>
+<img src="/imgs/selfLog/grouper.png" width='500'/>
+</center>
+<p>上图是这一块的伪代码：</p>
+<ol type="1">
+<li><code>TX = get_token_list(X)</code> 输入：预处理后的 token list</li>
+<li><code>position = get_2gram_constant_index(TX)</code>
+这一步是输出权重最大的长度为两个词的 token
+的索引。假设常量部分一般都是高频词，因为它会稳定出现在衍生的日志中，所以高频词会给较高的权重。</li>
+<li><code>variable_list_right = PILAR_gram(TX, position)</code> 从
+position 开始向右移动，每个 token 的分数计算为 （与邻居共同出现的次数 /
+邻居出现的次数），然后通过3-sigma
+判断分数是否异常，如果低于阈值，则判断为 variable</li>
+<li><code>variable_list_right = PILAR_gram(TX, position)</code> 与 3
+同理</li>
+</ol>
+<p>经过上述伪代码，token 列表中将只剩下常量 token，然后依据常量 token
+列表进行分组，组的 key 值即为常量 token 列表</p>
+<p>值得注意的是，即使这一块没有识别出所有的 variable，也可以让后续的
+<strong>LLM-based Log Parser</strong> 和 <strong>Tree-basd
+Merger</strong> 来修正</p>
+<h3 id="log-hitter">Log Hitter</h3>
+<p>这个模块的目标是：检查不同组的 key
+是否在历史中出现过，如果命中，则直接返回模板；如果没命中，则将这个组中三个编辑距离最大的logs作为
+<strong>LLM-based Log Parser</strong> 的输入。</p>
+<p><strong>Log Hitter</strong> 比较简单，维护了一个字典，键是 token
+列表，值是模板。<strong>LLM-based Log Parser</strong>
+的输出也会更新到字典中</p>
+<h3 id="llm-based-log-parser">LLM-based Log Parser</h3>
+<p>这个模块的目标是：对三个同组的 logs 提取模板</p>
+<center>
+<img src="/imgs/selfLog/prompt.png" width='500'/>
+</center>
+<p>上面是 prompt 模板，用的大模型是 GPT 3.5，输出固定为
+<strong>分析过程</strong> 和 <strong>模板</strong></p>
+<p>需要注意的是 prompt 中的蓝色板块，这一块是实现 self-evolution
+的关键，核心思想是： &gt; 建立一个 <strong>Prompt Database</strong>
+记录日志和模板，当日志需要解析时，采用类似 RAG
+的技术检索到最相似的历史日志和模板作为 example，放到 prompt 中去</p>
+<h3 id="tree-based-merger">Tree-based Merger</h3>
+<p>事实上，上述过程仍然还会有变量被遗漏，如下图所示</p>
+<center>
+<img src="/imgs/selfLog/tree-merge.png" width='500'/>
+</center>
+<p>最开始的时候，只有 user 为 cyrus 的日志，所以会把 cyrus
+视为常量，但是随着越来越多 user 的出现，cyrus
+应该被划分为变量，所以需要一种后处理机制</p>
+<p>如上图所示，SelfLog
+维护了一棵树，这棵树是实时更新的，然后执行合并操作，这一块感觉讲的不是很清楚，也不知道是人工合并还是自动化合并</p>
+<h2 id="实验">实验</h2>
+主实验是在 LogPAI 上进行性能对比
+<center>
+<img src="/imgs/selfLog/main-exp.png" width='700'/>
+</center>
+<p>参数和消融实验就不放了</p>
+<p>效率实验是在不同日志产生速度和解析速度上的对比</p>
+<center>
+<img src="/imgs/selfLog/efficiency.png" width='700'/>
+</center>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/04/28/l4/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2826,256 +3031,6 @@ diagnosis, ESEC/FSE. 2020: 1387-1397.
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/05/13/MicoHECL/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/head.png">
-      <meta itemprop="name" content="谢帅宇">
-      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="衍射的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/05/13/MicoHECL/" class="post-title-link" itemprop="url">[ICSE 2021] MicroHECL: High-Efficient Root Cause Localization in Large-Scale Microservice Systems</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2024-05-13 10:35:47" itemprop="dateCreated datePublished" datetime="2024-05-13T10:35:47+08:00">2024-05-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2024-11-27 16:50:24" itemprop="dateModified" datetime="2024-11-27T16:50:24+08:00">2024-11-27</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>4k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>7 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>题目：MicroHECL: High-Efficient Root Cause Localization in
-Large-Scale Microservice Systems</p>
-<p>来源：ICSE 2021</p>
-<p>作者：复旦大学CodeWisdom团队，阿里云</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统的可用性问题直接影响了业务的运行，这些问题通常由各种各样的故障类型以及服务间故障的传播造成。如何设计精准且高效定位故障根因的方法成为了一个重大挑战。然而，现有基于服务调用图的方法在<font color=red>异常检测的准确率</font>和<font color=red>图游走的效率</font>上存在不足。本文提出了一种高效的根因定位方法MicroHECL，通过如下步骤定位故障根因：</p>
-<ul>
-<li>动态构建一段时间窗口内的服务调用图</li>
-<li>对不同异常类型进行个性化异常检测</li>
-<li>对不同异常类型分析异常传播链路，通过剪枝提高效率</li>
-</ul>
-<h2 id="背景">背景</h2>
-<p>工业微服务系统包含大量的微服务（e.g.,
-alibaba有3000个微服务，300个子系统）。一个服务都可能运行在成百上千个容器中，并时常动态创建和销毁。服务之间也存在复杂的调用关系（同步、异步）。</p>
-<p>微服务系统可用性问题可能由不同类型的异常引起，每种异常都由一组<strong>指标</strong>表示。异常可能源自服务并沿服务调用传播，最终导致可用性问题。文章具体关注三种故障类型（就是谷歌提到的几种黄金指标）：</p>
-<ul>
-<li>性能异常（Performance Anomaly）</li>
-<li>可靠性异常（Reliability Anomaly）</li>
-<li>流量异常（Traffic Anomaly）</li>
-</ul>
-<h2 id="microhecl-概述">MicroHECL 概述</h2>
-<center>
-<img src="/imgs/MicroHECL/MicroHECL.png"/>
-</center>
-<p>MicroHECL支持三种故障类型的检测和诊断：性能异常、可靠性异常和流量异常。最终输出候选的故障根因服务排名。</p>
-<h3 id="服务调用图构建">服务调用图构建</h3>
-<p>当MicroHECL检测到异常后（<code>3-sigma</code>），会启动根因分析流程，首先就是构建过去<strong><em>30min</em></strong>内的服务依赖图（service
-call
-graph）。图上的节点就是每一个微服务；图上的边代表服务之间的调用关系，比如<span
-class="math inline">\(S_i \to S_j\)</span>代表微服务<span
-class="math inline">\(S_i\)</span>调用了微服务<span
-class="math inline">\(S_j\)</span>；节点上具有一些属性：响应时间（RT），错误数量（EC）以及每秒请求量（QPS）。</p>
-<h3 id="异常传播链分析">异常传播链分析</h3>
-<p>检测到异常的微服务并不一定是故障根因，但是故障根因一般在这个微服务的上游或者下游。异常传播链分析的目的是<strong>筛选初始异常服务中可能的异常传播链来识别一组候选根本原因服务</strong>。整个过程由以下几步组成：</p>
-<ul>
-<li>分析入口服务（即最初汇报异常的微服务，后面会混用）</li>
-<li>异常传播链扩展</li>
-<li>根因排序</li>
-</ul>
-<h4 id="分析入口服务">分析入口服务</h4>
-文章首先根据经验定义了三种故障类型的传播方向：
-<center>
-<img src="/imgs/MicroHECL/direction.png" width="500"/>
-</center>
-<p>性能异常和可靠性异常的传播方向很好理解，因为上游服务的响应时间和状态码受下游服务影响。流量异常的传播方向是从上游到下游，原因是【笔者自己的理解】上游服务发生了故障（比如网络拥塞），那么发送到下游的流量会大幅减少，所以下游服务会出现QPS急剧减少的异常。这个结论也可以在ImpactTracer<a
-href="#ImpactTracer"><sup>1</sup></a>中找到。</p>
-<center>
-<img src="/imgs/MicroHECL/chain.png"/>
-</center>
-<p>有了故障的传播方向，文章从<strong>入口服务开始，向邻居节点不断扩展分析</strong>。如图Fig.
-2所示，整个过程描述如下： &gt; 1. 将入口服务<span
-class="math inline">\(S_5\)</span>纳入异常传播链 &gt; 2.
-异常检测。检测<span class="math inline">\(S_5\)</span>的邻居节点<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>的异常类型 &gt; 3. 确认<span
-class="math inline">\(S_4\)</span>的异常类型为<strong>Traffic
-Anomaly</strong>，<span
-class="math inline">\(S_7\)</span>的异常类型为<strong>Performance
-Anomaly</strong> &gt; 4. 检测是否符合传播方向（<span
-class="math inline">\(S_4\)</span>是否是<span
-class="math inline">\(S_5\)</span>的上游，<span
-class="math inline">\(S_7\)</span>是否是<span
-class="math inline">\(S_5\)</span>的下游） &gt; 5. 符合，将<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>添加到异常传播链 &gt; 6. 从<span
-class="math inline">\(S_4\)</span>和<span
-class="math inline">\(S_7\)</span>出发，对邻居节点重复上述步骤</p>
-<p>以上过程其实就是故障的溯源，图中的箭头可以看作故障的传播路径。过程中涉及的异常检测在<a
-href="#33-服务异常检测">3.3节</a>会提到。</p>
-<h4 id="异常传播链扩展">异常传播链扩展</h4>
-<p>过程与3.2.1中描述的扩展过程一致。对于每个检测到的上游/下游异常节点，将其添加到异常传播链中。当无法向链中添加更多节点时，异常传播链的扩展结束。比如Fig.
-2对于<span class="math inline">\(S_4\)</span>方向的传播分析，以<span
-class="math inline">\(S_1\)</span>结束；对于<span
-class="math inline">\(S_7\)</span>方向的传播分析，以<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>结束。</p>
-<h4 id="候选根因定位">候选根因定位</h4>
-<p>本文选择异常传播链的末端服务作为候选根因，比如Fig.
-2中的候选根因服务为<span class="math inline">\(S_1\)</span>，<span
-class="math inline">\(S_9\)</span>和<span
-class="math inline">\(S_{10}\)</span>。那么如何排名呢？</p>
-<ul>
-<li>选取入口服务过去60min的业务指标 <span
-class="math inline">\(X\)</span></li>
-<li>选取候选根因服务过去60分钟的质量指标（<code>RT</code>,
-<code>EC</code> or <code>QPS</code>）<span
-class="math inline">\(Y\)</span></li>
-<li>计算两者之间的皮尔逊相关系数：</li>
-</ul>
-<p><span class="math display">\[
-   P(X,
-Y)=\frac{\sum_{i=1}^n{(X_i-\overline{X})(Y_i-\overline{Y})}}{\sqrt{\sum_{i=1}^n{(X_i-\overline{X})^2}\sum_{i=1}^n{(Y_i-\overline{Y})^2}}}
-\]</span></p>
-<p>皮尔逊相关系数范围为[-1,1]，绝对值越接近1则表明相关性越大。所以，根因则根据皮尔逊相关系数的绝对值来排序。</p>
-<h3 id="服务异常检测">服务异常检测</h3>
-<p>这篇文章的重点应该是放在了如何设计精准的异常检测上。不同于以往的方法只使用一种异常检测手段，本文对三种故障类型（Performance
-Anomaly，Reliability Anomaly，Traffic
-Anomaly）分别设计了异常检测方法。</p>
-<p>这三种方法分别对应三种指标：响应时间（<code>RT</code>），错误数量（<code>EC</code>）以及每秒请求量（<code>QPS</code>），以下是阿里巴巴监控系统中获取的异常案例：</p>
-<center>
-<img src="/imgs/MicroHECL/metrics.png"/>
-</center>
-<h4 id="性能异常检测">性能异常检测</h4>
-<p>在<code>RT</code>的异常检测中，需要考虑<code>RT</code>可能存在的周期性（如Fig.
-3
-(d)）所示，简单的使用3-sigma方法会将这种正常周期波动视为异常。所以不仅需要考虑当前期间的质量指标，还需要考虑<strong>前一天</strong>和<strong>前一周同一天</strong>的质量指标。</p>
-<p>本文使用OC-SVM训练异常检测模型，OC-SVM是一种常用的无监督机器学习模型，常用于异常检测和分类。文章为<code>RT</code>构建了以下4种特征：</p>
-<blockquote>
-<ul>
-<li>当前检测窗口中<code>RT</code>的值大于给定比较时间窗口内<code>RT</code>的最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的最大值与给定比较时间窗口内的<code>RT</code>最大值的差值。</li>
-<li>当前检测时间窗口中超过给定比较时间窗口中<code>RT</code>滑动平均值最大值的数量。</li>
-<li>当前检测窗口中<code>RT</code>的平均值与给定时间窗口内<code>RT</code>的滑动平均值的最大值的比值。</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，给定比较时间窗口有3种：①过去一小时、②前一天同一小时、③前一周同一天的同一小时。（如果数据保存没那么完善和严格的话，笔者认为定义一段正常时间为比较窗口应该也是可以接受的）。所以一共有3*4=12种特征。</p>
-<p>对于模型训练和验证，文章拿10000样本作为训练集，600个正负比例1:1的样本作为测试集。</p>
-<h4 id="可靠性异常检测">可靠性异常检测</h4>
-<p>这里提到<code>EC</code>大多时候都是0（Fig.2
-(b,c)），偶尔会出现少许波动，但很快会恢复（比如断路器打开时<code>EC</code>升高，关闭后<code>EC</code>降低），也没有周期性，如果用性能异常的模型，则会出现大量误报（少许波动都会算进去）。</p>
-<p>所以，文章采用随机森林（Random
-Forest，RF）来分类，文章为<code>EC</code>构建了以下5种特征：</p>
-<blockquote>
-<ul>
-<li>计算最近一小时的<code>EC</code>和前一天同一时间段的<code>EC</code>的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>计算最近一小时内<code>EC</code>值和每一个值的前一分钟<code>EC</code>值的增量；使用3-Sigma规则识别当前检测窗口中可能存在的增量异常值；如果存在，则返回异常值的平均值作为特征值，否则返回0。</li>
-<li>检测窗口内的平均<code>RT</code>是否大于设定的阈值（例如，在本文的线上系统中，阈值设置为50ms）</li>
-<li>检测窗口内最大错误率（<code>EC</code>/sum(<code>QPS</code>)）。</li>
-<li>检测窗口内<code>RT</code>和<code>EC</code>的皮尔逊相关系数</li>
-</ul>
-</blockquote>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，对于模型训练和验证，文章拿1000样本作为训练集（有标签，正负比1:3），400个正负比例5:3的样本作为测试集。</p>
-<h4 id="流量异常检测">流量异常检测</h4>
-<p><code>QPS</code>大多满足正态分布（Fig.2
-(c,f)），所以直接采用3-sigma进行检测。 &gt;
-这里笔者有小小的疑问，QPS真的满足正态分布吗？在系统那边的文章，许多流量都是以泊松分布注入的</p>
-<p>其中，当前检测窗口大小为<strong><em>10min</em></strong>，选择过去<strong><em>1h</em></strong>计算均值和标准差。3-sigma的均值和方差选择。为了进一步消除误报，还需要检测初始异常服务的<code>QPS</code>和业务指标（就是入口服务被异常检测的指标）的皮尔逊系数，如果大于0.9，则报告流量异常。</p>
-<h4 id="剪枝">剪枝</h4>
-<p>为了提高MicroHECL的异常回溯效率，需要控制指数增长的异常传播链分支数量，因为不断地进行异常检测也是非常耗时的。</p>
-<p>核心思想：<font color='red'>异常传播链中的两个连续服务调用的相应质量指标应该具有相似变化趋势</font></p>
-<blockquote>
-<p>例子：Fig. 2中的 <span class="math inline">\(S_1 \to S_4\)</span> 和
-<span class="math inline">\(S_4 \to S_5\)</span> 都是<strong>Traffic
-Anomaly</strong> 的传播路径，如果<span class="math inline">\(S_1 \to
-S_4\)</span> 的 <code>QPS</code> 和 <span class="math inline">\(S_4 \to
-S_5\)</span> 的 <code>QPS</code>
-没有相似的趋势（即皮尔逊相关系数&lt;0.7），则需要剪掉<span
-class="math inline">\(S_1 \to S_4\)</span>，那么<span
-class="math inline">\(S_4\)</span>就取代<span
-class="math inline">\(S_1\)</span>变成了候选根因。</p>
-</blockquote>
-<p>这里的检测窗口选取的过去<strong><em>60min</em></strong>。剪枝操作执行在异常节点加入异常调用链之前。</p>
-<h2 id="总结">总结</h2>
-<p>文章思路挺好的，有理有据，方法朴实有效。写作的顺序不是传统的总分形式，首先就把整体流程讲完了，然后拿出异常检测和剪枝单独讲，初看有点不适应。</p>
-<h2 id="参考文献">参考文献</h2>
-<div>
-<p><a name="ImpactTracer"></a> [1] Xie R, Yang J, Li J, et al.
-ImpactTracer: Root Cause Localization in Microservices Based on Fault
-Propagation Modeling, (DATE), 2023.
-<a>https://ieeexplore.ieee.org/abstract/document/10137078/</a></p>
-</div>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3147,7 +3102,7 @@ Propagation Modeling, (DATE), 2023.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">11</span>
+          <span class="site-state-item-count">12</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -3160,7 +3115,7 @@ Propagation Modeling, (DATE), 2023.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">26</span>
+        <span class="site-state-item-count">28</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -3200,13 +3155,13 @@ Propagation Modeling, (DATE), 2023.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">53k</span>
+    <span title="站点总字数">56k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:37</span>
+    <span title="站点阅读时长">1:42</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
