@@ -200,6 +200,305 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/06/22/MicroDig/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/06/22/MicroDig/" class="post-title-link" itemprop="url">[TSC 2024] Diagnosing Performance Issues for Large-Scale  Microservice Systems with Heterogeneous Graph</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-06-22 12:21:27" itemprop="dateCreated datePublished" datetime="2024-06-22T12:21:27+08:00">2024-06-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-05-07 11:05:36" itemprop="dateModified" datetime="2025-05-07T11:05:36+08:00">2025-05-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：Diagnosing Performance Issues for Large-Scale Microservice
+Systems with Heterogeneous Graph</p>
+<p>来源：TSC 2024</p>
+<p>作者：南开大学AIOps@NKU团队，清华大学Netman实验室</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>微服务系统的可用性对于业务运营和企业声誉至关重要。然而，微服务系统的动态性和复杂性给大规模微服务系统的性能问题诊断带来了重大挑战。文章分析了腾讯性能故障的真实案例后，发现故障传播的<font color=red>因果关系</font>与服务之间的<font color=red>调用关系</font>不一致，所以之前基于调用关系的根因定位方法准确率不高。文章提出适用于大规模微服务系统的性能问题诊断方法，MicroDig，步骤如下：</p>
+<ul>
+<li>基于调用和微服务之间的因果关系构建异构传播图</li>
+<li>采样面向异构的随机游走算法进行根因服务定位</li>
+</ul>
+<p>MicroDig在腾讯、Train-Ticket、银行三个数据集上能实现至少85%的top-3
+accuracy。</p>
+<h2 id="背景">背景</h2>
+<p>随着微服务系统的快速演变和规模扩张，微服务自身固有的动态性和复杂性给系统的可靠性维护带来了挑战。当微服务系统发生性能异常时，需要及时定位到根因服务，并把问题工单发给对应微服务的团队。然而，由于微服务数量太过庞大（Alibaba有超过30000服务），并且服务之间交互复杂，性能异常在服务之间进行传播，导致大量服务同时异常，进而使得人工诊断变得耗时耗力。</p>
+<p>有许多现有工作基于trace来进行根因分析。trace记录了每次请求的调用路径以及相关性能表现，然而，<font color=red>海量的traces会带来极大的存储开销</font>（eBay每天产生150
+billion的traces）。所以，越来越多的公司只保留两个服务之间的端到端聚合调用（end-to-end
+aggregated calls）。</p>
+<p>有些工作已经使用了aggregated call（这里指的是Codewisdom团队的GMTA<a
+href="#GMTA"><sup>1</sup></a>），采取模式匹配的方式进行根因定位，但需要非常充足的历史故障数据，这在现实场景中很难实现；也有一些工作基于因果图进行根因定位，他们的因果挖掘算法有极高的计算成本，并且准确率较低。</p>
+注：aggregated call在GMTA中提到过，应该就是一段时间（比如1
+min）内trace的聚合：
+<center>
+<img src="/imgs/MicroDig/GMTA-path.png"/>
+</center>
+<p>文章提出的MicroDig的核心思想是：调用关系不等于因果关系（在动机中有具体说明），于是在故障诊断前先构造因果图（节点是微服务和调用）。
+【从相关工作的分析到方法的提出有点衔接生硬，可能是因为因果方面的分析放到了动机的原因】</p>
+<h2 id="动机">动机</h2>
+<h3 id="调用关系异常传播的因果关系">调用关系≠异常传播的因果关系</h3>
+文章举了一个例子来说明这个观点：
+<center>
+<img src="/imgs/MicroDig/call-casual.png"/>
+</center>
+<p><span class="math inline">\(A \to B \to C\)</span>
+的异常次数急剧增加，如果仅仅根据调用关系去分析异常传播，那么根因是<span
+class="math inline">\(C\)</span>，然而，操作员却没有在<span
+class="math inline">\(C\)</span>中发现有意义的故障报告。因为 <span
+class="math inline">\(B\)</span> 已经用尽了文件描述符，无法建立与 <span
+class="math inline">\(C\)</span> 的新连接，所以<span
+class="math inline">\(B \to C\)</span>有大量的异常出现。所以根因是<span
+class="math inline">\(B\)</span>不是<span
+class="math inline">\(C\)</span>，这与调用关系的回溯是违背的。文章提到腾讯有35%的性能问题不能仅仅依靠调用关系回溯解决。</p>
+<blockquote>
+<p>所以异常的被调用服务不一定是根因，调用方和被调用方都有可能是根因</p>
+</blockquote>
+<h3 id="异构传播图">异构传播图</h3>
+<p>由3.1可知，仅仅从调用关系分析异常传播是不够的，所以本文提出了一种异构传播图（heterogeneous
+propagation graph）来描述故障传播的因果关系：</p>
+<center>
+<img src="/imgs/MicroDig/hpg.png"/>
+</center>
+<ul>
+<li><p>如上图所示，<span class="math inline">\(R(A,B)\)</span> 代表<span
+class="math inline">\(A \to B\)</span>的异常率（anomaly rate），<span
+class="math inline">\(R(A)\)</span> 代表服务<span
+class="math inline">\(A\)</span>
+本身的异常率。注意，服务本身的异常率，如<span
+class="math inline">\(R(A)\)</span>，在这个工作中是不可观测的；边的异常率，如<span
+class="math inline">\(R(A,B)\)</span>，是可以被观测的。</p></li>
+<li><p>因为3.1中展示了调用方和被调用方均可能贡献异常，所以每个服务都应该有一条指向调用边的因果线（比如<span
+class="math inline">\(R(A) \to R(A,B)\)</span>）。</p></li>
+<li><p>文章添加了一些假设：①服务之间是独立的，比如<span
+class="math inline">\(R(A)\)</span>和<span
+class="math inline">\(R(B)\)</span>是独立的【这个假设有点不太符合现实】，②没有交集的两条调用边是独立的，比如<span
+class="math inline">\(R(A,B)\)</span>和<span
+class="math inline">\(R(C,D)\)</span></p></li>
+</ul>
+<p>根据作者的设计，这里应该就能看到<span
+class="math inline">\(R(B,C)\)</span>是受<span
+class="math inline">\(R(B)\)</span>和<span
+class="math inline">\(R(C)\)</span>影响的了，从某种意义上给3.1的问题提供了思路。</p>
+<h2 id="microdig-架构">MicroDig 架构</h2>
+<center>
+<img src="/imgs/MicroDig/structure.png"/>
+</center>
+<p>可以看到MicroDig分为几个部分： 1. 性能监控 (Monitoring) 2.
+相关调用的识别 (Association Call Identification) 3. 异构传播图的构建
+(Heterogeneous Propagation Graph Construction) 4. 根因定位 (Root Cause
+Localization)</p>
+<h3 id="association-call-identification">Association Call
+Identification</h3>
+<p>对于大规模微服务系统，如果直接构造调用图，那么图中会包含大量与故障不相关的调用边。所以需要对边进行筛选。</p>
+<h4 id="构造port-level-异常子图">构造<code>port-level</code>
+异常子图</h4>
+<p>文章首先构造 <code>port-level</code>
+异常子图，<code>port-level</code>即接口级别，图中的节点都是接口，
+具体步骤如下：</p>
+<ol type="1">
+<li>构造 <code>port-level</code>
+调用图（为什么选用<code>port-level</code>）</li>
+<li>在调用图上进行
+<em>宽度优先搜索</em>，对于被遍历的边，采用<em>3-sigma 异常检测</em>
+对边的异常率或者超时率进行检测，将异常边保留下来，就得到<code>port-level</code>异常子图</li>
+</ol>
+<blockquote>
+<p>为什么先构造<code>port-level</code>异常子图，而不是直接构造<code>service-level</code>异常子图？因为一个service包含太多port，聚合后一些异常port的表现可能被其他正常port掩盖。</p>
+</blockquote>
+<h4 id="构造service-level-异常子图">构造<code>service-level</code>
+异常子图</h4>
+<p>聚合构造好的<code>port-level</code>异常子图，即把同一个服务的port节点合并为一个service节点，就得到了<code>service-level</code>异常子图。对于服务<span
+class="math inline">\(S\)</span>和<span
+class="math inline">\(S&#39;\)</span>，定义<span
+class="math inline">\(F(p,p&#39;)\)</span>和<span
+class="math inline">\(N(p,p&#39;)\)</span>分别为其中<code>port-level</code>边<span
+class="math inline">\(p \to
+p&#39;\)</span>的异常调用数和总调用数，那么时间点<span
+class="math inline">\(t\)</span>的<span class="math inline">\(S \to
+S&#39;\)</span>的异常率<span class="math inline">\(R_t(S,
+S&#39;)\)</span>为：</p>
+<p><span class="math display">\[
+    R_t(S, S&#39;)=\frac{\sum_{p\in S, p&#39; \in
+S&#39;}F_t(p,p&#39;)}{\sum_{p\in S, p&#39; \in S&#39;}N_t(p,p&#39;)}
+\]</span></p>
+<p>整个过程如图(a) (b)所示 ：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-build.png"/>
+</center>
+<h4 id="构造-heterogeneous-propagation-graph">构造 Heterogeneous
+Propagation Graph</h4>
+<p>3.1
+中提到调用关系≠故障传播的因果关系，所以<code>service-level</code>异常子图也不能直接用于根因定位，需要进一步构建Heterogeneous
+Propagation Graph （HPG）：</p>
+<center>
+<img src="/imgs/MicroDig/hpg-algo.png"  width="500"/>
+</center>
+<p>原理很简单： 1.
+<strong>设置service节点</strong>：把<code>service-level</code>异常子图的所有服务加入到
+HPG 2. <strong>设置call节点</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，将<span
+class="math inline">\(S\)</span>的出边和入边作为节点加入HPG 3.
+<strong>call节点和service节点的关系</strong>：对于每个call节点（<span
+class="math inline">\(S \to S&#39;\)</span>），设置 <span
+class="math inline">\(S \to (S \to S&#39;)\)</span>，<span
+class="math inline">\((S \to S&#39;) \to S&#39;\)</span> 4.
+<strong>call节点和call节点的关系</strong>：对于每个服务<span
+class="math inline">\(S\)</span>，设置：出边 <span
+class="math inline">\(\to\)</span> 入边</p>
+<h3 id="根因服务定位">根因服务定位</h3>
+<p>异构传播图（HPG）有两种节点（service，call）和两种边（service <span
+class="math inline">\(\to\)</span> call, call <span
+class="math inline">\(\to\)</span>
+call）。本文采取针对异构图的随机游走算法来定位根因：</p>
+<center>
+<img src="/imgs/MicroDig/HPG-example.png" width="300"/>
+</center>
+<h4 id="转移权重">转移权重</h4>
+<p>随机游走的核心是<strong>定义不同边的游走权重</strong>：</p>
+<ol type="1">
+<li>对于call <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(C_{23} \to
+C_{12}\)</span>，通过计算这两个调用的异常率数组之间的相关系数来决定游走权重。</li>
+<li>对于service <span class="math inline">\(\to\)</span> call：比如<span
+class="math inline">\(S_1 \to C_{12}\)</span>
+<ul>
+<li><p>首先计算service的异常程度，定义<span
+class="math inline">\(\mathbb{S}_U\)</span>和<span
+class="math inline">\(\mathbb{S}_D\)</span>分别表示服务<span
+class="math inline">\(S\)</span>的上游服务集合和下游服务集合，服务<span
+class="math inline">\(S\)</span>的异常程度<span
+class="math inline">\(\alpha_S\)</span>可以表示为： <span
+class="math display">\[
+\alpha_S = \frac{|\{S&#39;|S&#39;\in \mathbb{S}_U \cup \mathbb{S}_D,
+\theta(S&#39;)=1 \}|}{|\mathbb{S}_U \cup \mathbb{S}_D|}
+\]</span> 当<span
+class="math inline">\(S&#39;\)</span>有任意一条<code>port-level</code>的边是异常时，<span
+class="math inline">\(\theta(S&#39;)=1\)</span>。</p></li>
+<li><p>然后计算service <span class="math inline">\(\to\)</span>
+call的权重。对于任意一个call节点<span class="math inline">\(C=S_{caller}
+\to S_{callee}\)</span>，有两条service <span
+class="math inline">\(\to\)</span> call类型的边：<span
+class="math inline">\(S_{caller} \to C\)</span> 和 <span
+class="math inline">\(C \to
+S_{callee}\)</span>。这两条边的权重分别为：<span
+class="math inline">\(\omega_{caller}\)</span> 和 <span
+class="math inline">\(\omega_{callee}\)</span>，分别计算如下： <span
+class="math display">\[
+\omega_{caller}=max(0, \Delta \eta)*[0.5+\beta sgn(\Delta \alpha)]
+\]</span></p></li>
+</ul>
+<span class="math display">\[
+   \omega_{callee}=max(0, \Delta \eta)*[0.5-\beta sgn(\Delta \alpha)]
+\]</span> 其中，<span class="math inline">\(\Delta \alpha =
+\alpha(S_{caller})-\alpha(S_{callee})\)</span>，<span
+class="math inline">\(\Delta
+\eta\)</span>即当前服务的所有入边的权重-所有出边的权重。</li>
+</ol>
+<h4 id="异构随机游走">异构随机游走</h4>
+<p>与<code>Personal pageRank</code>不同的是，作者没有用个性化向量来跳出陷阱，而是在图上加了以下几种边来防止掉入陷阱：</p>
+<ul>
+<li><strong>backward
+edge</strong>：如果有节点只有一条有向边连接，那么则加一个与有向边方向相反的backward
+edge，权重是有向边的<span class="math inline">\(\rho\)</span>倍。</li>
+<li><strong>self-loop edge</strong>：给每个节点加上自环边</li>
+</ul>
+<p>游走算法如下图所示，与普通的随机游走没有太大差别：</p>
+<center>
+<img src="/imgs/MicroDig/random-walk.png" width="500"/>
+</center>
+<h2 id="总结">总结</h2>
+<ul>
+<li><strong>创新点</strong>：这篇文章的创新点不是很突出，随机游走感觉已经玩烂了（如果随机游走上能再精进一下，可能会好一些）。。。但是异构图的构建还是让人耳目一新的</li>
+<li><strong>动机</strong>：动机比较简单，没有实证分析（对腾讯数据的实证分析应该加上的）。</li>
+<li><strong>代码复现</strong>：公布的代码里应该是没有完整数据的，其实除公司以外的测试数据集应该要公开的。</li>
+</ul>
+<h2 id="参考文献">参考文献</h2>
+<div>
+<p><a name="GMTA"></a> [1] Guo X, Peng X, Wang H, et al. Graph-based
+trace analysis for microservice architecture understanding and problem
+diagnosis, ESEC/FSE. 2020: 1387-1397.
+<a>https://taoxiease.github.io/publications/esecfse20in-trace.pdf</a></p>
+</div>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/05/13/MicoHECL/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -231,7 +530,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2024-11-27 16:50:24" itemprop="dateModified" datetime="2024-11-27T16:50:24+08:00">2024-11-27</time>
+                <time title="修改时间：2025-05-07 11:05:40" itemprop="dateModified" datetime="2025-05-07T11:05:40+08:00">2025-05-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -481,7 +780,7 @@ Propagation Modeling, (DATE), 2023.
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2024-11-27 16:51:30" itemprop="dateModified" datetime="2024-11-27T16:51:30+08:00">2024-11-27</time>
+                <time title="修改时间：2025-05-07 11:06:39" itemprop="dateModified" datetime="2025-05-07T11:06:39+08:00">2025-05-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -832,7 +1131,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">13</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -845,7 +1144,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-count">32</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -885,13 +1184,13 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">56k</span>
+    <span title="站点总字数">59k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:42</span>
+    <span title="站点阅读时长">1:47</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
