@@ -2723,6 +2723,41 @@ class="math inline">\(T_{ts}=(S_{ts}, Q_{ts})\)</span>，在 <span
 class="math inline">\(S_{ts}\)</span> 上进行微调，然后用 <span
 class="math inline">\(Q_{ts}\)</span> 进行测试</li>
 </ul>
+<h2 id="实验">实验</h2>
+<p>实验采用的数据集来自 TrainTicket 和 OnlineBoutique，配置如下：</p>
+<ul>
+<li><strong>TrainTicket</strong>：20 基础故障类型 + 10 新故障类型</li>
+<li><strong>OnlineBoutique</strong>：22 基础故障类型 + 10
+新故障类型</li>
+</ul>
+<p>训练配置：</p>
+<ul>
+<li><strong>meta-training</strong>：4 meta-training tasks
+(基础故障类型)；5-way 5-shot；query set M=15</li>
+<li><strong>meta-testing</strong>：50 meta-testing tasks
+(新故障类型)；5-way 10-shot；query set M=15</li>
+</ul>
+<p>文章设计了四个实验来证明 <code>TraFaultDia</code>
+在不同场景下的性能：</p>
+<ol type="1">
+<li>E1 (TrainTicket → TrainTicket) 在 TrainTicket 的 4 meta-training
+tasks 训练，在 TrainTicket 的 50 meta-testing tasks 测试</li>
+<li>E2 (OnlineBoutique → OnlineBoutique) 在 OnlineBoutique 的 4
+meta-training tasks 训练，在 OnlineBoutique 的 50 meta-testing tasks
+测试</li>
+<li>E3 (OnlineBoutique → TrainTicket) 在 OnlineBoutique 的 4
+meta-training tasks 训练，在 TrainTicket 的 50 meta-testing tasks
+测试</li>
+<li>E4 (TrainTicket → OnlineBoutique) 在 TrainTicket 的 4 meta-training
+tasks 训练，在 OnlineBoutique 的 50 meta-testing tasks 测试</li>
+</ol>
+<p>下面是实验结果</p>
+<center>
+<img src="/imgs/TraFaultDia/exp1.png" width='700'/>
+</center>
+<center>
+<img src="/imgs/TraFaultDia/exp2.png" width='700'/>
+</center>
 ]]></content>
       <categories>
         <category>文献精读</category>
