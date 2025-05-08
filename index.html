@@ -200,6 +200,218 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/05/08/openRCA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/05/08/openRCA/" class="post-title-link" itemprop="url">[ICLR 2025] OpenRCA: Can Large Language Models Locate the Root Cause of Software Failures</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2025-05-08 12:44:00 / 修改时间：17:44:02" itemprop="dateCreated datePublished" datetime="2025-05-08T12:44:00+08:00">2025-05-08</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>5.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>10 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：OpenRCA: Can Large Language Models Locate the Root Cause of
+Software Failures</p>
+<p>来源：ICLR 2025</p>
+<p>作者：香港中文大学（深圳）</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>大模型（LLM）推动了软件工程领域的实质性进步。然而现有的研究大多关注
+LLM
+在软件开发阶段的作用，比如代码生成，忽视了在开发后阶段（<em>post-development</em>）的工作，而这个阶段往往直接关乎用户的体验。文章推出了
+OpenRCA，包含一个benchmark数据集和一个评估框架，用于衡量 LLM
+在定位软件故障根因上的能力。</p>
+<p>OpenRCA 包含 335 个真实场景的 failure case，这些 failure case 来自 3
+个企业系统，并附带有 68 GB 的多模态遥测数据（metric，trace，log）。LLM
+需要接收给定的 failure case
+和对应的遥测数据，加以推理，然后识别出故障根因。实验表明，即使是表现最好的
+LLM，也只能解决 11.34% 的 failure case。</p>
+<h2 id="背景">背景</h2>
+<p>对于在线系统的软件维护和debug是非常困难的，虽然有大量工作在致力于通过多模态遥测数据来定位故障根因（RCA），但是这个任务仍然具有较大的挑战性，因为线上软件系统有着难以估计的复杂性。</p>
+<center>
+<img src="/imgs/openRCA/background.png" width='900'/>
+</center>
+<p>LLM 是否能胜任 RCA 工作呢？文章为此提出了一个 benchmark
+数据集：OpenRCA， 包含 335 个真实场景的 failure case，这些 failure case
+来自 3 个企业系统，并附带有 68 GB
+的多模态遥测数据（metric，trace，log）。如上图所示，对于每个 failure
+case 以及一个对应的自然语言的 query， LLM
+需要分析大佬的多模态遥测数据，理解系统之间的内在关联，并推理出可能的故障根因。</p>
+<h2 id="openrca">OpenRCA</h2>
+<h3 id="特点">特点</h3>
+<p>OpenRCA 包含了大佬真实场景的 failure case，有如下特点：</p>
+<ul>
+<li>真实场景</li>
+<li>目标驱动的任务设计（不再是简单定位一个故障组件，而是通过自然语言表达任务）</li>
+<li>多模态异构遥测数据</li>
+<li>完整的 LLM 评估</li>
+<li>支持新标签和新遥测数据的集成</li>
+</ul>
+<h3 id="问题建模">问题建模</h3>
+<p>故障根因有三个元素：<strong>根因组件</strong>（originating
+component）、<strong>开始时间</strong>（start
+time）、<strong>故障原因</strong>（failure
+reason）。每个人的目标可能不一样，所以需要对上述元素进行组合得到目标。</p>
+<blockquote>
+<p>OpenRCA 定义了7个目标，是3个元素的组合（<span
+class="math inline">\(C_3^1+C_3^2+C_3^3\)</span>， LLM
+的输出应该是7种目标中的一种 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&quot;task_7&quot;: &#123;</span><br><span class="line">    &quot;input&quot;: [</span><br><span class="line">        &quot;time range: &#123;time_period&#125;&quot;,</span><br><span class="line">        &quot;number of failures: &#123;num&#125;&quot;</span><br><span class="line">    ],</span><br><span class="line">    &quot;output&quot;: [</span><br><span class="line">        &quot;root cause component: &#123;component&#125;&quot;,</span><br><span class="line">        &quot;root cause occurrence time: &#123;datetime&#125;&quot;,</span><br><span class="line">        &quot;root cause reason: &#123;reason&#125;&quot;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<p><strong>评估</strong>：对于每个 failure
+case，如果输出的内容符合实际，则加一分，否则不得分。这里要避免文本表达差异而导致的评估错误，prompt
+中预先提供了所有可能的故障原因和原始组件。最终计算 <span
+class="math inline">\(accuracy\)</span> ，是所有分数的均值。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;1&quot;: &#123;</span><br><span class="line">        &quot;root cause occurrence datetime&quot;: (A time in ’%Y-%m-%d %H:%M:%S’ format),</span><br><span class="line">        &quot;root cause component&quot;: (A component selected from the given’ possible root cause component’),</span><br><span class="line">        &quot;root cause reason&quot;: (A reason selected from the given’ possible root cause reason’),</span><br><span class="line">    &#125;,</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="数据集构成">数据集构成</h3>
+<p>OpenRCA 使用的数据集均来自历年的 AIOps
+大赛，由于脏数据较多、某些故障标签缺乏（failure
+reason）等问题，首先采用四步处理方式预处理：</p>
+<center>
+<img src="/imgs/openRCA/process.png" width='900'/>
+</center>
+<ol type="1">
+<li><strong>System Selection</strong>:
+历年数据集中有些系统因为数据和标签不完备被淘汰，选用满足要求的3个系统</li>
+<li><strong>Data Balancing</strong>:
+系统之间数据规模差距太大，对大数据量系统进行下采样</li>
+<li><strong>Data Calibration</strong>: 规范命名以及人工筛选 failure
+case</li>
+<li><strong>Query Synthesis</strong>: 3个元素组合而成7个目标</li>
+</ol>
+<p>最终数据集组成如下：</p>
+<center>
+<img src="/imgs/openRCA/dataset.png" width='900'/>
+</center>
+<h2 id="rca-agent">RCA-Agent</h2>
+<p>为了解决 OpenRCA 中的任务，首先要面对两个挑战</p>
+<p>第一个挑战是<strong>如何处理超大规模的遥测数据</strong></p>
+<blockquote>
+<p>直观的解决方法是将所有遥测数据整合为一个
+chunk，但是低效且开销巨大的；另一个方法是采样一个遥测数据的子集，但是有丢失关键信息的风险</p>
+</blockquote>
+<p>第二个挑战是<strong>遥测数据不是自然语言</strong>， LLM
+可能无法有效处理：</p>
+<blockquote>
+<p>可选的处理方法是先对所有遥测数据进行代码处理，然后提取关键信息到
+LLM</p>
+</blockquote>
+<p>针对上述挑战，文章也提出了一个多智能体的解决方案（RCA-Agent），RCA-Agent
+包含两个 LLM 智能体（Controller 和 Executor）</p>
+<center>
+<img src="/imgs/openRCA/RCA-agent.png" width='900'/>
+</center>
+<ul>
+<li><p><strong>Controller</strong>：负责整个流程的调度，指导 LLM 按照
+anomaly detection -&gt; fault identification -&gt; root cause
+localization 进行诊断；指导 LLM 按照 metric -&gt; trace -&gt; log
+的顺序进行分析</p></li>
+<li><p><strong>Executor</strong>：在 Controller 的指导下写 Python
+代码、执行代码、返回结果给 Controller。由两部分组成</p>
+<ul>
+<li>code generator: 生成 Python 代码</li>
+<li>code executor: 有个 Python kernel 负责执行</li>
+</ul></li>
+</ul>
+<blockquote>
+<p>RCA-Agent 工作流：</p>
+<ol type="1">
+<li>Controller 指示 Executor 加载遥测数据（Executor
+自己生成并执行代码）</li>
+<li>Executor 返回结果给 Controller</li>
+<li>Controller 分析决策并决定下一个动作</li>
+<li>Controller 和 Executor 不断交互直到最终结果给出</li>
+</ol>
+</blockquote>
+<h2 id="实验">实验</h2>
+<p>之前提到不可能把所有的遥测数据都输入到
+LLM，所以只能用采样来减轻负担，比如只取用每分钟的第一条记录，此外，进一步引入了两个
+KPIs 采样方式作为 RCA-Agent 的对比：</p>
+<ul>
+<li>Oracle Sampling：工程师选出最有价值的 KPIs</li>
+<li>Balanced Sampling：随机采样与 Oracle Sampling 同等数量的 KPIs</li>
+</ul>
+<p>文章比较了现有的开源模型在 OpenRCA 上的表现</p>
+<center>
+<img src="/imgs/openRCA/exp1.png" width='700'/>
+</center>
+<p>## Prompt</p>
+<p>这里附上 RCA-Agent 细节和主要 Prompt</p>
+<p><strong>Controller System Prompt</strong> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">You are the Administrator of a DevOps Assistant system for failure</span><br><span class="line">diagnosis. To solve each given issue, you should iteratively instruct</span><br><span class="line">an Executor to write and execute Python code for data analysis on</span><br><span class="line">telemetry files of target system. By analyzing the execution results,</span><br><span class="line">you should approximate the answer step-by-step.</span><br><span class="line"></span><br><span class="line">There is some domain knowledge for you:</span><br><span class="line">&#123;BACKGROUND KNOWLEDGE OF SYSTEM&#125;</span><br><span class="line"></span><br><span class="line">## RULES OF FAILURE DIAGNOSIS:</span><br><span class="line"></span><br><span class="line">What you SHOULD do:</span><br><span class="line">1. **Follow the workflow of ‘preprocess -&gt; anomaly detection -&gt; fault</span><br><span class="line">identification -&gt; root cause localization‘ for failure diagnosis.**</span><br><span class="line">...</span><br><span class="line">What you SHOULD NOT do:</span><br><span class="line">1. DO NOT include any programming language in your response.</span><br><span class="line">...</span><br><span class="line">The issue you are going to solve is:</span><br><span class="line"></span><br><span class="line">&#123;PROBLEM TO SOLVE&#125;</span><br><span class="line">Solve the issue step-by-step. In each step, your response should follow</span><br><span class="line">the JSON format below:</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    &quot;analysis&quot;: (Your analysis of the code execution result from Executor</span><br><span class="line">    in the last step, with detailed reasoning of ’what have been done’</span><br><span class="line">    and ’what can be derived’. Respond ’None’ if it is the first step</span><br><span class="line">    .),</span><br><span class="line">    &quot;completed&quot;: (&quot;True&quot; if you believe the issue is resolved, and an</span><br><span class="line">    answer can be derived in the ’instruction’ field. Otherwise &quot;False</span><br><span class="line">    &quot;),</span><br><span class="line">    &quot;instruction&quot;: (Your instruction for the Executor to perform via code</span><br><span class="line">    execution in the next step. Do not involve complex multi-step</span><br><span class="line">    instruction. Keep your instruction atomic, with clear request of ’ what to do’ and ’how to do’. Respond a summary by yourself if you believe the issue is resolved.)</span><br><span class="line">&#125;</span><br><span class="line">Let’s begin.</span><br></pre></td></tr></table></figure></p>
+<p><strong>Executor System Prompt</strong> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">You are a DevOps assistant for writing Python code to answer DevOps</span><br><span class="line">questions. For each question, you need to write Python code to solve</span><br><span class="line">it by retrieving and processing telemetry data of the target system.</span><br><span class="line">Your generated Python code will be automatically submitted to a</span><br><span class="line">IPython Kernel. The execution result output in IPython Kernel will be</span><br><span class="line">used as the answer to the question.</span><br><span class="line">## RULES OF PYTHON CODE WRITING:</span><br><span class="line">1. Reuse variables as much as possible for execution efficiency since the</span><br><span class="line">IPython Kernel is stateful, i.e., variables define in previous steps</span><br><span class="line">can be used in subsequent steps.</span><br><span class="line">...</span><br><span class="line">There is some domain knowledge for you:</span><br><span class="line">&#123;BACKGROUND KNOWLEDGE OF SYSTEM&#125;</span><br><span class="line">Your response should follow the Python block format below:</span><br><span class="line">‘‘‘python</span><br><span class="line">(YOUR CODE HERE)</span><br><span class="line">‘‘‘</span><br></pre></td></tr></table></figure></p>
+<p><strong>Summary Prompt</strong>。Controller 认为任务已经完成，则这个
+Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Now, you have decided to finish your reasoning process. You should now</span><br><span class="line">provide the final answer to the issue. The candidates of possible</span><br><span class="line">root cause components and reasons are provided to you. The root cause</span><br><span class="line">components and reasons must be selected from the provided candidates</span><br><span class="line">.</span><br><span class="line">&#123;BACKGROUND KNOWLEDGE OF SYSTEM&#125;</span><br><span class="line">Recall the issue is: &#123;PROBLEM TO SOLVE&#125;</span><br><span class="line">Please first review your previous reasoning process to infer an exact</span><br><span class="line">answer of the issue. Then, summarize your final answer of the root</span><br><span class="line">causes using the following JSON format at the end of your response:</span><br><span class="line">&#123;OPENRCA ANSWER FORMAT&#125;</span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/05/07/TraFaultDia/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2759,285 +2971,6 @@ class="math inline">\(dp[i][j-1]\)</span></li>
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/head.png">
-      <meta itemprop="name" content="谢帅宇">
-      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="衍射的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/06/23/TraStrainer/" class="post-title-link" itemprop="url">[FSE 2024] TraStrainer: Adaptive Sampling for Distributed Traces with System Runtime State</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2024-06-23 15:42:10" itemprop="dateCreated datePublished" datetime="2024-06-23T15:42:10+08:00">2024-06-23</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2025-05-07 10:47:04" itemprop="dateModified" datetime="2025-05-07T10:47:04+08:00">2025-05-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>4.6k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>8 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>题目：TraStrainer: Adaptive Sampling for Distributed Traces with
-System Runtime State</p>
-<p>来源：FSE 2024</p>
-<p>作者：中山大学DDS实验室</p>
-</blockquote>
-<h2 id="摘要">摘要</h2>
-<p>微服务系统每天都会产生大量的trace数据，带来了极大的计算和存储成本。trace
-sampling 技术被用来缓解这种压力。trace sampling 分为两种：</p>
-<ul>
-<li><code>random sampling</code>：又称 head
-sampling，即以固定概率决定每条trace是否采样</li>
-<li><code>biased sampling</code>：又称 tail
-sampling，即根据trace的状态决定是否采样</li>
-</ul>
-<p>很明显，<code>random sampling</code>
-实现起来简单，但无法保证得到高质量的采样数据；<code>biased sampling</code>
-能够根据用户偏好进行采样（比如高延时、异常状态码）。</p>
-<p>先前的 <code>biased sampling</code>
-工作大多基于密度（diversity），即偏好采样那些少见（edge-case）的traces，常见（common-case）的traces则少采样一些。然而，作者认为仅根据trace的状态进行采样是不充分的，应该再考虑<font color=blue>当前系统运行状态（system
-runtime
-state）</font>，特别是系统处在故障状态时。（<em>作者很有想法，在trace采样中玩了多模态，引入了metric，我觉得陈鹏飞老师实验室的工作还是很扎实且新颖的</em>）</p>
-<center>
-<img src="/imgs/TraStrainer/trace-metric.png"/>
-</center>
-<p>本文提出了TraStrainer，从以下角度进行在线采样： -
-考虑密度：采用一种可解释的编码方式将trace转化为向量，方便后续密度采样 -
-考虑系统状态：结合当前系统各种运行指标生成偏好向量，方便后续系统采样 -
-密度采样+系统采样 <span class="math inline">\(\to\)</span>
-最终采样决策</p>
-<h2 id="动机">动机</h2>
-<p>陈鹏飞老师实验室有大量关于<strong>微服务系统的故障诊断</strong>的工作，其中有许多是基于trace进行分析的，比如<code>MicroRank</code>，<code>TraceRank</code>和<code>MicroSketch</code>。</p>
-<p>trace采样是这些工作的上游任务，先前与<code>biased sampling</code>相关的工作都是基于密度的，目标是采样edge-case
-traces，没有考虑过采样的traces对下游故障诊断工作的影响。作者从以下两点进行了分析：</p>
-<ol type="1">
-<li><p><strong>仅考虑edge-case traces是不够的</strong>。作者在此举例说明
-common-case traces也有很大的用处:</p>
-<ul>
-<li><strong>common-case traces
-可能与根因有关</strong>。比如线程池因为太多请求的到来而用尽，而这些与根因相关的请求的traces并不一定是异常的，也就被认定为common-case
-traces。而我们分析这些common-case
-traces，可以发现这个时刻有高峰流量（这个是我根据自己理解加的）。</li>
-<li><strong>common-case traces
-有利于下游的分析任务</strong>。很多工作比如TraceRCA，T-Rank，都需要common-case
-traces来获得系统的正常模式，从而与故障时刻进行比对。</li>
-</ul></li>
-<li><p><strong>结合 system runtime state
-有利于判断有价值的trace</strong>。作者拿了华为的一个真实场景进行分析，如Fig.
-3所示，[a,b]时间段 Node A 的 MySQL服务进行全表查询，导致 Node A
-的CPU被打满，到达 Node A
-的请求变得异常。SREs通常先检查系统状态，发现CPU升高，然后分析经过 Node A
-的traces。<font color=red>然而，如果只根据密度进行trace采样，那么[a,b]的traces将被采集的很少，因为还没有发生异常</font>。<font color=green>如果结合系统状态进行采样，那么[a,b]的traces将给予更高的采样权重（[a,b]存在CPU攀升）。</font></p></li>
-</ol>
-<center>
-<img src="/imgs/TraStrainer/metric-importance.png"/>
-</center>
-<p>综上，作者认为应该在trace采样时不仅仅考虑traces之间的密度，也要引入对当前系统状态的考虑。</p>
-<h2 id="问题定义">问题定义</h2>
-<p>给定一段时间收集的traces <span
-class="math inline">\(\mathcal{T}\)</span>、对应的系统状态指标 <span
-class="math inline">\(\mathcal{M}\)</span>、采样率 <span
-class="math inline">\(\beta\)</span>，需要对<span
-class="math inline">\(\mathcal{T}\)</span>中每个trace <span
-class="math inline">\(t\)</span> 计算采样概率 <span
-class="math inline">\(\rho\)</span>。整个过程定义为：</p>
-<p><span class="math display">\[
-S_p(\beta, \mathcal{T}, \mathcal{M}, t) \to \rho, \mathcal{T&#39;}
-\]</span></p>
-<p>其中，<span class="math inline">\(\mathcal{T&#39;}\)</span>是<span
-class="math inline">\(\mathcal{T}\)</span>的采样子集。</p>
-<h2 id="trastrainer-概要">TraStrainer 概要</h2>
-<center>
-<img src="/imgs/TraStrainer/TraStrainer.png"/>
-</center>
-<p>TraStrainer的架构和其他在线采样器相似，包含以下模块：</p>
-<ul>
-<li><p><strong>Runtime Data Preprocessing</strong>：</p>
-<ul>
-<li>Trace Encoder：对trace进行结构和状态编码</li>
-<li>System Bias Extractor：将当前系统状态指标进行编码</li>
-</ul></li>
-<li><p><strong>Comprehensive Sampling</strong>：</p>
-<ul>
-<li>System-Biased Sampler：优先采样与当前系统波动最相似的trace</li>
-<li>Diversity-Biased Sampler：优先采样edge cases traces</li>
-<li>Composite Sampler：结合上述两种采样器进行最终决策</li>
-</ul></li>
-</ul>
-<h3 id="trace-encoder">Trace Encoder</h3>
-<p>如Fig.5所示，trace的编码包含<strong>结构编码</strong>和<strong>状态编码</strong>两部分：</p>
-<center>
-<img src="/imgs/TraStrainer/encoder-example.png"/>
-</center>
-<p><strong>状态编码</strong>：结合 Fig. 5 的例子进行说明，Fig. 5 的Trace
-Vector的上半部分展示了由指标（node，metric_name）构成的向量，比如指标<span
-class="math inline">\(m_1\)</span>就是（<span
-class="math inline">\(C\)</span>, <span
-class="math inline">\(SQLConnectionTime\)</span>）。一条trace由各种span构成，文章的span携带了一些tag（比如Node和annotation）。为了计算<span
-class="math inline">\(m_1\)</span>的值<span
-class="math inline">\(f_{m_1}\)</span>，作者将所有与<span
-class="math inline">\(m_1\)</span>相关的span的duration结合起来，具体计算如下：</p>
-<p><span class="math display">\[
-   f_{m_1}=(|S_a|+1)*\sum_{i=1}^{n}s_{m_1i}.duration
-\]</span></p>
-<p><span class="math inline">\(s_{m_1i}\)</span>即与指标<span
-class="math inline">\(m_1\)</span>相关的span，而<span
-class="math inline">\(|S_a|\)</span>即相关span中异常span的个数（状态码为error，Fig.5中为1）
-&gt;
-注：最开始不太理解这种设计，后来发现是作者将指标与对应的trace的状态信息（延时+状态码）联系起来，相当于量化了指标对trace状态的影响，非常巧妙。</p>
-<p><strong>结构编码</strong>：这一块比较简单，即将trace看做一棵树，每层可能有多个span，这些spans由<code>parentSpan</code>、<code>method</code>以及<code>params</code>组成，每一层的spans都被编码为一个特征。这些特征共同组成一个vector。</p>
-<h3 id="system-bias-extractor">System Bias Extractor</h3>
-<p>这一部分的本质是衡量当前系统哪个指标比较重要，这个重要程度由指标的<strong>异常程度</strong>决定。每个指标的异常程度组合成一个一维的<code>preference vector</code>数组，</p>
-<center>
-<img src="/imgs/TraStrainer/metric-anomaly.png"/>
-</center>
-<p>作者认为基于统计模型的异常检测不准确，无法识别周期性；而基于LSTM和Transformer的深度学习模型在响应太慢，无法适应线上采样。所以最终采用<code>DLinear algorithm</code><a
-href="#DLinear"><sup>1</sup></a>，如Fig.6所示，这个算法通过指标的历史时序数据预测当前值<span
-class="math inline">\(v_k&#39;\)</span>，并通过以下公式计算指标异常程度：
-<span class="math display">\[
-   \alpha=\frac{v_k&#39;-v_k}{max(v_k&#39;, v_k)}
-\]</span></p>
-<p>这个公式通过预测值与真实值的差距计算异常度。所有指标<span
-class="math inline">\(\mathcal{M}\)</span>的异常度拼在一起就是<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>。</p>
-<h3 id="system-biased-sampler">System-Biased Sampler</h3>
-<p>System-Biased
-Sampler的核心是优先考虑与当前系统指标波动最相似的traces（与motivation中的故障诊断对上）。那么需要对新到来的trace进行注意力评估和采样概率计算。</p>
-<p>本文定义了一个固定长度look-back window，由<span
-class="math inline">\(k\)</span>条最近收集的历史traces组成：<span
-class="math inline">\([t_1,...,t_k]\)</span>。System-Biased
-Sampler只需用到trace的状态编码部分，每条trace的状态向量由n个指标组成，表示为<span
-class="math inline">\(t_i=[f_{1i},...,f_{ni}]\)</span>。对历史traces每一维指标计算均值<span
-class="math inline">\(\mu_i\)</span>和标准差<span
-class="math inline">\(\sigma_i\)</span>，则对新到来的trace <span
-class="math inline">\(t_{k+1}\)</span> 的第<span
-class="math inline">\(i\)</span>个指标注意力分数计算如下： <span
-class="math display">\[
-   a_i = \frac{|f_{ik+1}-\mu_i|}{\sigma_i}
-\]</span></p>
-<p><span
-class="math inline">\(t_{k+1}\)</span>的所有指标的注意力分数记为 <span
-class="math inline">\(\mathcal{A}=[a_1,...,a_n]\)</span>，TraStrainer通过将注意力分数<span
-class="math inline">\(\mathcal{A}\)</span>和<code>preference vector</code>
-<span class="math inline">\(\mathcal{P}\)</span>
-进行点积得到面向系统的采样概率<span class="math inline">\(p_s\)</span>：
-<span class="math display">\[
-   p_s(t_{k+1})= \frac{2}{1+e^{-2\mathcal{P·\mathcal{A}(t_{k+1})}}}-1
-\]</span></p>
-<p>以上操作是将点积<span
-class="math inline">\(P·\mathcal{A}(t_{k+1})\)</span>通过tanh函数映射到[0,1]范围，点积越大，代表当前trace与当前系统状态越相似，面向系统的采样概率越大。</p>
-<h3 id="diversity-biased-sampler">Diversity-Biased Sampler</h3>
-<p>Diversity-Biased Sampler的目标是考虑edge-case
-traces（即少见的traces），这篇文章与先前工作一样基于聚类来筛选edge-case
-traces。</p>
-<p>论文将look-back
-window的历史traces进行聚类（基于trace的特征），并计算每个类的质量（traces数量），并把新trace
-<span class="math inline">\(t_{k+1}\)</span> 归于最近的类 <span
-class="math inline">\(c_{k+1}&#39;\)</span>。<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量为<span
-class="math inline">\(ma_{k+1}&#39;\)</span>，计算 trace <span
-class="math inline">\(t_{k+1}\)</span> 和 所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span> 之间的Jaccard相似度<span
-class="math inline">\(si(t_{k+1})\)</span>。</p>
-<p><strong>一般来说，所属类<span
-class="math inline">\(c_{k+1}&#39;\)</span>的质量和<span
-class="math inline">\(si(t_{k+1})\)</span>越小，代表所属类越稀有、新trace越独特，应该给予更高的采样概率</strong>。所以面向密度的采样概率<span
-class="math inline">\(p_d(t_{k+1})\)</span>计算如下： <span
-class="math display">\[
-   p_d(t_{k+1})=\frac{\frac{1}{ma_{k+1}&#39;*si(t_{k+1})}}{\sum_{i=1}^{k+1}\frac{1}{ma_{i}&#39;*si(t_{i})}}
-\]</span></p>
-<h3 id="composite-sampler">Composite Sampler</h3>
-<p>对于新到trace <span
-class="math inline">\(t\)</span>，综合两个采样概率 <span
-class="math inline">\(p_s(t)\)</span> 和 <span
-class="math inline">\(p_d(t)\)</span> 后，考虑采样额度 <span
-class="math inline">\(\beta\)</span>，基于动态投票机制（dynamic voting
-mechanism）最终决策。</p>
-<center>
-<img src="/imgs/TraStrainer/vote.png"/>
-</center>
-<p>首先统计过去look-back window里采样概率 <span
-class="math inline">\(\theta\)</span>，如果： - <span
-class="math inline">\(\theta \geq
-\beta\)</span>，必须两个采样决策都为True，才采样 - <span
-class="math inline">\(\theta \leq
-\beta\)</span>，只需要有一个采样决策为True，即可采样</p>
-<div>
-<p><a name="DLinear"></a> [1] Ailing Zeng, Muxi Chen, Lei Zhang, and
-Qiang Xu. 2023. Are transformers effective for time series forecasting?.
-In Proceedings of the AAAI conference on artificial intelligence, Vol.
-37. 11121–11128.</p>
-</div>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3109,7 +3042,7 @@ In Proceedings of the AAAI conference on artificial intelligence, Vol.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-count">14</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -3122,7 +3055,7 @@ In Proceedings of the AAAI conference on artificial intelligence, Vol.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-count">35</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -3162,13 +3095,13 @@ In Proceedings of the AAAI conference on artificial intelligence, Vol.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">60k</span>
+    <span title="站点总字数">65k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:49</span>
+    <span title="站点阅读时长">1:59</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
