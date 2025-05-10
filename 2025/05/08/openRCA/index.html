@@ -33,7 +33,7 @@
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/openRCA/RCA-agent.png">
 <meta property="og:image" content="https://shuaiyuxie.github.io/imgs/openRCA/exp1.png">
 <meta property="article:published_time" content="2025-05-08T04:44:00.000Z">
-<meta property="article:modified_time" content="2025-05-08T09:44:02.793Z">
+<meta property="article:modified_time" content="2025-05-08T09:46:37.977Z">
 <meta property="article:author" content="谢帅宇">
 <meta property="article:tag" content="微服务">
 <meta property="article:tag" content="根因定位">
@@ -239,7 +239,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2025-05-08 12:44:00 / 修改时间：17:44:02" itemprop="dateCreated datePublished" datetime="2025-05-08T12:44:00+08:00">2025-05-08</time>
+              <time title="创建时间：2025-05-08 12:44:00 / 修改时间：17:46:37" itemprop="dateCreated datePublished" datetime="2025-05-08T12:44:00+08:00">2025-05-08</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -408,7 +408,7 @@ KPIs 采样方式作为 RCA-Agent 的对比：</p>
 <center>
 <img src="/imgs/openRCA/exp1.png" width='700'/>
 </center>
-<p>## Prompt</p>
+<h2 id="prompt">Prompt</h2>
 <p>这里附上 RCA-Agent 细节和主要 Prompt</p>
 <p><strong>Controller System Prompt</strong> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">You are the Administrator of a DevOps Assistant system for failure</span><br><span class="line">diagnosis. To solve each given issue, you should iteratively instruct</span><br><span class="line">an Executor to write and execute Python code for data analysis on</span><br><span class="line">telemetry files of target system. By analyzing the execution results,</span><br><span class="line">you should approximate the answer step-by-step.</span><br><span class="line"></span><br><span class="line">There is some domain knowledge for you:</span><br><span class="line">&#123;BACKGROUND KNOWLEDGE OF SYSTEM&#125;</span><br><span class="line"></span><br><span class="line">## RULES OF FAILURE DIAGNOSIS:</span><br><span class="line"></span><br><span class="line">What you SHOULD do:</span><br><span class="line">1. **Follow the workflow of ‘preprocess -&gt; anomaly detection -&gt; fault</span><br><span class="line">identification -&gt; root cause localization‘ for failure diagnosis.**</span><br><span class="line">...</span><br><span class="line">What you SHOULD NOT do:</span><br><span class="line">1. DO NOT include any programming language in your response.</span><br><span class="line">...</span><br><span class="line">The issue you are going to solve is:</span><br><span class="line"></span><br><span class="line">&#123;PROBLEM TO SOLVE&#125;</span><br><span class="line">Solve the issue step-by-step. In each step, your response should follow</span><br><span class="line">the JSON format below:</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    &quot;analysis&quot;: (Your analysis of the code execution result from Executor</span><br><span class="line">    in the last step, with detailed reasoning of ’what have been done’</span><br><span class="line">    and ’what can be derived’. Respond ’None’ if it is the first step</span><br><span class="line">    .),</span><br><span class="line">    &quot;completed&quot;: (&quot;True&quot; if you believe the issue is resolved, and an</span><br><span class="line">    answer can be derived in the ’instruction’ field. Otherwise &quot;False</span><br><span class="line">    &quot;),</span><br><span class="line">    &quot;instruction&quot;: (Your instruction for the Executor to perform via code</span><br><span class="line">    execution in the next step. Do not involve complex multi-step</span><br><span class="line">    instruction. Keep your instruction atomic, with clear request of ’ what to do’ and ’how to do’. Respond a summary by yourself if you believe the issue is resolved.)</span><br><span class="line">&#125;</span><br><span class="line">Let’s begin.</span><br></pre></td></tr></table></figure></p>
 <p><strong>Executor System Prompt</strong> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">You are a DevOps assistant for writing Python code to answer DevOps</span><br><span class="line">questions. For each question, you need to write Python code to solve</span><br><span class="line">it by retrieving and processing telemetry data of the target system.</span><br><span class="line">Your generated Python code will be automatically submitted to a</span><br><span class="line">IPython Kernel. The execution result output in IPython Kernel will be</span><br><span class="line">used as the answer to the question.</span><br><span class="line">## RULES OF PYTHON CODE WRITING:</span><br><span class="line">1. Reuse variables as much as possible for execution efficiency since the</span><br><span class="line">IPython Kernel is stateful, i.e., variables define in previous steps</span><br><span class="line">can be used in subsequent steps.</span><br><span class="line">...</span><br><span class="line">There is some domain knowledge for you:</span><br><span class="line">&#123;BACKGROUND KNOWLEDGE OF SYSTEM&#125;</span><br><span class="line">Your response should follow the Python block format below:</span><br><span class="line">‘‘‘python</span><br><span class="line">(YOUR CODE HERE)</span><br><span class="line">‘‘‘</span><br></pre></td></tr></table></figure></p>
@@ -458,7 +458,10 @@ Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td cla
     <a href="/2025/05/07/TraFaultDia/" rel="prev" title="[FSE 2025] Cross-System Categorization of Abnormal Traces in Microservice-Based Systems via Meta-Learning">
       <i class="fa fa-chevron-left"></i> [FSE 2025] Cross-System Categorization of Abnormal Traces in Microservice-Based Systems via Meta-Learning
     </a></div>
-      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2025/05/09/TraceZip/" rel="next" title="[ISSTA 2025] TRACEZIP: Efficient Distributed Tracing via Trace Compression">
+      [ISSTA 2025] TRACEZIP: Efficient Distributed Tracing via Trace Compression <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
       </footer>
     
@@ -517,7 +520,7 @@ Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td cla
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#背景"><span class="nav-number">2.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#openrca"><span class="nav-number">3.</span> <span class="nav-text">OpenRCA</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#特点"><span class="nav-number">3.1.</span> <span class="nav-text">特点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#问题建模"><span class="nav-number">3.2.</span> <span class="nav-text">问题建模</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据集构成"><span class="nav-number">3.3.</span> <span class="nav-text">数据集构成</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rca-agent"><span class="nav-number">4.</span> <span class="nav-text">RCA-Agent</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实验"><span class="nav-number">5.</span> <span class="nav-text">实验</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#背景"><span class="nav-number">2.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#openrca"><span class="nav-number">3.</span> <span class="nav-text">OpenRCA</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#特点"><span class="nav-number">3.1.</span> <span class="nav-text">特点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#问题建模"><span class="nav-number">3.2.</span> <span class="nav-text">问题建模</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数据集构成"><span class="nav-number">3.3.</span> <span class="nav-text">数据集构成</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rca-agent"><span class="nav-number">4.</span> <span class="nav-text">RCA-Agent</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实验"><span class="nav-number">5.</span> <span class="nav-text">实验</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#prompt"><span class="nav-number">6.</span> <span class="nav-text">Prompt</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -533,7 +536,7 @@ Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td cla
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-count">15</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -546,7 +549,7 @@ Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td cla
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">35</span>
+        <span class="site-state-item-count">37</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -586,13 +589,13 @@ Prompt将会发给 Controller <figure class="highlight plain"><table><tr><td cla
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">65k</span>
+    <span title="站点总字数">70k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:59</span>
+    <span title="站点阅读时长">2:07</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>

@@ -200,6 +200,224 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/11/20/LCS/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/11/20/LCS/" class="post-title-link" itemprop="url">最长公共子序列（Longest Common Subsequence）</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-11-20 11:35:01" itemprop="dateCreated datePublished" datetime="2024-11-20T11:35:01+08:00">2024-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-05-07 11:05:26" itemprop="dateModified" datetime="2025-05-07T11:05:26+08:00">2025-05-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leetcode%E5%9F%BA%E7%A1%80%E7%AE%97%E6%B3%95/" itemprop="url" rel="index"><span itemprop="name">leetcode基础算法</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>最长公共子序列（LCS）是一个在一个序列集合中用来查找所有序列中最长子序列的问题。这与查找最长公共子串的问题不同的地方是：<strong>子序列不需要在原序列中占用连续的位置。而最长公共子串（要求连续）和最长公共子序列是不同的。</strong></p>
+<p>比如：字符串 A<font color=red>BC</font>BD<font color=red>AB</font> 和
+字符串 <font color=red>B</font>D<font color=red>CAB</font> 的LCS为
+<font color=red>BCAB</font>。</p>
+<blockquote>
+<p>LCS在计算机领域有诸多应用，比如可以：</p>
+<ul>
+<li>比较 DNA 序列或蛋白质序列。</li>
+<li>比较不同版本的文件，找出更改的部分</li>
+<li>文本（代码）相似性检</li>
+<li>...</li>
+</ul>
+<p>假设有两个版本的文件：</p>
+<ul>
+<li>文件 V1: The quick brown fox jumps over the lazy dog.</li>
+<li>文件 V2: A quick brown dog jumps over the lazy cat.</li>
+</ul>
+<p>通过 LCS 算法，可以找到它们的最长公共子序列为 quick brown jumps over
+the lazy，剩余的部分为更改，这有助于生成补丁文件和合并冲突。</p>
+</blockquote>
+<h2 id="题目">题目</h2>
+<p>leetcode 1143 是最长公共子序列的经典问题： &gt; 给定两个字符串 text1
+和 text2，返回这两个字符串的最长 公共子序列 的长度。如果不存在
+公共子序列 ，返回 0 。 &gt; &gt;一个字符串的 子序列
+是指这样一个新的字符串：它是由原字符串在不改变字符的相对顺序的情况下删除某些字符（也可以不删除任何字符）后组成的新字符串。
+&gt; &gt;- 例如，"ace" 是 "abcde" 的子序列，但 "aec" 不是 "abcde"
+的子序列。 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。
+&gt; &gt; 两个字符串的 公共子序列 是这两个字符串所共同拥有的子序列。</p>
+<p>示例 1：</p>
+<p>输入：text1 = "abcde", text2 = "ace"<br />
+输出：3<br />
+解释：最长公共子序列是 "ace" ，它的长度为 3 。</p>
+<p>示例 2：</p>
+<p>输入：text1 = "abc", text2 = "abc"<br />
+输出：3<br />
+解释：最长公共子序列是 "abc" ，它的长度为 3 。</p>
+<p>示例 3：</p>
+<p>输入：text1 = "abc", text2 = "def"<br />
+输出：0<br />
+解释：两个字符串没有公共子序列，返回 0 。</p>
+<p>提示：</p>
+<ul>
+<li>1 &lt;= text1.length, text2.length &lt;= 1000</li>
+<li>text1 和 text2 仅由小写英文字符组成。</li>
+</ul>
+<h2 id="分析">分析</h2>
+<p>最长公共子序列（Longest Common Subsequence,
+LCS）问题非常适合使用动态规划来解决，原因在于它具备了动态规划的两个关键特性：<font color=red>最优子结构</font>和<font color=red>重叠子问题</font>。</p>
+<ol type="1">
+<li><p><strong>最优子结构</strong>：LCS问题的最优解可以由其子问题的最优解构建而来。具体来说：</p>
+<ul>
+<li>如果两个序列的最后一个字符相同，那么这个字符必定是LCS的一部分，接下来的问题就转化为了求这两个序列去掉最后一个字符之后的LCS。即
+<span class="math inline">\(LCS(i, j) = LCS(i-1, j-1) + 1\)</span></li>
+<li>如果两个序列的最后一个字符不同，则LCS不会同时包含这两个字符，问题转化为求一个序列去掉最后一个字符之后与另一个序列的LCS。即
+<span class="math inline">\(LCS(i, j) = max(LCS(i-1, j), LCS(i,
+j-1))\)</span></li>
+</ul>
+<p>这种性质允许我们将大问题分解为更小的子问题，通过解决这些子问题来构建原始问题的解。</p></li>
+<li><p><strong>重叠子问题</strong>：在求解 LCS
+的过程中，我们会反复遇到相同的子问题。例如，在计算两个序列 <span
+class="math inline">\(X\)</span> 和 <span
+class="math inline">\(Y\)</span> 的LCS时，可能会多次计算 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span>
+个字符的LCS。由于这些子问题会被多次求解，我们可以将它们的结果存储起来，避免重复计算，这就是动态规划中所谓的“记忆化”。</p></li>
+</ol>
+<h2 id="求解">求解</h2>
+<p>动态规划的求解步骤如下：</p>
+<ol type="1">
+<li><p>定义状态</p>
+<ul>
+<li>在最长公共子序列（LCS）问题中，状态可以用一个二维数组 <span
+class="math inline">\(dp\)</span> 表示，其中 <span
+class="math inline">\(dp[i][j]\)</span> 表示序列 <span
+class="math inline">\(X\)</span> 的前 <span
+class="math inline">\(i\)</span> 个字符和序列 <span
+class="math inline">\(Y\)</span> 的前 <span
+class="math inline">\(j\)</span> 个字符的最长公共子序列的长度。</li>
+</ul></li>
+<li><p>状态转移方程</p>
+<ul>
+<li><p>在上节最优子结构的判断中，已经定义出了状态转移方程：</p>
+<ul>
+<li>if <span class="math inline">\(X[i]==Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = dp[i-1][j-1] + 1\)</span></li>
+<li>if <span class="math inline">\(X[i]!=Y[j]\)</span>， <span
+class="math inline">\(dp[i][j] = max(dp[i-1][j],
+dp[i][j-1])\)</span></li>
+</ul></li>
+</ul></li>
+</ol>
+<p>python代码实现如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="keyword">return</span> dp[n][m]</span><br></pre></td></tr></table></figure>
+<p>最终的<span class="math inline">\(dp\)</span>表为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 1, 1]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 2]</p>
+<p>[0, 1, 2, 3]</p>
+<h2 id="扩充">扩充</h2>
+<p>如果题目要求我们求出具体的最长公共子序列呢？我们可以根据<span
+class="math inline">\(dp\)</span>表进行回溯，思路为</p>
+<ol type="1">
+<li>从<span class="math inline">\(dp[n][m]\)</span>开始向前回溯</li>
+<li>如果当前<span
+class="math inline">\(X[i]==Y[j]\)</span>，那么说明此时<span
+class="math inline">\(X[i]\)</span>（<span
+class="math inline">\(Y[j]\)</span>）属于LCS的一部分，则加入LCS；同时<span
+class="math inline">\(X\)</span>和<span
+class="math inline">\(Y\)</span>都向前推进一位</li>
+<li>如果当前<span
+class="math inline">\(X[i]!=Y[j]\)</span>，那么我们需要找出LCS是在<span
+class="math inline">\(X[i-1]\)</span>和<span
+class="math inline">\(Y[j]\)</span>中产生，还是在<span
+class="math inline">\(X[i]\)</span>和<span
+class="math inline">\(Y[j-1]\)</span>中产生，则只需要对比<span
+class="math inline">\(dp[i-1][j]\)</span> 和 <span
+class="math inline">\(dp[i][j-1]\)</span></li>
+</ol>
+<p>所以代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Solution</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">longestCommonSubsequence</span><span class="params">(self, text1, text2)</span>:</span></span><br><span class="line">        <span class="string">"""</span></span><br><span class="line"><span class="string">        :type text1: str</span></span><br><span class="line"><span class="string">        :type text2: str</span></span><br><span class="line"><span class="string">        :rtype: int</span></span><br><span class="line"><span class="string">        """</span></span><br><span class="line">        n, m = len(text1), len(text2)</span><br><span class="line">        <span class="comment"># 多声明一行一列，方便计算dp[1][1]</span></span><br><span class="line">        dp = [[<span class="number">0</span> <span class="keyword">for</span> j <span class="keyword">in</span> range(m+<span class="number">1</span>)] <span class="keyword">for</span> i <span class="keyword">in</span> range(n+<span class="number">1</span>)]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">1</span>, n+<span class="number">1</span>):</span><br><span class="line">            <span class="keyword">for</span> j <span class="keyword">in</span> range(<span class="number">1</span>, m+<span class="number">1</span>):</span><br><span class="line">                <span class="keyword">if</span> text1[i<span class="number">-1</span>] == text2[j<span class="number">-1</span>]:</span><br><span class="line">                    dp[i][j] = dp[i<span class="number">-1</span>][j<span class="number">-1</span>] + <span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    dp[i][j] = max(dp[i<span class="number">-1</span>][j], dp[i][j<span class="number">-1</span>])</span><br><span class="line">        <span class="comment"># 回溯</span></span><br><span class="line">        i, j = n, m</span><br><span class="line">        lcs = []</span><br><span class="line">        <span class="keyword">while</span> (i &gt; <span class="number">0</span> <span class="keyword">and</span> j &gt; <span class="number">0</span>):</span><br><span class="line">            <span class="keyword">if</span> text1[i<span class="number">-1</span>]==text2[j<span class="number">-1</span>]:</span><br><span class="line">                lcs.append(text1[i<span class="number">-1</span>])</span><br><span class="line">                i-=<span class="number">1</span></span><br><span class="line">                j-=<span class="number">1</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">if</span> dp[i<span class="number">-1</span>][j] &gt; dp[i][j<span class="number">-1</span>]:</span><br><span class="line">                    i-=<span class="number">1</span></span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    j-=<span class="number">1</span></span><br><span class="line">        lcs_str = <span class="string">''</span>.join(lcs)[::<span class="number">-1</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> dp[n][m], lcs_str</span><br><span class="line"></span><br><span class="line">solution = Solution()</span><br><span class="line">lcs_len, lcs = solution.longestCommonSubsequence(<span class="string">'abcde'</span>, <span class="string">'ace'</span>)</span><br><span class="line">print(lcs_len, lcs)</span><br></pre></td></tr></table></figure>
+<p>回溯路径为：</p>
+<p>[0, 0, 0, 0]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, <font color=blue>1</font>, 1, 1]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, <font color=blue>2</font>, 2]</p>
+<p>[0, 1, 2, <font color=blue>3</font>]</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/06/23/TraStrainer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1410,7 +1628,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-count">15</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -1423,7 +1641,7 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">35</span>
+        <span class="site-state-item-count">37</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -1463,13 +1681,13 @@ Cloud &amp; Edge Systems. ASPLOS, 2019.
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">65k</span>
+    <span title="站点总字数">70k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">1:59</span>
+    <span title="站点阅读时长">2:07</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
