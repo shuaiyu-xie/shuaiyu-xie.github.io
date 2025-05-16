@@ -6,7 +6,7 @@
   <link href="https://shuaiyuxie.github.io/atom.xml" rel="self"/>
   
   <link href="https://shuaiyuxie.github.io/"/>
-  <updated>2025-05-10T07:36:29.977Z</updated>
+  <updated>2025-05-16T08:42:14.664Z</updated>
   <id>https://shuaiyuxie.github.io/</id>
   
   <author>
@@ -15,6 +15,45 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>[arxiv 2024] The Vision of Autonomic Computing: Can LLMs Make It a Reality</title>
+    <link href="https://shuaiyuxie.github.io/2025/05/15/ACV-LLM/"/>
+    <id>https://shuaiyuxie.github.io/2025/05/15/ACV-LLM/</id>
+    <published>2025-05-15T08:26:00.000Z</published>
+    <updated>2025-05-16T08:42:14.664Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote><p>题目：The Vision of Autonomic Computing: Can LLMs Make It aReality</p><p>来源：arxiv 2024</p><p>作者：南京大学，微软</p></blockquote><h2 id="摘要">摘要</h2><p>智能运维的最终梦想是想让微服务系统能够自主诊断和恢复，这篇文章向这个方向努力探出了一步。文章的目标是实现微服务系统的自主计算的愿景（ACV,Vision of Autonomic Computing），大模型的出现让 ACV的实现出现了可能性。</p><p>文章推出了一个基于大模型的分层多智能体架构，用于维护微服务系统的可靠性。其中，高级别群组管理者（high-levelgroupmanager）用于接收声明式任务，比如优化延时到200ms以下；低级别自主智能体（low-levelautonomic agent）聚焦实施各种具体任务。</p><p>为了评估此套自动化系统，文章提出了一种五层分类法，重点关注自优化和自恢复；此外，文章还在SockShop中进行了实战演练，通过混沌工程注入故障并观察系统如何自恢复。</p><h2 id="背景">背景</h2><h3 id="自主计算">自主计算</h3><p>在智能运维中，自主计算的目标是减少微服务系统维护的复杂性，提升可靠性和性能，之前的ACV 文章提出了四个自主计算的目标：</p><ul><li><strong>自配置</strong>：可以配置和重配置系统，以满足目标</li><li><strong>自优化</strong>：可以持续监控系统，并找到机会优化系统以提升性能和减少开销</li><li><strong>自恢复</strong>：发生故障时恢复，甚至预测故障</li><li><strong>自保护</strong>：防御恶意进攻和故障传播</li></ul><p>现有的自主计算一般采用 MAPE-K 的架构，即Monitor，Analyze，Plan，Execute，Knowledge Base。有大量工作基于rule-based方法，在特定场景下有用，但是在复杂动态的微服务系统中需要作出自适应和上下文感知的决策，rule-based方法无法做到，所以越来越多的方法采用 AI 来替代。</p><p>云原生应用自主管理显得更为困难，因为大多拥有复杂的系统结构，安全和可靠性也存在高要求。虽然有大量工具来帮助管理，比如Kubernetes 和Prometheus，但是这些工具都无法将人类意图直接转化为对应的功能，有着极高的学习和操作成本。</p><p>随着 LLM 的快速发展，大量研究尝试将 LLM 集成到 Kubernetes中参与微服务系统的管理，比如 <ahref="https://arxiv.org/abs/2405.19954">GenKubeSec</a> 和 <ahref="https://docs.k8sgpt.ai/">K8sGPT</a> ，也有些工作将 LLM集成到智能运维中，但这些工作都无法实现自管理。</p><h2 id="方法">方法</h2><h3 id="方法概述">方法概述</h3><center><img src="/imgs/ACV/structure.png" width='400'/></center><p>文章提出了一种 ACV 架构， 整体上分为2层：</p><ol type="1"><li><code>低级别自主智能体</code>: 用于执行简单的维护代码，充分使用 LLM的代码生成和执行能力</li><li><code>高级别群组管理者</code>: 分解复杂任务为多个 sub-tasks，制定step-by-step 计划，下发 sub-task到具体的低级别自主智能体，接收反馈并判断有没有完成目标</li></ol><p>而对于每个智能体的设计，不同于传统的 MAPE-K 架构，基于 LLM 的 ACV中每个智能体都是由两个模块组成：<strong>Planner</strong> 和<strong>Executor</strong>，<strong>Planner</strong>负责制定执行计划（监控、分析），<strong>Executor</strong>负责执行具体步骤，并反馈结果给 <strong>Planner</strong></p><h3 id="三种负载机制">三种负载机制</h3><ol type="1"><li><p><strong>低级别自主智能体</strong>独立工作</p><ul><li>简单的任务（扩容副本到3）可以直接下发到一个<strong>低级别自主智能体</strong></li></ul></li><li><p><strong>高级别群组管理者</strong>引导下的多智能体协同</p><ul><li>复杂的任务（将延时控制到200ms以下），按照如下顺序：分解任务、制定计划、分配任务到低级智能体、接收反馈并调整计划</li></ul></li><li><p><strong>低级别自主智能体</strong>的协同（无<strong>高级别群组管理者</strong>）</p><ul><li>如果一个低级别智能体无法处理工作时，可能不经过高级别智能体，直接找另一个低级智能体协同</li></ul></li></ol><p>智能体之间的通信方式是<strong>消息队列</strong></p><h3 id="sockshop-实施案例">SockShop 实施案例</h3><center><img src="/imgs/ACV/example.png" width='900'/></center><p>## 实验评估</p><p>首先文章推出了<strong>五层分类法</strong>来评估智能体系统的能力：</p><ol type="1"><li><strong>L1</strong>：智能体是否能选择正确的运维操作指令</li><li><strong>L2</strong>：智能体能否有计划能力，将任务分解为多步执行</li></ol><p>L1 和 L2 针对的都是祈使任务（imperativetask），直接表达要做某个具体的任务，智能体只是被动执行。更高级的自主智能体应该能够应对声明式任务（declarativetask），即主动采取一些动作来完成目标</p><p>如下图所示，文章在自主管理微服务系统中用具体案例表示了剩下的 L3、L4和 L5</p><center><img src="/imgs/ACV/taxonomy.png" width='900'/></center><p>为了评估 ACV 的能力，首先是评估 L1 和L2，这些测试任务中既包括部署阶段的，也包括运行时的</p><center><img src="/imgs/ACV/L1-L2.png" width='900'/></center><p>对于 L3，L4 和 L5，文章在 SockShop中用混沌工程注入故障，观察故障自愈情况，注入故障包括三类：</p><ul><li>Pod Failure：将 Catalogue服务的镜像换成一个假的、没有功能的镜像</li><li>CPU Stress：将 Catalogue 的 POD 的 CPU 打到 100%</li><li>Rising Traffic：逐步升高负载，直至无法承受</li></ul><p>为了评估故障自愈情况，定义了如下 SLO：</p><ol type="1"><li>所有的服务需要处于 READY 状态</li><li>所有的服务 CPU 和 内存的使用率需要在 50% 以下</li><li>所有服务的 P99 延时控制在 200ms 以下</li></ol><p>实验流程和实验结果如下，每个实验跑三次：</p><center><img src="/imgs/ACV/exp.png" width='900'/></center><p>同时文章也给出了一个高级群组智能体规划的复杂任务案例：</p><center><img src="/imgs/ACV/case.png" width='900'/></center>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;blockquote&gt;
+&lt;p&gt;题目：The Vision of Autonomic Computing: Can LLMs Make It a
+Reality&lt;/p&gt;
+&lt;p&gt;来源：arxiv 2024&lt;/p&gt;
+&lt;p&gt;作者：南京大学，微软&lt;/p&gt;
+&lt;/blockquot</summary>
+      
+    
+    
+    
+    <category term="文献精读" scheme="https://shuaiyuxie.github.io/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/"/>
+    
+    
+    <category term="微服务" scheme="https://shuaiyuxie.github.io/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="arxiv" scheme="https://shuaiyuxie.github.io/tags/arxiv/"/>
+    
+    <category term="大模型" scheme="https://shuaiyuxie.github.io/tags/%E5%A4%A7%E6%A8%A1%E5%9E%8B/"/>
+    
+    <category term="2024" scheme="https://shuaiyuxie.github.io/tags/2024/"/>
+    
+    <category term="多智能体" scheme="https://shuaiyuxie.github.io/tags/%E5%A4%9A%E6%99%BA%E8%83%BD%E4%BD%93/"/>
+    
+    <category term="自主维护" scheme="https://shuaiyuxie.github.io/tags/%E8%87%AA%E4%B8%BB%E7%BB%B4%E6%8A%A4/"/>
+    
+  </entry>
   
   <entry>
     <title>[ISSTA 2025] TRACEZIP: Efficient Distributed Tracing via Trace Compression</title>

@@ -200,6 +200,212 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/05/15/ACV-LLM/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/head.png">
+      <meta itemprop="name" content="谢帅宇">
+      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="衍射的博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/05/15/ACV-LLM/" class="post-title-link" itemprop="url">[arxiv 2024] The Vision of Autonomic Computing: Can LLMs Make It a Reality</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-05-15 16:26:00" itemprop="dateCreated datePublished" datetime="2025-05-15T16:26:00+08:00">2025-05-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2025-05-16 16:42:14" itemprop="dateModified" datetime="2025-05-16T16:42:14+08:00">2025-05-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%96%87%E7%8C%AE%E7%B2%BE%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">文献精读</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>题目：The Vision of Autonomic Computing: Can LLMs Make It a
+Reality</p>
+<p>来源：arxiv 2024</p>
+<p>作者：南京大学，微软</p>
+</blockquote>
+<h2 id="摘要">摘要</h2>
+<p>智能运维的最终梦想是想让微服务系统能够自主诊断和恢复，这篇文章向这个方向努力探出了一步。文章的目标是实现微服务系统的自主计算的愿景（ACV,
+Vision of Autonomic Computing），大模型的出现让 ACV
+的实现出现了可能性。</p>
+<p>文章推出了一个基于大模型的分层多智能体架构，用于维护微服务系统的可靠性。其中，高级别群组管理者（high-level
+group
+manager）用于接收声明式任务，比如优化延时到200ms以下；低级别自主智能体（low-level
+autonomic agent）聚焦实施各种具体任务。</p>
+<p>为了评估此套自动化系统，文章提出了一种五层分类法，重点关注自优化和自恢复；此外，文章还在
+SockShop
+中进行了实战演练，通过混沌工程注入故障并观察系统如何自恢复。</p>
+<h2 id="背景">背景</h2>
+<h3 id="自主计算">自主计算</h3>
+<p>在智能运维中，自主计算的目标是减少微服务系统维护的复杂性，提升可靠性和性能，之前的
+ACV 文章提出了四个自主计算的目标：</p>
+<ul>
+<li><strong>自配置</strong>：可以配置和重配置系统，以满足目标</li>
+<li><strong>自优化</strong>：可以持续监控系统，并找到机会优化系统以提升性能和减少开销</li>
+<li><strong>自恢复</strong>：发生故障时恢复，甚至预测故障</li>
+<li><strong>自保护</strong>：防御恶意进攻和故障传播</li>
+</ul>
+<p>现有的自主计算一般采用 MAPE-K 的架构，即
+Monitor，Analyze，Plan，Execute，Knowledge Base。有大量工作基于
+rule-based
+方法，在特定场景下有用，但是在复杂动态的微服务系统中需要作出自适应和上下文感知的决策，rule-based
+方法无法做到，所以越来越多的方法采用 AI 来替代。</p>
+<p>云原生应用自主管理显得更为困难，因为大多拥有复杂的系统结构，安全和可靠性也存在高要求。虽然有大量工具来帮助管理，比如
+Kubernetes 和
+Prometheus，但是这些工具都无法将人类意图直接转化为对应的功能，有着极高的学习和操作成本。</p>
+<p>随着 LLM 的快速发展，大量研究尝试将 LLM 集成到 Kubernetes
+中参与微服务系统的管理，比如 <a
+href="https://arxiv.org/abs/2405.19954">GenKubeSec</a> 和 <a
+href="https://docs.k8sgpt.ai/">K8sGPT</a> ，也有些工作将 LLM
+集成到智能运维中，但这些工作都无法实现自管理。</p>
+<h2 id="方法">方法</h2>
+<h3 id="方法概述">方法概述</h3>
+<center>
+<img src="/imgs/ACV/structure.png" width='400'/>
+</center>
+<p>文章提出了一种 ACV 架构， 整体上分为2层：</p>
+<ol type="1">
+<li><code>低级别自主智能体</code>: 用于执行简单的维护代码，充分使用 LLM
+的代码生成和执行能力</li>
+<li><code>高级别群组管理者</code>: 分解复杂任务为多个 sub-tasks，制定
+step-by-step 计划，下发 sub-task
+到具体的低级别自主智能体，接收反馈并判断有没有完成目标</li>
+</ol>
+<p>而对于每个智能体的设计，不同于传统的 MAPE-K 架构，基于 LLM 的 ACV
+中每个智能体都是由两个模块组成：<strong>Planner</strong> 和
+<strong>Executor</strong>，<strong>Planner</strong>
+负责制定执行计划（监控、分析），<strong>Executor</strong>
+负责执行具体步骤，并反馈结果给 <strong>Planner</strong></p>
+<h3 id="三种负载机制">三种负载机制</h3>
+<ol type="1">
+<li><p><strong>低级别自主智能体</strong>独立工作</p>
+<ul>
+<li>简单的任务（扩容副本到3）可以直接下发到一个<strong>低级别自主智能体</strong></li>
+</ul></li>
+<li><p><strong>高级别群组管理者</strong>引导下的多智能体协同</p>
+<ul>
+<li>复杂的任务（将延时控制到200ms以下），按照如下顺序：分解任务、制定计划、分配任务到低级智能体、接收反馈并调整计划</li>
+</ul></li>
+<li><p><strong>低级别自主智能体</strong>的协同（无<strong>高级别群组管理者</strong>）</p>
+<ul>
+<li>如果一个低级别智能体无法处理工作时，可能不经过高级别智能体，直接找另一个低级智能体协同</li>
+</ul></li>
+</ol>
+<p>智能体之间的通信方式是<strong>消息队列</strong></p>
+<h3 id="sockshop-实施案例">SockShop 实施案例</h3>
+<center>
+<img src="/imgs/ACV/example.png" width='900'/>
+</center>
+<p>## 实验评估</p>
+<p>首先文章推出了<strong>五层分类法</strong>来评估智能体系统的能力：</p>
+<ol type="1">
+<li><strong>L1</strong>：智能体是否能选择正确的运维操作指令</li>
+<li><strong>L2</strong>：智能体能否有计划能力，将任务分解为多步执行</li>
+</ol>
+<p>L1 和 L2 针对的都是祈使任务（imperative
+task），直接表达要做某个具体的任务，智能体只是被动执行。更高级的自主智能体应该能够应对声明式任务（declarative
+task），即主动采取一些动作来完成目标</p>
+<p>如下图所示，文章在自主管理微服务系统中用具体案例表示了剩下的 L3、L4
+和 L5</p>
+<center>
+<img src="/imgs/ACV/taxonomy.png" width='900'/>
+</center>
+<p>为了评估 ACV 的能力，首先是评估 L1 和
+L2，这些测试任务中既包括部署阶段的，也包括运行时的</p>
+<center>
+<img src="/imgs/ACV/L1-L2.png" width='900'/>
+</center>
+<p>对于 L3，L4 和 L5，文章在 SockShop
+中用混沌工程注入故障，观察故障自愈情况，注入故障包括三类：</p>
+<ul>
+<li>Pod Failure：将 Catalogue
+服务的镜像换成一个假的、没有功能的镜像</li>
+<li>CPU Stress：将 Catalogue 的 POD 的 CPU 打到 100%</li>
+<li>Rising Traffic：逐步升高负载，直至无法承受</li>
+</ul>
+<p>为了评估故障自愈情况，定义了如下 SLO：</p>
+<ol type="1">
+<li>所有的服务需要处于 READY 状态</li>
+<li>所有的服务 CPU 和 内存的使用率需要在 50% 以下</li>
+<li>所有服务的 P99 延时控制在 200ms 以下</li>
+</ol>
+<p>实验流程和实验结果如下，每个实验跑三次：</p>
+<center>
+<img src="/imgs/ACV/exp.png" width='900'/>
+</center>
+<p>同时文章也给出了一个高级群组智能体规划的复杂任务案例：</p>
+<center>
+<img src="/imgs/ACV/case.png" width='900'/>
+</center>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2025/05/09/TraceZip/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2883,184 +3089,6 @@ embeddings存到GPU缓存中，能缓解CPU内存带宽压力（减少CPU与GPU�
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://shuaiyuxie.github.io/2024/11/20/EM/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/head.png">
-      <meta itemprop="name" content="谢帅宇">
-      <meta itemprop="description" content="我正在攻读武汉大学的博士学位，关注微服务领域的弹性伸缩、故障诊断以及数据管理等方面的工作">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="衍射的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/11/20/EM/" class="post-title-link" itemprop="url">期望最大算法（Expectation Maximization Algorithm）</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2024-11-20 11:35:01" itemprop="dateCreated datePublished" datetime="2024-11-20T11:35:01+08:00">2024-11-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2025-05-07 11:05:59" itemprop="dateModified" datetime="2025-05-07T11:05:59+08:00">2025-05-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%80%9A%E7%94%A8%E7%AE%97%E6%B3%95/" itemprop="url" rel="index"><span itemprop="name">通用算法</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>4.8k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>9 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="介绍">介绍</h2>
-<p>期望最大化算法（Expectation-Maximization algorithm,
-EM）是一种在统计学中估计概率模型参数的方法，特别适用于包含隐变量（latent
-variables）的概率模型。</p>
-<p>如果一个概率模型只有观测变量，那么我们可以<strong>基于观测得到的数据，用最大似然估计求得概率模型的参数</strong>。但是如果概率模型还包含了无法观测的变量（<font color=blue>隐变量</font>），则无法用上述方法估计，所以需要考虑隐变量，引入新的方法对参数进行估计。</p>
-<h2 id="应用举例">应用举例</h2>
-<p>假设我们有一组一维数据<span class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，我们认为这些数据是由2个正态分布混合而成的。我们的目标是估计这2个正态分布的参数（均值和方差）以及它们各自的权重。参数如下：</p>
-<ul>
-<li>第1个分布 <span class="math inline">\(N(\mu_1,
-\sigma_1)\)</span>，其中<span class="math inline">\(\mu_1=5\)</span>,
-<span class="math inline">\(\sigma_1=9\)</span></li>
-<li>第2个分布 <span class="math inline">\(N(\mu_2,
-\sigma_2)\)</span>，其中<span class="math inline">\(\mu_2=15\)</span>,
-<span class="math inline">\(\sigma_2=0.5\)</span></li>
-</ul>
-<p>两个分布的权重满足：<span
-class="math inline">\(\sum_{k=1}^2\pi_k=1\)</span></p>
-<p>我们目前手中只有这一组一维观测数据<span
-class="math inline">\(X=\{x_1,
-x_2,...,x_n\}\)</span>，已知观测数据由2个正态分布组成，目标是求出这2个正态分布的参数以及各自的权重。</p>
-<p>注意，我们不能直接使用观测数据去拟合2个分布，因为观测数据的分布实际上是2个正态分布混合而成，其中包含了一个隐变量：</p>
-<p><span class="math display">\[
-    z_i= \begin{cases}
-        0&amp; x_i \in N(\mu_1, \sigma_1^2)\\
-        1&amp; x_i \in N(\mu_2, \sigma_2^2)
-        \end{cases}
-\]</span></p>
-<p>隐变量<span class="math inline">\(z_i\)</span>表示数据点<span
-class="math inline">\(x_i\)</span>由哪个分布生成。而隐变量<span
-class="math inline">\(z_i\)</span>的值无法被观测，所以当我们用最大似然估计去做时，需要考虑所有可能的隐变量情况（不同取值的权重）：</p>
-<p><span class="math display">\[
-\begin{aligned}
-L(\theta)&amp;=\prod_{i=1}^{n}f(x_i;\theta) \\
-    ln L(\theta) &amp;= \sum_{i=1}^{n}ln f(x_i:\theta) \\
-    &amp;=  \sum_{i=1}^{n}ln \sum_{k=1}^{2} \pi_k f(x_i:\theta_k)
-    \end{aligned}
-\]</span> 但由于 <span
-class="math inline">\(\pi_k\)</span>未知，所以难以进行最大似然估计。</p>
-<h2 id="em算法步骤">EM算法步骤</h2>
-<p>我们首先用两个正态分布混合生成观测数据：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = ⅓</span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples)))</span><br></pre></td></tr></table></figure>
-<p>并随机给予两个分布初始参数以及权重，代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line"></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br></pre></td></tr></table></figure></p>
-<p>EM算法分为两个步骤： ### E步（期望步, Expectation step）：
-我们需要计算每个数据点 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率（<font color=blue>本质上是隐变量z的条件期望值</font>），此处可以使用贝叶斯公式计算得到：</p>
-<p><span class="math display">\[
-\begin{aligned}
-P(z_i=1|x_i,
-\theta)&amp;=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i)}=\frac{P(x_i|z_i=1)P(z_i=1)}{P(x_i|z_i=1)P(z_i=1)+P(x_i|z_i=2)P(z_i=2)}\\
-&amp;=\frac{\pi_1N(x_i|\mu_1, \sigma_1^2)}{\pi_1N(x_i|\mu_1, \sigma_1^2)
-+ \pi_2N(x_i|\mu_2, \sigma_2^2)}
-\end{aligned}
-\]</span></p>
-<p>同理可以求得<span class="math inline">\(P(z_i=2|x_i,
-\theta)\)</span>。代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="comment"># 计算x_i的概率密度</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步：计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br></pre></td></tr></table></figure></p>
-<h3 id="m步最大化步-maximization-step">M步（最大化步, Maximization
-step）：</h3>
-<p>在E步得到 <span class="math inline">\(x_i\)</span>
-属于不同分布的后验概率后，也是隐变量<span
-class="math inline">\(z_i\)</span>的条件期望后，我们利用这个期望来更新参数估计值，以最大化观测数据的似然函数。</p>
-<blockquote>
-<p>因为现在已经知道了关于隐变量z_i的条件期望，所以我们可以用最大似然估计去估计各分布的参数了：</p>
-</blockquote>
-<p><span class="math display">\[
-    \mu_k=\mathop{\arg\max}\limits_{\mu_k}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2=\mathop{\arg\max}\limits_{\sigma_k^2}{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)}lnf(x_i;\mu_k,\sigma_k^2)
-\]</span></p>
-<p>对上述两式进行求解可得各部分更新公式如下（<span
-class="math inline">\(\pi_k\)</span>更新同理）： <span
-class="math display">\[
-    \mu_k =
-\frac{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)x_i}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \sigma_k^2 = \frac{\sum_{i=1}^{n}P(z_i=k|x_i,
-\theta)(x_i-\mu_k)^2}{\sum_{i=1}^{n}P(z_i=k|x_i,\theta)}
-\]</span></p>
-<p><span class="math display">\[
-    \pi_k=\frac{1}{n}\sum_{i=1}^{n}P(z_i=k|x_i,\theta)
-\]</span></p>
-<p>代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># M步: 更新参数</span></span><br><span class="line">pi1_new = np.mean(posterior1)</span><br><span class="line">pi2_new = np.mean(posterior2)</span><br><span class="line">mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br></pre></td></tr></table></figure></p>
-<p>完整代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> numpy <span class="keyword">as</span> np</span><br><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生成数据</span></span><br><span class="line">np.random.seed(<span class="number">8</span>)</span><br><span class="line">n_samples = <span class="number">100</span></span><br><span class="line">data = np.concatenate((np.random.normal(<span class="number">5</span>, <span class="number">3</span>, n_samples // <span class="number">2</span>),</span><br><span class="line">                       np.random.normal(<span class="number">15</span>, <span class="number">0.5</span>, n_samples // <span class="number">2</span>)))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化参数</span></span><br><span class="line">mu1, sigma1 = <span class="number">10</span>, <span class="number">1</span></span><br><span class="line">mu2, sigma2 = <span class="number">20</span>, <span class="number">1</span></span><br><span class="line">pi1, pi2 = <span class="number">0.5</span>, <span class="number">0.5</span></span><br><span class="line">tolerance = <span class="number">1e-6</span></span><br><span class="line">max_iterations = <span class="number">1000</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">normal_pdf</span><span class="params">(x, mu, sigma)</span>:</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">1</span> / (np.sqrt(<span class="number">2</span> * np.pi) * sigma)) * np.exp(<span class="number">-0.5</span> * ((x - mu) / sigma) ** <span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> iteration <span class="keyword">in</span> range(max_iterations):</span><br><span class="line">    <span class="comment"># E步: 计算后验概率</span></span><br><span class="line">    likelihood1 = normal_pdf(data, mu1, sigma1)</span><br><span class="line">    likelihood2 = normal_pdf(data, mu2, sigma2)</span><br><span class="line">    total_likelihood = pi1 * likelihood1 + pi2 * likelihood2</span><br><span class="line">    posterior1 = (pi1 * likelihood1) / total_likelihood</span><br><span class="line">    posterior2 = (pi2 * likelihood2) / total_likelihood</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># M步: 更新参数</span></span><br><span class="line">    pi1_new = np.mean(posterior1)</span><br><span class="line">    pi2_new = np.mean(posterior2)</span><br><span class="line">    mu1_new = np.sum(posterior1 * data) / np.sum(posterior1)</span><br><span class="line">    mu2_new = np.sum(posterior2 * data) / np.sum(posterior2)</span><br><span class="line">    sigma1_new = np.sqrt(np.sum(posterior1 * (data - mu1_new) ** <span class="number">2</span>) / np.sum(posterior1))</span><br><span class="line">    sigma2_new = np.sqrt(np.sum(posterior2 * (data - mu2_new) ** <span class="number">2</span>) / np.sum(posterior2))</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 检查是否收敛</span></span><br><span class="line">    <span class="keyword">if</span> (abs(mu1_new - mu1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(mu2_new - mu2) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma1_new - sigma1) &lt; tolerance <span class="keyword">and</span></span><br><span class="line">        abs(sigma2_new - sigma2) &lt; tolerance):</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 更新参数</span></span><br><span class="line">    mu1, mu2, sigma1, sigma2, pi1, pi2 = mu1_new, mu2_new, sigma1_new, sigma2_new, pi1_new, pi2_new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 打印最终结果</span></span><br><span class="line">print(<span class="string">f"迭代次数: <span class="subst">&#123;iteration&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ1: <span class="subst">&#123;mu1&#125;</span>, σ1: <span class="subst">&#123;sigma1&#125;</span>, π1: <span class="subst">&#123;pi1&#125;</span>"</span>)</span><br><span class="line">print(<span class="string">f"μ2: <span class="subst">&#123;mu2&#125;</span>, σ2: <span class="subst">&#123;sigma2&#125;</span>, π2: <span class="subst">&#123;pi2&#125;</span>"</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 绘制结果</span></span><br><span class="line">plt.hist(data, bins=<span class="number">30</span>, density=<span class="literal">True</span>, alpha=<span class="number">0.6</span>, color=<span class="string">'g'</span>)</span><br><span class="line">x = np.linspace(min(data), max(data), <span class="number">100</span>)</span><br><span class="line">plt.plot(x, pi1 * normal_pdf(x, mu1, sigma1), <span class="string">'r-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu1:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma1:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.plot(x, pi2 * normal_pdf(x, mu2, sigma2), <span class="string">'b-'</span>, lw=<span class="number">2</span>, label=<span class="string">f'N(<span class="subst">&#123;mu2:<span class="number">.2</span>f&#125;</span>, <span class="subst">&#123;sigma2:<span class="number">.2</span>f&#125;</span>)'</span>)</span><br><span class="line">plt.legend()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure></p>
-结果输出如下：
-<center>
-<img src="/imgs/EM/EM.png"/>
-</center>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -3132,7 +3160,7 @@ class="math display">\[
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">15</span>
+          <span class="site-state-item-count">16</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -3145,7 +3173,7 @@ class="math display">\[
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">37</span>
+        <span class="site-state-item-count">39</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -3185,13 +3213,13 @@ class="math display">\[
       <i class="fa fa-chart-area"></i>
     </span>
       <span class="post-meta-item-text">站点总字数：</span>
-    <span title="站点总字数">70k</span>
+    <span title="站点总字数">72k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
       <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
-    <span title="站点阅读时长">2:07</span>
+    <span title="站点阅读时长">2:10</span>
 </div>
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
